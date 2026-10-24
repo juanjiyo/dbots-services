@@ -56,6 +56,12 @@ final class DebugEvents
             'SWHOIS' => self::swhois($source, $message),
             'SETNAME', 'CHGNAME' => self::setname($source, $message),
             'CHGHOST', 'CHGIDENT', 'SETHOST' => self::hostChange($source, $message),
+            'AWAY' => self::away($source, $message),
+            'NOTICE' => self::notice($message),
+            'CHATOPS' => self::broadcast($source, $message, 'CHATOPS', 'todos los OPERs'),
+            'ADCHAT' => self::broadcast($source, $message, 'ADCHAT', 'todos los ADMINs'),
+            'NACHAT' => self::broadcast($source, $message, 'NACHAT', 'todos los NET-ADMINs'),
+            'SENDSNO' => self::sendsno($source, $message),
             'SERVER' => self::server($message),
             'SQUIT' => self::squit($message),
             default => null,
@@ -102,7 +108,7 @@ final class DebugEvents
             self::paint(12, 'IDENT:') . ' ' . $ident,
             self::paint(12, 'IP/HOST:') . ' ' . $host,
             self::paint(12, 'REALNAME:') . ' ' . ($message->trailing ?? ''),
-            self::paint(12, 'SERVIDOR:') . ' ' . ($message->params[5] ?? ''),
+            self::paint(12, 'SERVIDOR:') . ' ' . ($message->prefix ?? ''),
             '' === $modes ? '' : ' ' . self::paint(12, 'MODOS:') . ' ' . $modes,
         );
 
@@ -138,6 +144,11 @@ final class DebugEvents
         $names = [];
 
         foreach (explode(' ', $members) as $member) {
+            // A defensive skip: some servers put the mode block in the same field.
+            if (str_starts_with($member, '+')) {
+                continue;
+            }
+
             $member = ltrim($member, '+%@&~');
             $member = preg_replace('/^[^:]*:/', '', $member) ?? $member;
 
@@ -146,9 +157,11 @@ final class DebugEvents
             }
         }
 
-        return [] === $names
-            ? null
-            : sprintf('%s entra(n) al canal %s', self::paint(12, implode(', ', $names)), self::paint(12, $channel));
+        return match (count($names)) {
+            0 => null,
+            1 => sprintf('%s entra al canal %s', self::paint(12, $names[0]), self::paint(12, $channel)),
+            default => sprintf('%s entran al canal %s', self::paint(12, implode(', ', $names)), self::paint(12, $channel)),
+        };
     }
 
     private static function part(string $source, IrcMessage $message): ?string
@@ -190,7 +203,7 @@ final class DebugEvents
             '%s %s %s %s(%s)',
             self::paint(4, 'Desconecta:'),
             self::paint(12, 'NICK:'),
-            $source,
+            '' === $source ? 'desconocido' : $source,
             self::paint(12, ''),
             (string) ($message->trailing ?? 'sin motivo'),
         );
@@ -260,7 +273,7 @@ final class DebugEvents
     {
         $modes = $message->params[0] ?? null;
 
-        return null === $modes ? null : sprintf('%s cambia modos a %s', self::paint(12, $source), self::paint(12, $modes));
+        return null === $modes ? null : sprintf('%s cambia modos a %s', self::paint(12, $source), self::paint(12, ltrim($modes, '+')));
     }
 
     private static function forcedModes(IrcMessage $message): ?string
@@ -310,6 +323,62 @@ final class DebugEvents
             self::paint(12, $target),
             $value,
         );
+    }
+
+    private static function away(string $source, IrcMessage $message): string
+    {
+        // AWAY carries its text in the trailing parameter; params[0] is empty.
+        $text = trim((string) ($message->params[0] ?? $message->trailing ?? ''));
+
+        return '' === $text
+            ? sprintf('%s deja de estar ausente.', self::paint(12, $source))
+            : sprintf('%s se ausenta, mensaje: %s', self::paint(12, $source), $text);
+    }
+
+    /** The original echoed notices verbatim, except the AUTH handshake. */
+    private static function notice(IrcMessage $message): ?string
+    {
+        $target = $message->params[0] ?? '';
+
+        if ('AUTH' === $target) {
+            return null;
+        }
+
+        return trim(sprintf('%s %s', self::display($message->prefix ?? ''), (string) ($message->trailing ?? '')));
+    }
+
+    private static function broadcast(string $source, IrcMessage $message, string $command, string $audience): string
+    {
+        return sprintf(
+            '%s envia un %s %s(%s)%s con el mensaje: %s',
+            self::paint(12, $source),
+            self::paint(12, $command),
+            self::paint(6, ''),
+            sprintf('Mensaje a %s', $audience),
+            self::paint(6, ''),
+            (string) ($message->trailing ?? ''),
+        );
+    }
+
+    /**
+     * Oper notifications: an oper-up, a failed attempt, a temporary shun and a
+     * spam hit. The original keyed on the snomask letter in the first parameter.
+     */
+    private static function sendsno(string $source, IrcMessage $message): ?string
+    {
+        $mask = (string) ($message->params[0] ?? '');
+        $text = trim((string) ($message->trailing ?? $message->params[1] ?? ''));
+
+        if ('' === $text) {
+            return null;
+        }
+
+        return match (true) {
+            str_contains($mask, 'o') && str_contains($text, 'intento') => sprintf('%s %sintentó identificarse como IRCop...', self::paint(4, ''), $text),
+            str_contains($mask, 'o') => sprintf('%s es ahora %s', self::paint(12, $source), self::paint(12, $text)),
+            str_contains($mask, 'S') => sprintf('%s detectado: %s', self::paint(4, 'SPAM'), $text),
+            default => sprintf('%s %s', self::paint(12, $source), $text),
+        };
     }
 
     private static function server(IrcMessage $message): ?string

@@ -30,6 +30,6 @@ final class IrcFormat
     /** Removes colour codes; used by tests and by anything that needs plain text. */
     public static function strip(string $text): string
     {
-        return (string) preg_replace('/\x03(\d{1,2}(,\d{1,2})?)?/', '', $text);
+        return (string) preg_replace('/\x03(\d{1,2}(,\d{1,2})?)?|\x0f/', '', $text);
     }
 }

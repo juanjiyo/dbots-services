@@ -117,6 +117,12 @@ final readonly class Daemon
             fwrite(STDERR, "{$message->command}> {$line}\n");
         }
 
+        // Translate first: QUIT removes the user from the state, and a debug line
+        // that shows a UID instead of a nick is useless.
+        $debugEvent = null !== $this->debug && $this->debug->isEnabled() && 'PRIVMSG' !== $message->command
+            ? DebugEvents::translate($message, $this->state->nickOf(...))
+            : null;
+
         match ($message->command) {
             'UID' => $this->onUserIntroduced($message),
             'NICK' => $this->onNickChange($message),
@@ -132,12 +138,8 @@ final readonly class Daemon
         // The debug channel shows what the services did, not the raw frame.
         if ('PRIVMSG' === $message->command) {
             $this->relayCommand($message);
-        } elseif (null !== $this->debug && $this->debug->isEnabled()) {
-            $event = DebugEvents::translate($message, $this->state->nickOf(...));
-
-            if (null !== $event) {
-                $this->debug->event($event);
-            }
+        } elseif (null !== $debugEvent) {
+            $this->debug->event($debugEvent);
         }
 
         return null;

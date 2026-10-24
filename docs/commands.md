@@ -110,9 +110,14 @@ same codes (14 clock, 12 separators and subject, 02 tag).
 23:06  DeBuG ¦ NickServ añade la prohibición de JuanJo
 ```
 
-UDB mutations are translated when the daemon recognises them (password, forbid,
-suspend, swhois, vhost, founder, topic, access, spamfilter); anything else falls
-back to the framed form.
+The event table is a port of the original `de.mrc` branches: user introduction,
+nick change, join (the `SJOIN` a server really sends), part, topic, quit, kick,
+kill, channel and user modes, forced modes, `SWHOIS`, `SETNAME`, host and ident
+changes, `AWAY`, notices, `CHATOPS`/`ADCHAT`/`NACHAT`, oper notifications and
+server links and squits. UIDs resolve to nicknames.
+
+UDB mutations are translated too (password, forbid, suspend, swhois, vhost,
+founder, topic, access, spamfilter); anything else falls back to the framed form.
 
 Two redactions, both deliberate:
 
