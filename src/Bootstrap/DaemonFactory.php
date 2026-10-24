@@ -92,7 +92,11 @@ final readonly class DaemonFactory
             self::epoch(),
         );
 
-        $accountProjection = new UdbAccountProjection($this->accounts, $authority);
+        $accountProjection = new UdbAccountProjection(
+            $this->accounts,
+            $authority,
+            new AccountBlockProvider($this->accounts, $host),
+        );
         $channelProjection = new UdbChannelProjection($this->channels, $authority);
         $spamProjection = new UdbSpamProjection($this->spamRules, $authority);
 
@@ -105,6 +109,7 @@ final readonly class DaemonFactory
             new DropNickHandler($this->accounts, $this->channels),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $this->channels, $this->memos),
+            $this->accounts,
             'NickServ',
             $nickServUid,
         );

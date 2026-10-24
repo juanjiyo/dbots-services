@@ -10,6 +10,8 @@ use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface as Channels;
+use Dbots\Domain\Account\Account;
+use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Application\AccountResolver;
@@ -47,6 +49,7 @@ final class NickServCommandHandlerTest extends TestCase
             new DropNickHandler($accounts, new NoChannels()),
             new AccountResolver($accounts),
             new AccountInfoHandler($accounts, new NoChannels(), new \Dbots\Tests\Support\InMemoryMemoRepository()),
+            $accounts,
             'NickServ',
             '003A00001',
         );
@@ -224,12 +227,63 @@ final class NickServCommandHandlerTest extends TestCase
             new DropNickHandler($this->accounts, $channels),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $channels, new \Dbots\Tests\Support\InMemoryMemoRepository()),
+            $this->accounts,
             'NickServ',
             '003A00001',
         );
     }
 
-    private function privmsg(string $text): IrcMessage
+    #[Test]
+    public function anOperCanForbidAndUnforbid(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $oper = $this->operState();
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('FORBID JuanJo breaking rules', '001AAAAAA'), $oper);
+        self::assertSame(['001AAAAAA: JuanJo is now forbidden.'], $this->irc->replies);
+        self::assertTrue($this->accounts->findByNick(new Nick('JuanJo'))?->isForbidden());
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('UNFORBID JuanJo', '001AAAAAA'), $oper);
+        self::assertFalse($this->accounts->findByNick(new Nick('JuanJo'))?->isForbidden());
+    }
+
+    #[Test]
+    public function nonOpersCannotForbid(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('FORBID JuanJo nope'), $this->state);
+
+        self::assertSame(['001AAAAAA: This command is restricted to IRC operators.'], $this->irc->replies);
+        self::assertFalse($this->accounts->findByNick(new Nick('JuanJo'))?->isForbidden());
+    }
+
+    #[Test]
+    public function anOperCanSuspendAndStatusReportsIt(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $oper = $this->operState();
+
+        $this->handler->handle($this->privmsg('SUSPEND JuanJo abuse', '001AAAAAA'), $oper);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('STATUS JuanJo'), $oper);
+
+        self::assertStringContainsString('suspended', $this->irc->replies[0]);
+    }
+
+    private function operState(): NetworkState
+    {
+        $state = new NetworkState();
+        $state->introduceUser('001AAAAAA', 'JuanJo', null, 'ro');
+
+        return $state;
+    }
+
+    private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
         return new IrcMessage('001AAAAAA', 'PRIVMSG', ['NickServ'], $text);
     }

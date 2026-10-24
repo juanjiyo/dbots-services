@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dbots\Udb;
 
+use Dbots\Domain\Account\Account;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 
 use function sprintf;
@@ -21,6 +22,38 @@ final readonly class AccountBlockProvider implements BlockProviderInterface
         private string $serviceHost,
     ) {}
 
+    /**
+     * The N records for one account, keyed by path without the block letter.
+     *
+     * @return array<string, string>
+     */
+    public function recordsFor(Account $account): array
+    {
+        $nick = $account->nick->value;
+
+        // Our stored hash is bcrypt, which is a crypt(3) format.
+        $records = [sprintf('%s::pass', $nick) => 'crypt:' . $account->passwordHash];
+
+        if (null !== $account->forbidReason) {
+            $records[sprintf('%s::forbid', $nick)] = $account->forbidReason;
+        }
+
+        if (null !== $account->suspendReason) {
+            $records[sprintf('%s::suspend', $nick)] = $account->suspendReason;
+        }
+
+        if (null !== $account->swhois) {
+            $records[sprintf('%s::swhois', $nick)] = $account->swhois;
+        }
+
+        if (null !== $account->vhost) {
+            $records[sprintf('%s::vhost', $nick)] = $account->vhost;
+        }
+
+        return $records;
+    }
+
+    /** @return array<string, string|int|null> */
     public function records(string $block): array
     {
         if ('S' === $block) {
@@ -36,8 +69,7 @@ final readonly class AccountBlockProvider implements BlockProviderInterface
         $records = [];
 
         foreach ($this->accounts->all() as $account) {
-            // Our stored hash is bcrypt, which is a crypt(3) format.
-            $records[sprintf('%s::pass', $account->nick->value)] = 'crypt:' . $account->passwordHash;
+            $records += $this->recordsFor($account);
         }
 
         return $records;

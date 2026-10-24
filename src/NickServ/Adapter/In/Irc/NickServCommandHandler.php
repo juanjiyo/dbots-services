@@ -14,7 +14,10 @@ use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\DropNick\DropNickResult;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Identify\IdentifyResult;
+use Dbots\Domain\Account\Account;
+use Dbots\Domain\Account\Nick;
 use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
+use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
@@ -39,6 +42,7 @@ final readonly class NickServCommandHandler
         private DropNickHandler $dropNick,
         private AccountResolver $identity,
         private AccountInfoHandler $info,
+        private AccountRepositoryInterface $accounts,
         private string $serviceNick,
         private string $serviceUid,
     ) {
@@ -82,6 +86,15 @@ final readonly class NickServCommandHandler
             'SET' => $this->onSet($sender, $parts, $state),
             'DROP' => $this->onDrop($sender, $parts, $state),
             'INFO' => $this->onInfo($sender, $parts),
+            'ESTADO', 'STATUS' => $this->onStatus($sender, $nick, $parts),
+            'SUSPEND' => $this->onSuspend($sender, $parts, $state, true),
+            'UNSUSPEND' => $this->onSuspend($sender, $parts, $state, false),
+            'LISTSUSPEND' => $this->onListState($sender, $state, 'suspend'),
+            'FORBID' => $this->onForbid($sender, $parts, $state, true),
+            'UNFORBID' => $this->onForbid($sender, $parts, $state, false),
+            'LISTFORBID' => $this->onListState($sender, $state, 'forbid'),
+            'SWHOIS' => $this->onSwhois($sender, $parts, $state),
+            'NOEXPIRE' => $this->onNoexpire($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -242,9 +255,245 @@ final readonly class NickServCommandHandler
         }
     }
 
+    /** @param list<string> $args */
+    private function onStatus(string $uid, string $nick, array $args): void
+    {
+        $target = (string) ($args[0] ?? $nick);
+
+        try {
+            $account = $this->accounts->findByNick(new Nick($target));
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'That nickname is not registered.');
+
+            return;
+        }
+
+        if (null === $account) {
+            $this->reply->reply($uid, sprintf('%s is not registered.', $target));
+
+            return;
+        }
+
+        $this->reply->reply($uid, sprintf(
+            '%s: registered %s; %s; %s; noexpire %s.',
+            $account->nick->value,
+            $account->createdAt->format('Y-m-d'),
+            $account->isForbidden() ? 'forbidden' : 'not forbidden',
+            $account->isSuspended() ? 'suspended' : 'not suspended',
+            $account->noexpire ? 'on' : 'off',
+        ));
+    }
+
+    /** @param list<string> $args */
+    private function onSuspend(string $uid, array $args, NetworkState $state, bool $suspend): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, $suspend ? 'Syntax: SUSPEND <nick> [reason]' : 'Syntax: UNSUSPEND <nick>');
+
+            return;
+        }
+
+        $account = $this->findAccount($uid, $target);
+
+        if (null === $account) {
+            return;
+        }
+
+        $reason = [] === $args ? 'Suspended by staff' : implode(' ', array_values($args));
+
+        $this->accounts->update(new Account(
+            $account->nick,
+            $account->passwordHash,
+            $account->email,
+            $account->createdAt,
+            $account->forbidReason,
+            $suspend ? $reason : null,
+            $account->swhois,
+            $account->vhost,
+            $account->noexpire,
+        ));
+
+        $this->projection->publish($account->nick->value);
+        $this->reply->reply($uid, sprintf('%s is %s.', $account->nick->value, $suspend ? 'now suspended' : 'no longer suspended'));
+    }
+
+    /** @param list<string> $args */
+    private function onForbid(string $uid, array $args, NetworkState $state, bool $forbid): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, $forbid ? 'Syntax: FORBID <nick> [reason]' : 'Syntax: UNFORBID <nick>');
+
+            return;
+        }
+
+        $account = $this->findAccount($uid, $target);
+
+        if (null === $account) {
+            return;
+        }
+
+        $reason = [] === $args ? 'Forbidden by staff' : implode(' ', array_values($args));
+
+        $this->accounts->update(new Account(
+            $account->nick,
+            $account->passwordHash,
+            $account->email,
+            $account->createdAt,
+            $forbid ? $reason : null,
+            $account->suspendReason,
+            $account->swhois,
+            $account->vhost,
+            $account->noexpire,
+        ));
+
+        $this->projection->publish($account->nick->value);
+        $this->reply->reply($uid, sprintf('%s is %s.', $account->nick->value, $forbid ? 'now forbidden' : 'no longer forbidden'));
+    }
+
+    private function onListState(string $uid, NetworkState $state, string $kind): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $matches = [];
+
+        foreach ($this->accounts->all() as $account) {
+            if ('forbid' === $kind && $account->isForbidden()) {
+                $matches[] = $account->nick->value;
+            }
+
+            if ('suspend' === $kind && $account->isSuspended()) {
+                $matches[] = $account->nick->value;
+            }
+        }
+
+        $this->reply->reply($uid, [] === $matches
+            ? sprintf('No accounts are %s.', 'forbid' === $kind ? 'forbidden' : 'suspended')
+            : sprintf('%s: %s.', 'forbid' === $kind ? 'Forbidden' : 'Suspended', implode(', ', $matches)));
+    }
+
+    /** @param list<string> $args */
+    private function onSwhois(string $uid, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, 'Syntax: SWHOIS <nick> <text>');
+
+            return;
+        }
+
+        $account = $this->findAccount($uid, $target);
+
+        if (null === $account) {
+            return;
+        }
+
+        $text = implode(' ', array_values($args));
+
+        $this->accounts->update(new Account(
+            $account->nick,
+            $account->passwordHash,
+            $account->email,
+            $account->createdAt,
+            $account->forbidReason,
+            $account->suspendReason,
+            '' === $text ? null : $text,
+            $account->vhost,
+            $account->noexpire,
+        ));
+
+        $this->projection->publish($account->nick->value);
+        $this->reply->reply($uid, '' === $text
+            ? sprintf('SWHOIS cleared for %s.', $account->nick->value)
+            : sprintf('SWHOIS set for %s.', $account->nick->value));
+    }
+
+    /** @param list<string> $args */
+    private function onNoexpire(string $uid, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, 'Syntax: NOEXPIRE <nick>');
+
+            return;
+        }
+
+        $account = $this->findAccount($uid, $target);
+
+        if (null === $account) {
+            return;
+        }
+
+        $this->accounts->update(new Account(
+            $account->nick,
+            $account->passwordHash,
+            $account->email,
+            $account->createdAt,
+            $account->forbidReason,
+            $account->suspendReason,
+            $account->swhois,
+            $account->vhost,
+            !$account->noexpire,
+        ));
+
+        $this->projection->publish($account->nick->value);
+        $this->reply->reply($uid, sprintf('NOEXPIRE is now %s for %s.', $account->noexpire ? 'off' : 'on', $account->nick->value));
+    }
+
+    private function findAccount(string $uid, string $nick): ?Account
+    {
+        try {
+            $account = $this->accounts->findByNick(new Nick($nick));
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'That nickname is not registered.');
+
+            return null;
+        }
+
+        if (null === $account) {
+            $this->reply->reply($uid, sprintf('%s is not registered.', $nick));
+        }
+
+        return $account;
+    }
+
+    private function requireOperer(string $uid, NetworkState $state): bool
+    {
+        if ($state->hasMode($uid, 'o')) {
+            return true;
+        }
+
+        $this->reply->reply($uid, 'This command is restricted to IRC operators.');
+
+        return false;
+    }
+
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: REGISTER <password> [email], IDENTIFY <password>, INFO <nick>, SET PASSWORD <current> <new>, DROP <password>.');
+        $this->reply->reply($uid, 'Commands: REGISTER, IDENTIFY, INFO, STATUS, SET PASSWORD, DROP, SUSPEND/UNSUSPEND, FORBID/UNFORBID, SWHOIS, NOEXPIRE.');
     }
 
     private function isAddressedToMe(string $target): bool
