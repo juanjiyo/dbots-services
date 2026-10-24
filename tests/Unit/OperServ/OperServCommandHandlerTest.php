@@ -321,6 +321,20 @@ final class OperServCommandHandlerTest extends TestCase
         );
     }
 
+    private function spamProjection(): \Dbots\Udb\UdbSpamProjection
+    {
+        return new \Dbots\Udb\UdbSpamProjection(
+            new \Dbots\Tests\Support\InMemorySpamRuleRepository(),
+            new \Dbots\Udb\UdbAuthority(
+                '003',
+                'bots.test',
+                new \Dbots\Udb\CompositeBlockProvider([]),
+                static fn (string $line): null => null,
+                '0123456789abcdef',
+            ),
+        );
+    }
+
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
         return new IrcMessage($uid, 'PRIVMSG', ['OperServ'], $text);

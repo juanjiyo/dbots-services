@@ -35,16 +35,24 @@ final readonly class SpamRule
         return base64_encode($this->pattern);
     }
 
-    /** @return list<string> property name and value pairs, in a stable order */
+    /**
+     * Property name/value pairs, in the order they must be written.
+     *
+     * `match-type` goes LAST on purpose: the module validates and applies an F
+     * profile when the match-type record is written, so sending it first makes
+     * the profile permanently inert.
+     *
+     * @return list<array{string, string}>
+     */
     public function properties(): array
     {
         return [
-            ['match-type', 'simple'],
             ['targets', $this->targets],
             ['action', $this->action],
             ['ban-time', (string) $this->banTime],
             ['reason', $this->reason],
             ['expires', (string) $this->expires],
+            ['match-type', 'simple'],
         ];
     }
 }

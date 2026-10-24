@@ -622,11 +622,11 @@ final class OperServCommandHandler
 
         $this->spamRules->save($rule);
 
-        // The K::F profile reaches the IRCd but the module does not materialise
-        // it as a filter, so this rule is stored and NOT enforced yet. Say so
-        // instead of implying protection that does not exist.
+        // The K::F records reach the IRCd but the module never materialises them
+        // as a filter (see odd/tasks/operserv-core.md L19). Storing the rule and
+        // claiming protection would be a lie, so say what actually happens.
         $this->reply->reply($sender, sprintf(
-            'Spamfilter rule for %s (%s) stored locally; enforcement is not active yet.',
+            'Spamfilter rule for %s (%s) stored locally; the IRCd does not enforce it yet.',
             $pattern,
             $action,
         ));
