@@ -39,8 +39,9 @@ final class OperServCommandHandlerTest extends TestCase
             '003A00004',
         );
         $this->state = new NetworkState();
-        $this->state->introduceUser('001AAAAAA', 'oper', null, 'o');
-        $this->state->introduceUser('001BBBBBB', 'victim', null, 'i');
+        $this->state->introduceUser('001AAAAAA', 'oper', null, 'o', 'staff.example');
+        $this->state->introduceUser('001BBBBBB', 'victim', null, 'i', 'clone.example');
+        $this->state->introduceUser('001CCCCCC', 'clone2', null, 'i', 'clone.example');
     }
 
     #[Test]
@@ -91,7 +92,7 @@ final class OperServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('STATS'), $this->state);
 
-        self::assertSame(['001AAAAAA: Users online: 2.'], $this->irc->replies);
+        self::assertSame(['001AAAAAA: Users online: 3.'], $this->irc->replies);
     }
 
     #[Test]
@@ -221,6 +222,42 @@ final class OperServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('DROPNDB victim', '001BBBBBB'), $this->state);
 
         self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itListsClonesSharingAHost(): void
+    {
+        $this->handler->handle($this->privmsg('LISTCLONES victim'), $this->state);
+
+        self::assertStringContainsString('clone.example', $this->irc->replies[0]);
+        self::assertStringContainsString('victim, clone2', $this->irc->replies[1]);
+    }
+
+    #[Test]
+    public function killclonesBansTheHostForAnHour(): void
+    {
+        $this->handler->handle($this->privmsg('KILLCLONES victim flooding'), $this->state);
+
+        self::assertSame(['*@clone.example|3600|flooding'], $this->enforcement->glines);
+    }
+
+    #[Test]
+    public function blockBansTheHostForFiveHours(): void
+    {
+        $this->handler->handle($this->privmsg('BLOCK victim spamming'), $this->state);
+
+        self::assertSame(['*@clone.example|18000|spamming'], $this->enforcement->glines);
+    }
+
+    #[Test]
+    public function itRefusesToBanAProtectedHost(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'localuser', null, 'i', 'localhost');
+
+        $this->handler->handle($this->privmsg('BLOCK localuser bye'), $this->state);
+
+        self::assertSame([], $this->enforcement->glines);
+        self::assertStringContainsString('protected host', end($this->irc->replies));
     }
 
     #[Test]

@@ -25,7 +25,7 @@ dbots publishes and applies the account and `+r` itself.
 | ChanServ `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
-| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `STATS` / `IRCOPS` | Working, verified live |
+| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `STATS` / `IRCOPS` | Working, verified live |
 
 ## Operations
 
@@ -146,7 +146,14 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 /msg OperServ RENAME <nick> [newnick]
 /msg OperServ DROPNDB <nick>
 /msg OperServ APODERA <#channel> [nick]
+/msg OperServ LISTCLONES <nick>
+/msg OperServ KILLCLONES <nick> [reason]   (G-Lines the host for 60m)
+/msg OperServ BLOCK <nick> [reason]        (G-Lines the host for 300m)
 ```
+
+Clone commands G-Line the host the nick is connected from, and refuse to do so
+when the host is protected (`localhost`, `127.0.0.1`), so an operator testing
+from the same machine cannot ban the machine.
 
 Durations: `0` is permanent, a bare number means minutes, and `30m`, `2h`,
 `1d`, `1w` are accepted. G-Lines go out as UnrealIRCd `TKL`, so the IRCd stores

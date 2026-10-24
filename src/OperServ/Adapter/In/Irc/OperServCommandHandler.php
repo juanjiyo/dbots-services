@@ -23,6 +23,7 @@ use function array_shift;
 use function array_slice;
 use function array_values;
 use function explode;
+use function count;
 use function implode;
 use function sprintf;
 use function strcasecmp;
@@ -48,6 +49,10 @@ final readonly class OperServCommandHandler
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
+        /** @var list<string> hosts that must never be G-Lined by a clone command */
+        private array $protectedHosts = ['localhost', '127.0.0.1'],
+        private int $killClonesMinutes = 60,
+        private int $blockMinutes = 300,
     ) {
     }
 
@@ -88,6 +93,9 @@ final readonly class OperServCommandHandler
             'RENAME' => $this->onRename($sender, $parts, $state),
             'DROPNDB' => $this->onDropNdb($sender, $parts, $state),
             'APODERA' => $this->onApodera($sender, $parts, $state),
+            'LISTCLONES' => $this->onListClones($sender, $parts, $state),
+            'KILLCLONES' => $this->onHostBan($sender, $parts, $state, 'killclones'),
+            'BLOCK' => $this->onHostBan($sender, $parts, $state, 'block'),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender),
@@ -378,6 +386,101 @@ final readonly class OperServCommandHandler
         $this->reply->reply($sender, sprintf('%s now belongs to %s.', $registered->name->value, $founder));
     }
 
+    /** @param list<string> $args */
+    private function onListClones(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, 'Syntax: LISTCLONES <nick>');
+
+            return;
+        }
+
+        $host = $this->hostOf($sender, $nick, $state);
+
+        if (null === $host) {
+            return;
+        }
+
+        $nicks = $state->nicksOnHost($host);
+
+        $this->reply->reply($sender, sprintf('%s is connected from %s with %d client(s).', $nick, $host, count($nicks)));
+
+        if (count($nicks) > 1) {
+            $this->reply->reply($sender, 'Clones: ' . implode(', ', $nicks) . '.');
+        }
+    }
+
+    /** KILLCLONES and BLOCK both G-Line the host; only the duration differs. */
+    private function onHostBan(string $sender, array $args, NetworkState $state, string $command): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, sprintf('Syntax: %s <nick> [reason]', strtoupper($command)));
+
+            return;
+        }
+
+        $host = $this->hostOf($sender, $nick, $state);
+
+        if (null === $host) {
+            return;
+        }
+
+        if ($this->isProtectedHost($host)) {
+            $this->reply->reply($sender, sprintf('%s is a protected host; refusing to G-Line it.', $host));
+
+            return;
+        }
+
+        $minutes = 'killclones' === $command ? $this->killClonesMinutes : $this->blockMinutes;
+        $reason = [] === $args
+            ? ('killclones' === $command ? 'Clones of ' . $nick : 'Blocked by OperServ')
+            : implode(' ', array_values($args));
+
+        $this->enforcement->gline('*', $host, $minutes * 60, $reason);
+        $this->reply->reply($sender, sprintf(
+            '%s from %s G-Lined for %dm.',
+            $nick,
+            $host,
+            $minutes,
+        ));
+    }
+
+    private function isProtectedHost(string $host): bool
+    {
+        foreach ($this->protectedHosts as $protected) {
+            if (0 === strcasecmp($host, $protected)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hostOf(string $sender, string $nick, NetworkState $state): ?string
+    {
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return null;
+        }
+
+        return $state->hostOf($uid);
+    }
+
     private function onStats(string $sender, NetworkState $state): void
     {
         $this->reply->reply($sender, sprintf('Users online: %d.', $state->count()));
@@ -411,7 +514,7 @@ final readonly class OperServCommandHandler
 
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: KILL, KICK, OP, DEOP, MODE, GLINE, UNGLINE, RENAME <nick> [newnick], DROPNDB <nick>, APODERA <#channel> [nick], STATS, IRCOPS.');
+        $this->reply->reply($uid, 'Commands: KILL, KICK, OP, DEOP, MODE, GLINE, UNGLINE, RENAME, DROPNDB, APODERA, LISTCLONES <nick>, KILLCLONES <nick> [reason], BLOCK <nick> [reason], STATS, IRCOPS.');
     }
 
     private function isAddressedToMe(string $target): bool

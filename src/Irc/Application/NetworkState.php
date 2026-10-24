@@ -25,10 +25,17 @@ final class NetworkState
     /** @var array<string, string> uid => user modes */
     private array $modes = [];
 
-    public function introduceUser(string $uid, string $nick, ?string $account = null, string $modes = ''): void
+    /** @var array<string, string> uid => host */
+    private array $hosts = [];
+
+    public function introduceUser(string $uid, string $nick, ?string $account = null, string $modes = '', ?string $host = null): void
     {
         $this->nicks[$uid] = $nick;
         $this->modes[$uid] = $modes;
+
+        if (null !== $host) {
+            $this->hosts[$uid] = $host;
+        }
 
         if (null !== $account) {
             $this->accounts[$uid] = $account;
@@ -103,7 +110,26 @@ final class NetworkState
 
     public function remove(string $uid): void
     {
-        unset($this->nicks[$uid], $this->accounts[$uid], $this->modes[$uid]);
+        unset($this->nicks[$uid], $this->accounts[$uid], $this->modes[$uid], $this->hosts[$uid]);
+    }
+
+    public function hostOf(string $uid): ?string
+    {
+        return $this->hosts[$uid] ?? null;
+    }
+
+    /** @return list<string> nicks connected from that host */
+    public function nicksOnHost(string $host): array
+    {
+        $nicks = [];
+
+        foreach ($this->hosts as $uid => $known) {
+            if (0 === strcasecmp($known, $host) && isset($this->nicks[$uid])) {
+                $nicks[] = $this->nicks[$uid];
+            }
+        }
+
+        return $nicks;
     }
 
     public function nickOf(string $uid): ?string
@@ -145,6 +171,7 @@ final class NetworkState
         $this->nicks = [];
         $this->accounts = [];
         $this->modes = [];
+        $this->hosts = [];
     }
 
     /** Unused today; kept so callers can normalise account names once they exist. */
