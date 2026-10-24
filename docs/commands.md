@@ -100,13 +100,19 @@ sees the whole stream, and keeps it narrower on purpose:
 DBOTS_DEBUG_CHANNEL=#DeBuG
 ```
 
-When set, a `DebugServ` client joins that channel and mirrors the **raw protocol
-line**, exactly like the original `de.mrc` did:
+When set, a `DebugServ` client joins that channel and writes it in the layout
+that channel already uses: clock, tag, subject and a human sentence, with the
+same codes (14 clock, 12 separators and subject, 02 tag).
 
 ```text
-(25/10/2026 - 00:43) => :0014GW66Z PRIVMSG 004A00001 :STATUS FreshUser
-(25/10/2026 - 00:43) => :004 DB * INS 0123456789abcdef 7 N::JuanJo::forbid :!s...
+23:05  DeBuG ¦ DbgFmt2 STATUS FreshUser
+23:05  DeBuG ¦ DbgFmt2 IDENTIFY en NickServ
+23:06  DeBuG ¦ NickServ añade la prohibición de JuanJo
 ```
+
+UDB mutations are translated when the daemon recognises them (password, forbid,
+suspend, swhois, vhost, founder, topic, access, spamfilter); anything else falls
+back to the framed form.
 
 Two redactions, both deliberate:
 

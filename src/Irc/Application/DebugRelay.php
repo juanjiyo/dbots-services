@@ -10,23 +10,24 @@ use function in_array;
 use function preg_match;
 use function sprintf;
 use function strtoupper;
-use function date;
 
 /**
- * Mirrors service activity into a staff channel, like the original dBots
- * "debug" link did by dumping the S2S stream.
+ * Mirrors service activity into a staff channel using the format that channel
+ * already uses: the clock, a tag, the subject and a human sentence.
  *
- * It is deliberately narrower than the original: it reports the commands the
- * services execute and the mutations they push, and it never writes a credential
- * — a password or token in a channel is a leak with a long half-life.
+ * It never writes a credential — a password or token in a channel is a leak with
+ * a long half-life.
  */
 final readonly class DebugRelay
 {
+    private readonly DebugFormatter $formatter;
+
     public function __construct(
         private LinkTransportInterface $transport,
         private string $serviceUid,
         private string $channel,
     ) {
+        $this->formatter = new DebugFormatter();
     }
 
     public function isEnabled(): bool
@@ -34,15 +35,24 @@ final readonly class DebugRelay
         return '' !== $this->channel;
     }
 
-    /**
-     * Mirrors one raw protocol line, the way the original debug link did.
-     *
-     * The original showed `(date - time) => <line>`; keeping the wire form is
-     * the point — a summary teaches you nothing about what the services said.
-     */
-    public function line(string $line): void
+    /** Mirrors a service command as an event, not as a raw frame. */
+    public function command(string $actor, string $verb, string $service, string $arguments = ''): void
     {
-        $this->send(sprintf('(%s - %s) => %s', date('d/m/Y'), date('H:i'), $this->redact($line)));
+        if ('' !== $arguments && !in_array(strtoupper($verb), self::SECRET_COMMANDS, true)) {
+            $this->send($this->formatter->line($actor, sprintf('%s %s', $verb, $this->redact($arguments))));
+
+            return;
+        }
+
+        $this->send($this->formatter->line($actor, sprintf('%s en %s', $verb, $service)));
+    }
+
+    /** Mirrors a UDB mutation, translated when we understand it. */
+    public function mutation(string $line): void
+    {
+        $text = $this->formatter->mutation($line) ?? $this->redact($line);
+
+        $this->send($this->formatter->line('DB', $text));
     }
 
     public function note(string $message): void

@@ -17,6 +17,10 @@ use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 
+use function in_array;
+use function strpos;
+use function strtoupper;
+use function substr;
 use function sprintf;
 use function str_contains;
 
@@ -124,29 +128,12 @@ final readonly class Daemon
             default => null,
         };
 
-        // The original debug link mirrored the commands the services received.
+        // The debug channel shows what the services did, not the raw frame.
         if ('PRIVMSG' === $message->command) {
-            $this->relayToDebug($line);
+            $this->relayCommand($message);
         }
 
         return null;
-    }
-
-    /** Maps one of our service UIDs (or nicknames) to its display name. */
-    private function serviceName(?string $target): ?string
-    {
-        $known = [
-            sprintf('%sA00001', $this->sid) => 'NickServ',
-            sprintf('%sA00002', $this->sid) => 'ChanServ',
-            sprintf('%sA00003', $this->sid) => 'MemoServ',
-            sprintf('%sA00004', $this->sid) => 'OperServ',
-        ];
-
-        if (null === $target) {
-            return null;
-        }
-
-        return $known[$target] ?? (in_array($target, $known, true) ? $target : null);
     }
 
     private function onDbFrame(IrcMessage $message, string $line): void
@@ -160,12 +147,53 @@ final readonly class Daemon
         }
     }
 
-    /** Echoes one protocol line to the debug channel, like the original link did. */
+    /** Echoes one protocol line to the debug channel. */
     private function relayToDebug(string $line): void
     {
         if (null !== $this->debug && $this->debug->isEnabled()) {
-            $this->debug->line($line);
+            $this->debug->mutation($line);
         }
+    }
+
+    /** Reports a service command with its actor and the service that handled it. */
+    private function relayCommand(IrcMessage $message): void
+    {
+        if (null === $this->debug || !$this->debug->isEnabled()) {
+            return;
+        }
+
+        $service = $this->serviceName($message->target());
+
+        if (null === $service) {
+            return;
+        }
+
+        $text = trim($message->text());
+        $space = strpos($text, ' ');
+        $verb = strtoupper(false === $space ? $text : substr($text, 0, $space));
+        $arguments = false === $space ? '' : substr($text, $space + 1);
+        $actor = $this->state->nickOf($message->source() ?? '') ?? 'desconocido';
+
+        if ('' !== $verb) {
+            $this->debug->command($actor, $verb, $service, $arguments);
+        }
+    }
+
+    /** Maps one of our service UIDs (or nicknames) to its display name. */
+    private function serviceName(?string $target): ?string
+    {
+        if (null === $target) {
+            return null;
+        }
+
+        $known = [
+            sprintf('%sA00001', $this->sid) => 'NickServ',
+            sprintf('%sA00002', $this->sid) => 'ChanServ',
+            sprintf('%sA00003', $this->sid) => 'MemoServ',
+            sprintf('%sA00004', $this->sid) => 'OperServ',
+        ];
+
+        return $known[$target] ?? (in_array($target, $known, true) ? $target : null);
     }
 
     private function onUserIntroduced(IrcMessage $message): void
@@ -220,33 +248,6 @@ final readonly class Daemon
         $this->operServ->handle($message, $this->state);
 
 
-    }
-
-    /**
-     * Reports who ran which service command.
-     *
-     * Only the verb: the arguments may contain a password or a memo body, and a
-     * debug channel is the last place those should appear.
-     */
-    private function relayCommand(IrcMessage $message): void
-    {
-        if (null === $this->debug || !$this->debug->isEnabled()) {
-            return;
-        }
-
-        // The IRCd routes to the UID, not the nick, so translate back.
-        $service = $this->serviceName($message->target());
-
-        if (null === $service) {
-            return;
-        }
-
-        $verb = strtoupper(strtok($message->text(), ' ') ?: '');
-        $actor = $this->state->nickOf($message->source() ?? '') ?? 'unknown';
-
-        if ('' !== $verb) {
-            $this->debug->command($actor, $verb, $service);
-        }
     }
 
     private function onNickChange(IrcMessage $message): void

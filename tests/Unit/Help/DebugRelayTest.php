@@ -21,33 +21,52 @@ final class DebugRelayTest extends TestCase
     }
 
     #[Test]
-    public function itMirrorsTheRawLineWithDateAndTime(): void
+    public function aCommandIsRenderedWithTheChannelFormat(): void
     {
-        $this->relay->line(':001 PRIVMSG 003A00001 :STATUS JuanJo');
+        $this->relay->command('JuanJo', 'STATUS', 'NickServ');
 
-        self::assertCount(1, $this->transport->written);
-        self::assertMatchesRegularExpression(
-            '/^:003A00005 PRIVMSG #DeBuG :\(\d{2}\/\d{2}\/\d{4} - \d{2}:\d{2}\) => :001 PRIVMSG 003A00001 :STATUS JuanJo$/',
-            $this->transport->written[0],
-        );
+        $line = $this->transport->written[0];
+
+        self::assertStringStartsWith(':003A00005 PRIVMSG #DeBuG :', $line);
+        self::assertStringContainsString("\x0302DeBuG", $line);
+        self::assertStringContainsString("\x0312JuanJo", $line);
+        self::assertStringContainsString('STATUS en NickServ', $line);
     }
 
     #[Test]
-    public function itHidesTheArgumentsOfCommandsThatCarryASecret(): void
+    public function theArgumentsOfSecretCommandsAreHidden(): void
     {
-        $this->relay->line(':001 PRIVMSG 003A00001 :REGISTER miClave correo@ejemplo.org');
+        $this->relay->command('JuanJo', 'IDENTIFY', 'NickServ', 'miClave');
 
-        self::assertStringContainsString('REGISTER <argumentos ocultos>', $this->transport->written[0]);
         self::assertStringNotContainsString('miClave', $this->transport->written[0]);
+        self::assertStringContainsString('IDENTIFY en NickServ', $this->transport->written[0]);
     }
 
     #[Test]
-    public function itHidesPasswordRecords(): void
+    public function ordinaryCommandsKeepTheirArguments(): void
     {
-        $this->relay->line(':004 DB * INS 0123456789abcdef 3 N::JuanJo::pass :!sY3J5cHQ6JDJ5JDEwJGFiYw==');
+        $this->relay->command('JuanJo', 'STATUS', 'NickServ', 'otroNick');
 
-        self::assertStringNotContainsString('Y3J5cHQ6', $this->transport->written[0]);
-        self::assertStringContainsString('<redacted>', $this->transport->written[0]);
+        self::assertStringContainsString('STATUS otroNick', $this->transport->written[0]);
+    }
+
+    #[Test]
+    public function aMutationIsTranslatedIntoASentence(): void
+    {
+        $this->relay->mutation(':004 DB * INS 0123456789abcdef 3 N::JuanJo::pass :!sAAAA');
+
+        $line = $this->transport->written[0];
+
+        self::assertStringContainsString('NickServ registra o cambia la clave de JuanJo', $line);
+        self::assertStringNotContainsString('!sAAAA', $line);
+    }
+
+    #[Test]
+    public function aForbidReadsLikeTheChannelSays(): void
+    {
+        $this->relay->mutation(':004 DB * INS 0123456789abcdef 4 N::JuanJo::forbid :!sAAAA');
+
+        self::assertStringContainsString('NickServ añade la prohibición de JuanJo', $this->transport->written[0]);
     }
 
     #[Test]
@@ -55,7 +74,8 @@ final class DebugRelayTest extends TestCase
     {
         $relay = new DebugRelay($this->transport, '003A00005', '');
 
-        $relay->line(':001 PRIVMSG 003A00001 :STATUS JuanJo');
+        $relay->command('JuanJo', 'STATUS', 'NickServ');
+        $relay->mutation(':004 DB * INS 1 1 N::X::pass :!sAAAA');
 
         self::assertSame([], $this->transport->written);
     }
