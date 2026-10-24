@@ -1,0 +1,43 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dbots\Domain\Link\ServerLink;
+use Dbots\Kernel;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$env = static function (string $key, string $default = ''): string {
+    $value = getenv($key);
+
+    return false === $value || '' === $value ? $default : $value;
+};
+
+$link = new ServerLink(
+    name: $env('DBOTS_LINK_NAME', 'bots.sitiochat.es'),
+    sid: $env('DBOTS_LINK_SID', '003'),
+    password: $env('DBOTS_LINK_PASSWORD', ''),
+    description: $env('DBOTS_LINK_DESCRIPTION', 'dbots services'),
+);
+
+$kernel = Kernel::create(
+    link: $link,
+    host: $env('DBOTS_LINK_HOST', '127.0.0.1'),
+    port: (int) $env('DBOTS_LINK_PORT', '6900'),
+    databasePath: $env('DBOTS_DATABASE', __DIR__ . '/../var/dbots.sqlite'),
+    verifyPeer: filter_var($env('DBOTS_LINK_TLS_VERIFY', '1'), FILTER_VALIDATE_BOOL),
+);
+
+$daemon = $kernel->daemon();
+
+try {
+    $daemon->run((int) ($argv[1] ?? 30));
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'dbots failed: ' . $exception->getMessage() . "\n");
+    exit(1);
+} finally {
+    $daemon->stop();
+}
+
+fwrite(STDOUT, "dbots stopped\n");
