@@ -24,4 +24,9 @@ final class InMemoryAccountRepository implements AccountRepositoryInterface
     {
         $this->accounts[strtolower($account->nick->value)] = $account;
     }
+
+    public function all(): array
+    {
+        return array_values($this->accounts);
+    }
 }

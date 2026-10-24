@@ -12,4 +12,7 @@ interface AccountRepositoryInterface
     public function findByNick(Nick $nick): ?Account;
 
     public function save(Account $account): void;
+
+    /** @return list<Account> */
+    public function all(): array;
 }

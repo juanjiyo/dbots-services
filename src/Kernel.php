@@ -17,17 +17,19 @@ use Dbots\NickServ\Adapter\Out\Irc\S2sAccountLogin;
 use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
+use Dbots\Udb\AccountBlockProvider;
+use Dbots\Udb\UdbAccountProjection;
+use Dbots\Udb\UdbAuthority;
 
 use function dirname;
 use function is_dir;
 use function mkdir;
 use function sprintf;
 
-use const JSON_THROW_ON_ERROR;
-
 /**
- * Manual wiring. Deliberately no DI container yet: there are nine objects and a
- * container would hide more than it explains. Swap it in when the graph hurts.
+ * Manual wiring. Deliberately no DI container yet: there are a dozen objects
+ * and a container would hide more than it explains. Swap it in when the graph
+ * hurts.
  */
 final readonly class Kernel
 {
@@ -40,6 +42,7 @@ final readonly class Kernel
         string $databasePath,
         bool $verifyPeer = true,
         int $syncTimeoutSeconds = 30,
+        ?string $udbEpoch = null,
     ): self {
         $transport = new TlsStreamTransport($host, $port, verifyPeer: $verifyPeer);
         $runner = new LinkRunner($link, $transport, $syncTimeoutSeconds);
@@ -49,15 +52,24 @@ final readonly class Kernel
         }
 
         $repository = SqliteAccountRepository::fromPath($databasePath);
-        $replySender = new IrcReplySender($transport, sprintf('%sA00001', $link->sid));
+        $serviceUid = sprintf('%sA00001', $link->sid);
+
+        $authority = new UdbAuthority(
+            $link->sid,
+            $link->name,
+            new AccountBlockProvider($repository),
+            $transport->writeLine(...),
+            $udbEpoch ?? UdbAuthority::generateEpoch(),
+        );
 
         $nickServ = new NickServCommandHandler(
             new RegisterNickHandler($repository),
             new IdentifyHandler($repository),
             new S2sAccountLogin($transport, $link->sid),
-            $replySender,
+            new IrcReplySender($transport, $serviceUid),
+            new UdbAccountProjection($repository, $authority),
             'NickServ',
-            sprintf('%sA00001', $link->sid),
+            $serviceUid,
         );
 
         $daemon = new Daemon(
@@ -69,6 +81,7 @@ final readonly class Kernel
             new ServiceUidFormatter($link->sid),
             $link->sid,
             $link->name,
+            $authority,
         );
 
         return new self($daemon);

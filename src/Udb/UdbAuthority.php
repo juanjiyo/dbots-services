@@ -1,0 +1,211 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Dbots\Udb;
+
+use Dbots\Irc\Adapter\In\IrcMessage;
+
+use function array_map;
+use function array_slice;
+use function count;
+use function explode;
+use function implode;
+use function in_array;
+use function preg_match;
+use function random_int;
+use function sprintf;
+use function substr;
+
+/**
+ * UDB 4 authority side: answers HEL, publishes block inventories and serves
+ * block snapshots on request. Live mutations (INS) are pushed by the caller.
+ *
+ * Contracts taken from the module documentation (sections 7 and 9):
+ *   :<sid> DB <peer> HEL 4 <selector> <epoch> OCL
+ *   :<sid> DB <peer> HEL 4 ACK <selector> <epoch> OCL
+ *   :<sid> DB <peer> INF <round> <block> <sha256> <count> 0 <watermark> <root-sid> <root-epoch>
+ *   :<sid> DB <peer> RES <round> <block>                (peer -> us)
+ *   :<sid> DB <peer> BEGIN|END <round> <block> <txid> <sha256> <watermark>
+ *   :<sid> DB <peer> PUT <round> <block> <txid> <Block::path> :<typed-value>
+ *   :<sid> DB * INS <epoch> <seq> <Block::path> :<typed-value>
+ *
+ * Record paths always include the block letter as their first component
+ * ("N::alice::pass"), because the digest is computed over that exact path.
+ */
+final class UdbAuthority
+{
+    private const string PROTOCOL = '4';
+    private const array BLOCKS = ['N', 'C', 'I', 'S', 'L', 'K'];
+
+    private int $sequence = 0;
+    private int $round = 0;
+    private bool $announced = false;
+    private ?string $peerSid = null;
+
+    /** @var callable(string): void */
+    private $write;
+
+    public function __construct(
+        private readonly string $sid,
+        private readonly string $serverName,
+        private readonly BlockProviderInterface $blocks,
+        callable $write,
+        private readonly string $epoch,
+    ) {
+        $this->write = $write;
+    }
+
+    public static function generateEpoch(): string
+    {
+        return sprintf('%016x', random_int(0x1000000000000000, 0x7fffffffffffffff));
+    }
+
+    public function epoch(): string
+    {
+        return $this->epoch;
+    }
+
+    public function sequence(): int
+    {
+        return $this->sequence;
+    }
+
+    public function handle(IrcMessage $message): void
+    {
+        if ('DB' !== $message->command) {
+            return;
+        }
+
+        $args = $message->params;
+        $source = $message->source();
+
+        if (null !== $source && 1 !== preg_match('/^[0-9][0-9A-Z]{2}$/', $source)) {
+            return;
+        }
+
+        match ($args[1] ?? '') {
+            'HEL' => $this->onHel($args),
+            'RES' => $this->onRes($args),
+            default => null,
+        };
+    }
+
+    /** Publishes a credential so the IRCd can authenticate `NICK nick:password`. */
+    public function insertPassword(string $nick, string $passwordHash): void
+    {
+        $this->insert(sprintf('N::%s::pass', $nick), $passwordHash);
+    }
+
+    public function insert(string $fullPath, string|int|null $value): void
+    {
+        $this->sequence++;
+
+        [$block, $encodedPath] = $this->split($fullPath);
+
+        ($this->write)(sprintf(
+            ':%s DB * INS %s %d %s::%s :%s',
+            $this->sid,
+            $this->epoch,
+            $this->sequence,
+            $block,
+            $encodedPath,
+            NativeDigest::wireValue($value),
+        ));
+    }
+
+    /** @param list<string> $args */
+    private function onHel(array $args): void
+    {
+        $selector = $args[3] ?? '';
+
+        if ('ACK' === $selector) {
+            return;
+        }
+
+        $peer = $args[0] ?? null;
+        $this->peerSid = $peer;
+
+        ($this->write)(sprintf(
+            ':%s DB %s HEL %s ACK %s %s OCL',
+            $this->sid,
+            $peer ?? '*',
+            self::PROTOCOL,
+            $this->serverName,
+            $this->epoch,
+        ));
+
+        if (!$this->announced && $selector === $this->serverName) {
+            $this->announced = true;
+            $this->announceInventory();
+        }
+    }
+
+    /** @param list<string> $args */
+    private function onRes(array $args): void
+    {
+        $round = (int) ($args[2] ?? 0);
+        $block = $args[3] ?? '';
+
+        if ($round <= 0 || !in_array($block, self::BLOCKS, true)) {
+            return;
+        }
+
+        $records = $this->blocks->records($block);
+        $digest = NativeDigest::logicalDigest($block, $records);
+        $txid = sprintf('tx%d%s', $round, $block);
+        $target = $this->peerSid ?? '*';
+
+        ($this->write)(sprintf(':%s DB %s BEGIN %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
+
+        foreach ($records as $path => $value) {
+            [$recordBlock, $encodedPath] = $this->split($path);
+
+            ($this->write)(sprintf(
+                ':%s DB %s PUT %d %s %s %s::%s :%s',
+                $this->sid,
+                $target,
+                $round,
+                $block,
+                $txid,
+                $recordBlock,
+                $encodedPath,
+                NativeDigest::wireValue($value),
+            ));
+        }
+
+        ($this->write)(sprintf(':%s DB %s END %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
+    }
+
+    private function announceInventory(): void
+    {
+        $this->round = 1;
+
+        foreach (self::BLOCKS as $block) {
+            $records = $this->blocks->records($block);
+
+            ($this->write)(sprintf(
+                ':%s DB %s INF %d %s %s %d 0 %d %s %s',
+                $this->sid,
+                $this->peerSid ?? '*',
+                $this->round,
+                $block,
+                NativeDigest::logicalDigest($block, $records),
+                count($records),
+                $this->sequence,
+                $this->sid,
+                $this->epoch,
+            ));
+        }
+    }
+
+    /** @return array{string, string} block letter and percent-encoded remainder */
+    private function split(string $fullPath): array
+    {
+        $components = explode('::', $fullPath);
+        $block = $components[0];
+        $remainder = array_slice($components, 1);
+
+        return [$block, implode('::', array_map(NativeDigest::encodeComponent(...), $remainder))];
+    }
+}

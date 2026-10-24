@@ -69,4 +69,25 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
             'created' => $account->createdAt->format('c'),
         ]);
     }
+
+    /**
+     * @return list<Account>
+     */
+    public function all(): array
+    {
+        $statement = $this->pdo->query('SELECT nick, password_hash, email, created_at FROM accounts ORDER BY nick');
+
+        $accounts = [];
+
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $accounts[] = new Account(
+                new Nick((string) $row['nick']),
+                (string) $row['password_hash'],
+                null === $row['email'] ? null : (string) $row['email'],
+                new DateTimeImmutable((string) $row['created_at']),
+            );
+        }
+
+        return $accounts;
+    }
 }

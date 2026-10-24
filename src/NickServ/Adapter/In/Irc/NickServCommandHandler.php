@@ -10,6 +10,7 @@ use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Identify\IdentifyResult;
 use Dbots\NickServ\Application\Port\Out\AccountLoginInterface;
+use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
@@ -29,6 +30,7 @@ final readonly class NickServCommandHandler
         private IdentifyHandler $identify,
         private AccountLoginInterface $login,
         private ReplyInterface $reply,
+        private AccountProjectionInterface $projection,
         private string $serviceNick,
         private string $serviceUid,
     ) {
@@ -97,6 +99,8 @@ final readonly class NickServCommandHandler
 
     private function onRegistered(string $uid, string $nick): void
     {
+        $this->projection->publish($nick);
+
         try {
             $this->login->login($uid, new Nick($nick));
         } catch (InvalidArgumentException) {

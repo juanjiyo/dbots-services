@@ -11,6 +11,7 @@ use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\RecordingIrc;
+use Dbots\Tests\Support\RecordingProjection;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -29,6 +30,7 @@ final class NickServCommandHandlerTest extends TestCase
             new IdentifyHandler($accounts),
             $this->irc,
             $this->irc,
+            new RecordingProjection(),
             'NickServ',
             '003A00001',
         );

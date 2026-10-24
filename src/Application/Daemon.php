@@ -11,6 +11,7 @@ use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
+use Dbots\Udb\UdbAuthority;
 
 use function sprintf;
 
@@ -29,6 +30,7 @@ final readonly class Daemon
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
+        private ?UdbAuthority $udb = null,
     ) {
     }
 
@@ -74,6 +76,7 @@ final readonly class Daemon
             'UID' => $this->onUserIntroduced($message),
             'NICK' => $this->onNickChange($message),
             'QUIT' => $this->onUserQuit($message),
+            'DB' => $this->udb?->handle($message),
             'PRIVMSG' => $this->nickServ->handle($message, $this->state),
             default => null,
         };
