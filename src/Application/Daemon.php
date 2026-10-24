@@ -9,6 +9,7 @@ use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
+use Dbots\Irc\Application\DebugEvents;
 use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
@@ -131,6 +132,12 @@ final readonly class Daemon
         // The debug channel shows what the services did, not the raw frame.
         if ('PRIVMSG' === $message->command) {
             $this->relayCommand($message);
+        } elseif (null !== $this->debug && $this->debug->isEnabled()) {
+            $event = DebugEvents::translate($message, $this->state->nickOf(...));
+
+            if (null !== $event) {
+                $this->debug->event($event);
+            }
         }
 
         return null;

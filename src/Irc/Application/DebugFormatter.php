@@ -38,6 +38,20 @@ final readonly class DebugFormatter
         );
     }
 
+    /** A full sentence: clock and tag, then the text as given. */
+    public function event(string $text): string
+    {
+        return sprintf(
+            "\x0314%s\x0312:\x0314%s%s \x0312\x0302%s\x0312 \u{00A6}%s %s",
+            date('H'),
+            date('i'),
+            self::RESET,
+            $this->tag,
+            self::RESET,
+            $text,
+        );
+    }
+
     /** Interprets a UDB mutation as the human sentence the channel shows. */
     public function mutation(string $line): ?string
     {

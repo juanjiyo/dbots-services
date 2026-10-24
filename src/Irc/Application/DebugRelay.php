@@ -35,6 +35,12 @@ final readonly class DebugRelay
         return '' !== $this->channel;
     }
 
+    /** Mirrors a network event: the sentence already carries the subject. */
+    public function event(string $text): void
+    {
+        $this->send($this->formatter->event($text));
+    }
+
     /** Mirrors a service command as an event, not as a raw frame. */
     public function command(string $actor, string $verb, string $service, string $arguments = ''): void
     {
