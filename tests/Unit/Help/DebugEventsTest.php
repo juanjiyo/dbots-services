@@ -17,10 +17,17 @@ final class DebugEventsTest extends TestCase
     {
         $message = new IrcMessage('001', 'UID', ['Stable', '0', '1', 'db', 'localhost', '001ABC123', '0', '+iwxT', 'v', 'c', 'ip'], 'db');
 
-        $line = IrcFormat::strip((string) DebugEvents::translate($message, static fn (string $uid): ?string => 'Stable'));
+        $line = IrcFormat::strip((string) DebugEvents::translate(
+            $message,
+            static fn (string $id): ?string => match ($id) {
+                '001ABC123' => 'Stable',
+                '001' => 'irc.example.org',
+                default => null,
+            },
+        ));
 
         self::assertStringContainsString('NICK: Stable', $line);
-        self::assertStringContainsString('SERVIDOR: 001', $line);
+        self::assertStringContainsString('SERVIDOR: irc.example.org', $line);
         self::assertStringNotContainsString('001ABC123', $line);
     }
 
