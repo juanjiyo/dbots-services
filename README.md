@@ -25,7 +25,7 @@ dbots publishes and applies the account and `+r` itself.
 | ChanServ `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
-| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `STATS` / `IRCOPS` | Working, verified live |
+| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `STATS` / `IRCOPS` | Working, verified live |
 
 ## Operations
 
@@ -141,7 +141,13 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 /msg OperServ IRCOPS
 /msg OperServ OP|DEOP <#channel> <nick>
 /msg OperServ MODE <#channel> <modes> [arg]
+/msg OperServ GLINE <user@host> <duration> [reason]
+/msg OperServ UNGLINE <user@host>
 ```
+
+Durations: `0` is permanent, a bare number means minutes, and `30m`, `2h`,
+`1d`, `1w` are accepted. G-Lines go out as UnrealIRCd `TKL`, so the IRCd stores
+and enforces them like any other server ban.
 
 Mutating commands require user mode `+o` on the connection. Oper status is read
 from the connection itself, never inferred from a nickname or an account.

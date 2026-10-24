@@ -119,6 +119,64 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanAddAGlineWithAUnitSuffix(): void
+    {
+        $this->handler->handle($this->privmsg('GLINE *@bad.example 2h abusing'), $this->state);
+
+        self::assertSame(['*@bad.example|7200|abusing'], $this->enforcement->glines);
+        self::assertStringContainsString('2h', end($this->irc->replies));
+    }
+
+    #[Test]
+    public function aBareDurationMeansMinutes(): void
+    {
+        $this->handler->handle($this->privmsg('GLINE bad@host 30'), $this->state);
+
+        self::assertSame(['bad@host|1800|G-Lined by OperServ'], $this->enforcement->glines);
+    }
+
+    #[Test]
+    public function zeroDurationIsPermanent(): void
+    {
+        $this->handler->handle($this->privmsg('GLINE *@host 0 forever'), $this->state);
+
+        self::assertSame(['*@host|0|forever'], $this->enforcement->glines);
+    }
+
+    #[Test]
+    public function itRejectsAnInvalidDuration(): void
+    {
+        $this->handler->handle($this->privmsg('GLINE *@host bananas'), $this->state);
+
+        self::assertSame([], $this->enforcement->glines);
+        self::assertStringContainsString('Invalid duration', end($this->irc->replies));
+    }
+
+    #[Test]
+    public function itRequiresAHostPart(): void
+    {
+        $this->handler->handle($this->privmsg('GLINE justanick 30'), $this->state);
+
+        self::assertSame(['*@justanick|1800|G-Lined by OperServ'], $this->enforcement->glines);
+    }
+
+    #[Test]
+    public function anOperCanRemoveAGline(): void
+    {
+        $this->handler->handle($this->privmsg('UNGLINE *@bad.example'), $this->state);
+
+        self::assertSame(['*@bad.example'], $this->enforcement->unglines);
+    }
+
+    #[Test]
+    public function aNonOperCannotGline(): void
+    {
+        $this->handler->handle($this->privmsg('GLINE *@host 30', '001BBBBBB'), $this->state);
+
+        self::assertSame([], $this->enforcement->glines);
+    }
+
+    #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
         $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['ChanServ'], 'KILL victim'), $this->state);
@@ -143,6 +201,12 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<string> */
     public array $modes = [];
 
+    /** @var list<string> */
+    public array $glines = [];
+
+    /** @var list<string> */
+    public array $unglines = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -156,5 +220,15 @@ final class RecordingEnforcement implements EnforcementInterface
     public function channelMode(string $channel, string $modes, ?string $target = null): void
     {
         $this->modes[] = $channel . '|' . $modes . '|' . ($target ?? '');
+    }
+
+    public function gline(string $userMask, string $hostMask, int $durationSeconds, string $reason): void
+    {
+        $this->glines[] = $userMask . '@' . $hostMask . '|' . $durationSeconds . '|' . $reason;
+    }
+
+    public function ungline(string $userMask, string $hostMask): void
+    {
+        $this->unglines[] = $userMask . '@' . $hostMask;
     }
 }

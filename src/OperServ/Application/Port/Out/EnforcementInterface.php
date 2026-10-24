@@ -12,4 +12,9 @@ interface EnforcementInterface
 
     /** Applies a channel mode as the server, optionally with a target parameter. */
     public function channelMode(string $channel, string $modes, ?string $target = null): void;
+
+    /** Adds a G-Line; a duration of 0 means permanent. */
+    public function gline(string $userMask, string $hostMask, int $durationSeconds, string $reason): void;
+
+    public function ungline(string $userMask, string $hostMask): void;
 }

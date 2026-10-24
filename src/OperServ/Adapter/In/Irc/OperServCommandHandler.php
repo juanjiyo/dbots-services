@@ -7,6 +7,7 @@ namespace Dbots\OperServ\Adapter\In\Irc;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
+use Dbots\OperServ\Application\Duration;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 
 use function array_filter;
@@ -17,7 +18,9 @@ use function explode;
 use function implode;
 use function sprintf;
 use function strcasecmp;
+use function strpos;
 use function strtoupper;
+use function substr;
 
 /**
  * IRC operator commands.
@@ -67,6 +70,8 @@ final readonly class OperServCommandHandler
             'OP' => $this->onOp($sender, $parts, $state, '+o'),
             'DEOP' => $this->onOp($sender, $parts, $state, '-o'),
             'MODE' => $this->onMode($sender, $parts, $state),
+            'GLINE' => $this->onGline($sender, $parts, $state),
+            'UNGLINE' => $this->onUngline($sender, $parts, $state),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender),
@@ -173,6 +178,82 @@ final readonly class OperServCommandHandler
         $this->reply->reply($sender, sprintf('Mode %s applied to %s.', $modes, $channel));
     }
 
+    /** @param list<string> $args */
+    private function onGline(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $mask = array_shift($args);
+        $durationValue = array_shift($args);
+
+        if (null === $mask || null === $durationValue) {
+            $this->reply->reply($sender, 'Syntax: GLINE <user@host> <duration> [reason]');
+
+            return;
+        }
+
+        $duration = Duration::parse($durationValue);
+
+        if (null === $duration) {
+            $this->reply->reply($sender, 'Invalid duration. Use minutes, or a suffix: 30m, 2h, 1d, 0 for permanent.');
+
+            return;
+        }
+
+        [$user, $host] = $this->splitMask($mask);
+
+        if ('' === $host) {
+            $this->reply->reply($sender, 'The mask needs a host part, for example user@host or *@host.');
+
+            return;
+        }
+
+        $reason = [] === $args ? 'G-Lined by OperServ' : implode(' ', array_values($args));
+
+        $this->enforcement->gline($user, $host, $duration, $reason);
+        $this->reply->reply($sender, sprintf(
+            'G-Line added on %s@%s (%s).',
+            $user,
+            $host,
+            Duration::describe($duration),
+        ));
+    }
+
+    /** @param list<string> $args */
+    private function onUngline(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $mask = array_shift($args);
+
+        if (null === $mask) {
+            $this->reply->reply($sender, 'Syntax: UNGLINE <user@host>');
+
+            return;
+        }
+
+        [$user, $host] = $this->splitMask($mask);
+
+        $this->enforcement->ungline($user, $host);
+        $this->reply->reply($sender, sprintf('G-Line removed on %s@%s.', $user, $host));
+    }
+
+    /** @return array{string, string} user and host parts of a mask */
+    private function splitMask(string $mask): array
+    {
+        $position = strpos($mask, '@');
+
+        if (false === $position) {
+            return ['*', $mask];
+        }
+
+        return [substr($mask, 0, $position), substr($mask, $position + 1)];
+    }
+
     private function onStats(string $sender, NetworkState $state): void
     {
         $this->reply->reply($sender, sprintf('Users online: %d.', $state->count()));
@@ -206,7 +287,7 @@ final readonly class OperServCommandHandler
 
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: KILL <nick> [reason], KICK <#channel> <nick> [reason], OP|DEOP <#channel> <nick>, MODE <#channel> <modes> [arg], STATS, IRCOPS.');
+        $this->reply->reply($uid, 'Commands: KILL <nick> [reason], KICK <#channel> <nick> [reason], OP|DEOP <#channel> <nick>, MODE <#channel> <modes> [arg], GLINE <user@host> <duration> [reason], UNGLINE <user@host>, STATS, IRCOPS.');
     }
 
     private function isAddressedToMe(string $target): bool
