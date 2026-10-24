@@ -15,6 +15,8 @@ interface ChannelRepositoryInterface
 
     public function updateTopic(Channel $channel): void;
 
+    public function updateFounder(Channel $channel): void;
+
     public function delete(ChannelName $name): void;
 
     /** @return list<Channel> */

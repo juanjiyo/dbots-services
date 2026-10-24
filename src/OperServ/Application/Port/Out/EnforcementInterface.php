@@ -17,4 +17,7 @@ interface EnforcementInterface
     public function gline(string $userMask, string $hostMask, int $durationSeconds, string $reason): void;
 
     public function ungline(string $userMask, string $hostMask): void;
+
+    /** Forces a connected user to a new nickname. */
+    public function rename(string $uid, string $newNick): void;
 }

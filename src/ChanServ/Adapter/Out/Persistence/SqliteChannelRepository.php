@@ -55,6 +55,12 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
         ]);
     }
 
+    public function updateFounder(Channel $channel): void
+    {
+        $statement = $this->pdo->prepare('UPDATE channels SET founder = :founder WHERE name = :name');
+        $statement->execute(['name' => $channel->name->value, 'founder' => $channel->founder]);
+    }
+
     public function updateTopic(Channel $channel): void
     {
         $statement = $this->pdo->prepare('UPDATE channels SET topic = :topic WHERE name = :name');

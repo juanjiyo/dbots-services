@@ -15,6 +15,7 @@ use Dbots\Domain\Account\Nick;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
+use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use PHPUnit\Framework\Attributes\Test;
@@ -184,45 +185,3 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 }
 
-final class RecordingChannelProjection implements ChannelProjectionInterface
-{
-    /** @var list<string> */
-    public array $registered = [];
-
-    /** @var list<string> */
-    public array $dropped = [];
-
-    /** @var list<string> */
-    public array $accessAdded = [];
-
-    /** @var list<string> */
-    public array $accessRemoved = [];
-
-    /** @var list<string> */
-    public array $topics = [];
-
-    public function publishRegistered(string $channel): void
-    {
-        $this->registered[] = $channel;
-    }
-
-    public function publishDropped(string $channel): void
-    {
-        $this->dropped[] = $channel;
-    }
-
-    public function publishAccess(string $channel, string $nick): void
-    {
-        $this->accessAdded[] = $channel . ':' . $nick;
-    }
-
-    public function removeAccess(string $channel, string $nick): void
-    {
-        $this->accessRemoved[] = $channel . ':' . $nick;
-    }
-
-    public function publishTopic(string $channel): void
-    {
-        $this->topics[] = $channel;
-    }
-}

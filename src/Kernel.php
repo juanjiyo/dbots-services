@@ -87,6 +87,9 @@ final readonly class Kernel
             $udbEpoch ?? UdbAuthority::generateEpoch(),
         );
 
+        $accountProjection = new UdbAccountProjection($accounts, $authority);
+        $channelProjection = new UdbChannelProjection($channels, $authority);
+
         $nickServUid = sprintf('%sA00001', $link->sid);
         $chanServUid = sprintf('%sA00002', $link->sid);
         $memoServUid = sprintf('%sA00003', $link->sid);
@@ -100,7 +103,7 @@ final readonly class Kernel
             new RegisterNickHandler($accounts),
             new IdentifyHandler($accounts),
             $nickReplies,
-            new UdbAccountProjection($accounts, $authority),
+            $accountProjection,
             new ChangePasswordHandler($accounts),
             new DropNickHandler($accounts, $channels),
             new AccountResolver($accounts),
@@ -114,7 +117,7 @@ final readonly class Kernel
             new DropChannelHandler($channels, $channelAccess),
             $channels,
             $channelAccess,
-            new UdbChannelProjection($channels, $authority),
+            $channelProjection,
             new AccountResolver($accounts),
             $chanReplies,
             'ChanServ',
@@ -134,6 +137,10 @@ final readonly class Kernel
 
         $operServ = new OperServCommandHandler(
             new S2sEnforcement($transport, $link->sid),
+            $accounts,
+            $accountProjection,
+            $channels,
+            $channelProjection,
             $operReplies,
             'OperServ',
             $operServUid,

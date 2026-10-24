@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace Dbots\OperServ\Adapter\In\Irc;
 
+use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
+use Dbots\Domain\Account\Nick;
+use Dbots\Domain\Channel\Channel;
+use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
+use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
+use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\OperServ\Application\Duration;
+use InvalidArgumentException;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 
 use function array_filter;
@@ -19,6 +27,7 @@ use function implode;
 use function sprintf;
 use function strcasecmp;
 use function strpos;
+use function random_int;
 use function strtoupper;
 use function substr;
 
@@ -32,6 +41,10 @@ final readonly class OperServCommandHandler
 {
     public function __construct(
         private EnforcementInterface $enforcement,
+        private AccountRepositoryInterface $accounts,
+        private AccountProjectionInterface $accountProjection,
+        private ChannelRepositoryInterface $channels,
+        private ChannelProjectionInterface $channelProjection,
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
@@ -72,6 +85,9 @@ final readonly class OperServCommandHandler
             'MODE' => $this->onMode($sender, $parts, $state),
             'GLINE' => $this->onGline($sender, $parts, $state),
             'UNGLINE' => $this->onUngline($sender, $parts, $state),
+            'RENAME' => $this->onRename($sender, $parts, $state),
+            'DROPNDB' => $this->onDropNdb($sender, $parts, $state),
+            'APODERA' => $this->onApodera($sender, $parts, $state),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender),
@@ -254,6 +270,114 @@ final readonly class OperServCommandHandler
         return [substr($mask, 0, $position), substr($mask, $position + 1)];
     }
 
+    /** @param list<string> $args */
+    private function onRename(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, 'Syntax: RENAME <nick> [newnick]');
+
+            return;
+        }
+
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return;
+        }
+
+        $newNick = $args[0] ?? ('Guest' . random_int(1000, 9999));
+
+        $this->enforcement->rename($uid, $newNick);
+        $this->reply->reply($sender, sprintf('%s has been renamed to %s.', $nick, $newNick));
+    }
+
+    /** @param list<string> $args */
+    private function onDropNdb(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, 'Syntax: DROPNDB <nick>');
+
+            return;
+        }
+
+        try {
+            $account = new Nick($nick);
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($sender, 'That nickname cannot be in the database.');
+
+            return;
+        }
+
+        if (null === $this->accounts->findByNick($account)) {
+            $this->reply->reply($sender, sprintf('%s is not registered.', $nick));
+
+            return;
+        }
+
+        $this->accounts->delete($account);
+        $this->accountProjection->remove($account->value);
+
+        $this->reply->reply($sender, sprintf('%s has been removed from the database.', $account->value));
+    }
+
+    /** @param list<string> $args */
+    private function onApodera(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $channelName = array_shift($args);
+        $newFounder = array_shift($args);
+
+        if (null === $channelName) {
+            $this->reply->reply($sender, 'Syntax: APODERA <#channel> [nick]');
+
+            return;
+        }
+
+        try {
+            $registered = $this->channels->find(new ChannelName($channelName));
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($sender, 'That channel name cannot be registered.');
+
+            return;
+        }
+
+        if (null === $registered) {
+            $this->reply->reply($sender, sprintf('%s is not registered.', $channelName));
+
+            return;
+        }
+
+        $founder = $newFounder ?? $state->nickOf($sender);
+
+        if (null === $founder) {
+            $this->reply->reply($sender, 'Say which nick takes the channel.');
+
+            return;
+        }
+
+        $this->channels->updateFounder(new Channel($registered->name, $founder, $registered->createdAt, $registered->topic));
+        $this->channelProjection->publishRegistered($registered->name->value);
+
+        $this->reply->reply($sender, sprintf('%s now belongs to %s.', $registered->name->value, $founder));
+    }
+
     private function onStats(string $sender, NetworkState $state): void
     {
         $this->reply->reply($sender, sprintf('Users online: %d.', $state->count()));
@@ -287,7 +411,7 @@ final readonly class OperServCommandHandler
 
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: KILL <nick> [reason], KICK <#channel> <nick> [reason], OP|DEOP <#channel> <nick>, MODE <#channel> <modes> [arg], GLINE <user@host> <duration> [reason], UNGLINE <user@host>, STATS, IRCOPS.');
+        $this->reply->reply($uid, 'Commands: KILL, KICK, OP, DEOP, MODE, GLINE, UNGLINE, RENAME <nick> [newnick], DROPNDB <nick>, APODERA <#channel> [nick], STATS, IRCOPS.');
     }
 
     private function isAddressedToMe(string $target): bool

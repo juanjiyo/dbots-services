@@ -143,6 +143,9 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 /msg OperServ MODE <#channel> <modes> [arg]
 /msg OperServ GLINE <user@host> <duration> [reason]
 /msg OperServ UNGLINE <user@host>
+/msg OperServ RENAME <nick> [newnick]
+/msg OperServ DROPNDB <nick>
+/msg OperServ APODERA <#channel> [nick]
 ```
 
 Durations: `0` is permanent, a bare number means minutes, and `30m`, `2h`,

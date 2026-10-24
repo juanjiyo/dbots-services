@@ -258,6 +258,8 @@ final class NoChannels implements ChannelRepositoryInterface
 
     public function updateTopic(Channel $channel): void {}
 
+    public function updateFounder(Channel $channel): void {}
+
     public function delete(ChannelName $name): void {}
 
     public function all(): array

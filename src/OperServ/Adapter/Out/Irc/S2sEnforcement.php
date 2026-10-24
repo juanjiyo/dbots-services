@@ -60,6 +60,11 @@ final readonly class S2sEnforcement implements EnforcementInterface
         ));
     }
 
+    public function rename(string $uid, string $newNick): void
+    {
+        $this->transport->writeLine(sprintf(':%s SVSNICK %s %s %d', $this->sid, $uid, $newNick, time()));
+    }
+
     public function channelMode(string $channel, string $modes, ?string $target = null): void
     {
         $this->transport->writeLine(null === $target

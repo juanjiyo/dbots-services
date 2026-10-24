@@ -29,3 +29,7 @@ Objective: the operator commands that need server authority, gated on real oper 
 
 - **L7** — Added `GLINE`/`UNGLINE` over UnrealIRCd TKL: `TKL + G <user> <host> <set-by> <expire> <set-at> :<reason>` and `TKL - G <user> <host> <set-by>`. Duration accepts `0` (permanent), a bare number (minutes) or a suffix (`30m`, `2h`, `1d`, `1w`).
 - **L8** — Verified live against the IRCd's own ban list: after `GLINE *@203.0.113.99 10m pruebas de gline`, `server_ban.list` reported `type: gline`, `set_by: 004` (our SID), the exact expiry and reason; after `UNGLINE`, the entry was gone. The test mask is TEST-NET on purpose, so the verification cannot lock anybody out.
+
+- **L9** — Read the reference before coding, and it changed the design: in `op.mrc`, `APODERA` takes over a **channel**, `RENAME` forces a connected user's nickname and `DROPNDB` deletes the nick from the database. Implementing the names without reading would have produced three wrong commands.
+- **L10** — Implemented: `RENAME <nick> [newnick]` over `SVSNICK`; `DROPNDB <nick>` deletes the account and its UDB record; `APODERA <#channel> [nick]` reassigns the founder and re-publishes the channel.
+- **L11** — Verified live: the victim's connection was renamed, `#finaltest` changed founder, and `DROPNDB RegFlow` removed the account so the same credential no longer identifies. A broken daemon start (a projection built after its use in `Kernel`) was caught by the service failing to come up, not by the tests.

@@ -18,13 +18,22 @@ final class OperServCommandHandlerTest extends TestCase
     private RecordingIrc $irc;
     private OperServCommandHandler $handler;
     private NetworkState $state;
+    private \Dbots\Tests\Support\InMemoryAccountRepository $accounts;
+    private \Dbots\Tests\Support\InMemoryChannelRepository $channels;
 
     protected function setUp(): void
     {
         $this->enforcement = new RecordingEnforcement();
         $this->irc = new RecordingIrc();
+        $this->accounts = new \Dbots\Tests\Support\InMemoryAccountRepository();
+        $this->channels = new \Dbots\Tests\Support\InMemoryChannelRepository();
+
         $this->handler = new OperServCommandHandler(
             $this->enforcement,
+            $this->accounts,
+            new \Dbots\Tests\Support\RecordingProjection(),
+            $this->channels,
+            new \Dbots\Tests\Support\RecordingChannelProjection(),
             $this->irc,
             'OperServ',
             '003A00004',
@@ -177,6 +186,44 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanForceARename(): void
+    {
+        $this->handler->handle($this->privmsg('RENAME victim Renamed'), $this->state);
+
+        self::assertSame(['001BBBBBB->Renamed'], $this->enforcement->renames);
+    }
+
+    #[Test]
+    public function anOperCanDropANickFromTheDatabase(): void
+    {
+        $this->accounts->save(new \Dbots\Domain\Account\Account(new \Dbots\Domain\Account\Nick('victim'), 'hash', null, new \DateTimeImmutable()));
+
+        $this->handler->handle($this->privmsg('DROPNDB victim'), $this->state);
+
+        self::assertNull($this->accounts->findByNick(new \Dbots\Domain\Account\Nick('victim')));
+        self::assertSame(['001AAAAAA: victim has been removed from the database.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anOperCanTakeOverAChannel(): void
+    {
+        $this->channels->seed('#taken', 'oldowner');
+
+        $this->handler->handle($this->privmsg('APODERA #taken oper'), $this->state);
+
+        self::assertSame('oper', $this->channels->find(new \Dbots\Domain\Channel\ChannelName('#taken'))?->founder);
+        self::assertSame(['001AAAAAA: #taken now belongs to oper.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aNonOperCannotUseAdminCommands(): void
+    {
+        $this->handler->handle($this->privmsg('DROPNDB victim', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
         $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['ChanServ'], 'KILL victim'), $this->state);
@@ -207,6 +254,9 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<string> */
     public array $unglines = [];
 
+    /** @var list<string> */
+    public array $renames = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -230,5 +280,10 @@ final class RecordingEnforcement implements EnforcementInterface
     public function ungline(string $userMask, string $hostMask): void
     {
         $this->unglines[] = $userMask . '@' . $hostMask;
+    }
+
+    public function rename(string $uid, string $newNick): void
+    {
+        $this->renames[] = $uid . '->' . $newNick;
     }
 }
