@@ -24,7 +24,8 @@ dbots publishes and applies the account and `+r` itself.
 | NickServ `REGISTER` / `IDENTIFY` / `HELP` | Working |
 | ChanServ `REGISTER` / `INFO` / `DROP` / `HELP` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
-| MemoServ / OperServ | Not started |
+| MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
+| OperServ | Not started |
 
 ## Operations
 
@@ -106,6 +107,10 @@ src/
 │   ├── Adapter/In/Irc/     ChanServCommandHandler
 │   ├── Adapter/Out/        SQLite channels
 │   └── Application/        RegisterChannel, DropChannel + ports
+├── MemoServ/
+│   ├── Adapter/In/Irc/     MemoServCommandHandler
+│   ├── Adapter/Out/        SQLite memos
+│   └── Application/        SendMemo, ReadMemo, DeleteMemo + port
 ├── NickServ/
 │   ├── Adapter/In/Irc/     NickServCommandHandler
 │   ├── Adapter/Out/        SQLite accounts, SVSLOGIN, NOTICEs
@@ -122,6 +127,18 @@ src/
 The handshake is a pure state machine fed with lines, so the protocol is tested
 without sockets. Only `TlsStreamTransport` knows about sockets, and only
 `UdbAuthority` knows about UDB framing.
+
+## Memos
+
+```text
+/msg MemoServ SEND <nick> <message>
+/msg MemoServ LIST
+/msg MemoServ READ <number>
+/msg MemoServ DELETE <number>
+```
+
+Memos belong to the account, not the session, and have no UDB projection: there
+is no memo block, so they never enter the replicated database.
 
 ## Channel registration
 

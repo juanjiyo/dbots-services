@@ -11,10 +11,9 @@ use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelResult;
 use Dbots\Domain\Channel\ChannelName;
-use Dbots\Domain\Account\Nick;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
-use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use InvalidArgumentException;
 
@@ -33,7 +32,7 @@ final readonly class ChanServCommandHandler
         private DropChannelHandler $drop,
         private ChannelRepositoryInterface $channels,
         private ChannelProjectionInterface $projection,
-        private AccountRepositoryInterface $accounts,
+        private AccountResolver $accounts,
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
@@ -65,7 +64,7 @@ final readonly class ChanServCommandHandler
         }
 
         $command = strtoupper((string) array_shift($parts));
-        $account = $this->accountOf($sender, $state);
+        $account = $this->accounts->resolve($sender, $state);
 
         match ($command) {
             'REGISTER', 'REGISTRA' => $this->onRegister($sender, $account, $parts),
@@ -162,25 +161,6 @@ final readonly class ChanServCommandHandler
     private function onHelp(string $uid): void
     {
         $this->reply->reply($uid, 'Commands: REGISTER <#channel>, DROP <#channel>, INFO <#channel>.');
-    }
-
-    /**
-     * The sender's account, derived from +r and our own account store: a client
-     * UID carries the modes but never the account name.
-     */
-    private function accountOf(string $uid, NetworkState $state): ?string
-    {
-        $nick = $state->nickOf($uid);
-
-        if (null === $nick || !$state->hasMode($uid, 'r')) {
-            return null;
-        }
-
-        try {
-            return $this->accounts->findByNick(new Nick($nick))?->nick->value;
-        } catch (InvalidArgumentException) {
-            return null;
-        }
     }
 
     private function isAddressedToMe(string $target): bool

@@ -11,6 +11,7 @@ use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
+use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 
@@ -29,6 +30,7 @@ final readonly class Daemon
         private NetworkState $state,
         private NickServCommandHandler $nickServ,
         private ChanServCommandHandler $chanServ,
+        private MemoServCommandHandler $memoServ,
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
@@ -60,6 +62,7 @@ final readonly class Daemon
         $services = [
             ['NickServ', sprintf('%sA00001', $this->sid), 'Nickname Registration Services'],
             ['ChanServ', sprintf('%sA00002', $this->sid), 'Channel Registration Services'],
+            ['MemoServ', sprintf('%sA00003', $this->sid), 'Memo Services'],
         ];
 
         foreach ($services as [$nick, $uid, $realname]) {
@@ -147,6 +150,7 @@ final readonly class Daemon
     {
         $this->nickServ->handle($message, $this->state);
         $this->chanServ->handle($message, $this->state);
+        $this->memoServ->handle($message, $this->state);
     }
 
     private function onNickChange(IrcMessage $message): void

@@ -14,7 +14,13 @@ use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\Domain\Link\ServerLink;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\NetworkState;
+use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
+use Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoRepository;
+use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
+use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
+use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Adapter\Out\Irc\S2sAccountLogin;
@@ -62,6 +68,7 @@ final readonly class Kernel
 
         $accounts = new SqliteAccountRepository($pdo);
         $channels = new SqliteChannelRepository($pdo);
+        $memos = new SqliteMemoRepository($pdo);
 
         $authority = new UdbAuthority(
             $link->sid,
@@ -76,8 +83,10 @@ final readonly class Kernel
 
         $nickServUid = sprintf('%sA00001', $link->sid);
         $chanServUid = sprintf('%sA00002', $link->sid);
+        $memoServUid = sprintf('%sA00003', $link->sid);
         $nickReplies = new IrcReplySender($transport, $nickServUid);
         $chanReplies = new IrcReplySender($transport, $chanServUid);
+        $memoReplies = new IrcReplySender($transport, $memoServUid);
 
         $nickServ = new NickServCommandHandler(
             new RegisterNickHandler($accounts),
@@ -94,10 +103,21 @@ final readonly class Kernel
             new DropChannelHandler($channels),
             $channels,
             new UdbChannelProjection($channels, $authority),
-            $accounts,
+            new AccountResolver($accounts),
             $chanReplies,
             'ChanServ',
             $chanServUid,
+        );
+
+        $memoServ = new MemoServCommandHandler(
+            new SendMemoHandler($memos, $accounts),
+            new ReadMemoHandler($memos),
+            new DeleteMemoHandler($memos),
+            $memos,
+            new AccountResolver($accounts),
+            $memoReplies,
+            'MemoServ',
+            $memoServUid,
         );
 
         $daemon = new Daemon(
@@ -107,6 +127,7 @@ final readonly class Kernel
             new NetworkState(),
             $nickServ,
             $chanServ,
+            $memoServ,
             new ServiceUidFormatter($link->sid),
             $link->sid,
             $link->name,

@@ -12,6 +12,7 @@ use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
@@ -40,7 +41,7 @@ final class ChanServCommandHandlerTest extends TestCase
             new DropChannelHandler($this->channels),
             $this->channels,
             $this->projection,
-            $this->accounts,
+            new AccountResolver($this->accounts),
             $this->irc,
             'ChanServ',
             '003A00002',
