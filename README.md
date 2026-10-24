@@ -25,7 +25,7 @@ dbots publishes and applies the account and `+r` itself.
 | ChanServ `REGISTER` / `INFO` / `DROP` / `HELP` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
-| OperServ | Not started |
+| OperServ `KILL` / `KICK` / `STATS` / `IRCOPS` | Working, verified live |
 
 ## Operations
 
@@ -107,6 +107,10 @@ src/
 │   ├── Adapter/In/Irc/     ChanServCommandHandler
 │   ├── Adapter/Out/        SQLite channels
 │   └── Application/        RegisterChannel, DropChannel + ports
+├── OperServ/
+│   ├── Adapter/In/Irc/     OperServCommandHandler
+│   ├── Adapter/Out/Irc/    KILL / SAKICK enforcement
+│   └── Application/Port/   EnforcementInterface
 ├── MemoServ/
 │   ├── Adapter/In/Irc/     MemoServCommandHandler
 │   ├── Adapter/Out/        SQLite memos
@@ -127,6 +131,18 @@ src/
 The handshake is a pure state machine fed with lines, so the protocol is tested
 without sockets. Only `TlsStreamTransport` knows about sockets, and only
 `UdbAuthority` knows about UDB framing.
+
+## Operator commands
+
+```text
+/msg OperServ KILL <nick> [reason]
+/msg OperServ KICK <#channel> <nick> [reason]
+/msg OperServ STATS
+/msg OperServ IRCOPS
+```
+
+Mutating commands require user mode `+o` on the connection. Oper status is read
+from the connection itself, never inferred from a nickname or an account.
 
 ## Memos
 

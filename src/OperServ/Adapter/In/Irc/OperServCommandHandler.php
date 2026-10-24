@@ -1,0 +1,182 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Dbots\OperServ\Adapter\In\Irc;
+
+use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\NetworkState;
+use Dbots\NickServ\Application\Port\Out\ReplyInterface;
+use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
+
+use function array_filter;
+use function array_shift;
+use function array_slice;
+use function array_values;
+use function explode;
+use function implode;
+use function sprintf;
+use function strcasecmp;
+use function strtoupper;
+
+/**
+ * IRC operator commands.
+ *
+ * Every mutating command requires the sender to carry user mode +o; the daemon
+ * never infers operator status from a nickname or from who is registered.
+ */
+final readonly class OperServCommandHandler
+{
+    public function __construct(
+        private EnforcementInterface $enforcement,
+        private ReplyInterface $reply,
+        private string $serviceNick,
+        private string $serviceUid,
+    ) {
+    }
+
+    public function handle(IrcMessage $message, NetworkState $state): void
+    {
+        if ('PRIVMSG' !== $message->command) {
+            return;
+        }
+
+        $target = $message->target();
+
+        if (null === $target || !$this->isAddressedToMe($target)) {
+            return;
+        }
+
+        $sender = $message->source();
+
+        if (null === $sender) {
+            return;
+        }
+
+        $parts = $this->tokenise($message->text());
+
+        if ([] === $parts) {
+            return;
+        }
+
+        $command = strtoupper((string) array_shift($parts));
+
+        match ($command) {
+            'KILL' => $this->onKill($sender, $parts, $state),
+            'KICK' => $this->onKick($sender, $parts, $state),
+            'STATS' => $this->onStats($sender, $state),
+            'IRCOPS' => $this->onIrcops($sender, $state),
+            'HELP', 'AYUDA' => $this->onHelp($sender),
+            default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onKill(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, 'Syntax: KILL <nick> [reason]');
+
+            return;
+        }
+
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return;
+        }
+
+        $reason = [] === $args ? 'Killed by OperServ' : implode(' ', array_values($args));
+
+        $this->enforcement->kill($uid, $reason);
+        $this->reply->reply($sender, sprintf('%s has been killed.', $nick));
+    }
+
+    /** @param list<string> $args */
+    private function onKick(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $channel = $args[0] ?? null;
+        $nick = $args[1] ?? null;
+
+        if (null === $channel || null === $nick) {
+            $this->reply->reply($sender, 'Syntax: KICK <#channel> <nick> [reason]');
+
+            return;
+        }
+
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return;
+        }
+
+        $reason = implode(' ', array_values(array_slice($args, 2)));
+
+        $this->enforcement->kick($channel, $uid, '' === $reason ? 'Kicked by OperServ' : $reason);
+        $this->reply->reply($sender, sprintf('%s has been kicked from %s.', $nick, $channel));
+    }
+
+    private function onStats(string $sender, NetworkState $state): void
+    {
+        $this->reply->reply($sender, sprintf('Users online: %d.', $state->count()));
+    }
+
+    private function onIrcops(string $sender, NetworkState $state): void
+    {
+        $operators = [];
+
+        foreach ($state->users() as $uid => $nick) {
+            if ($state->hasMode($uid, 'o')) {
+                $operators[] = $nick;
+            }
+        }
+
+        $this->reply->reply($sender, [] === $operators
+            ? 'No IRC operators are online.'
+            : sprintf('IRC operators online: %s.', implode(', ', $operators)));
+    }
+
+    private function requireOper(string $sender, NetworkState $state): bool
+    {
+        if ($state->hasMode($sender, 'o')) {
+            return true;
+        }
+
+        $this->reply->reply($sender, 'This command is restricted to IRC operators.');
+
+        return false;
+    }
+
+    private function onHelp(string $uid): void
+    {
+        $this->reply->reply($uid, 'Commands: KILL <nick> [reason], KICK <#channel> <nick> [reason], STATS, IRCOPS.');
+    }
+
+    private function isAddressedToMe(string $target): bool
+    {
+        return 0 === strcasecmp($target, $this->serviceNick) || $target === $this->serviceUid;
+    }
+
+    /** @return list<string> */
+    private function tokenise(string $text): array
+    {
+        return array_values(array_filter(
+            explode(' ', $text),
+            static fn (string $token): bool => '' !== $token,
+        ));
+    }
+}

@@ -129,6 +129,12 @@ final class NetworkState
         return null !== $this->uidOf($nick);
     }
 
+    /** @return array<string, string> uid => nick */
+    public function users(): array
+    {
+        return $this->nicks;
+    }
+
     public function count(): int
     {
         return \count($this->nicks);

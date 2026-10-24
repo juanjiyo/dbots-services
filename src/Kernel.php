@@ -22,6 +22,8 @@ use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
+use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
+use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
@@ -85,9 +87,11 @@ final readonly class Kernel
         $nickServUid = sprintf('%sA00001', $link->sid);
         $chanServUid = sprintf('%sA00002', $link->sid);
         $memoServUid = sprintf('%sA00003', $link->sid);
+        $operServUid = sprintf('%sA00004', $link->sid);
         $nickReplies = new IrcReplySender($transport, $nickServUid);
         $chanReplies = new IrcReplySender($transport, $chanServUid);
         $memoReplies = new IrcReplySender($transport, $memoServUid);
+        $operReplies = new IrcReplySender($transport, $operServUid);
 
         $nickServ = new NickServCommandHandler(
             new RegisterNickHandler($accounts),
@@ -123,6 +127,13 @@ final readonly class Kernel
             $memoServUid,
         );
 
+        $operServ = new OperServCommandHandler(
+            new S2sEnforcement($transport, $link->sid),
+            $operReplies,
+            'OperServ',
+            $operServUid,
+        );
+
         $daemon = new Daemon(
             $runner,
             $transport,
@@ -131,6 +142,7 @@ final readonly class Kernel
             $nickServ,
             $chanServ,
             $memoServ,
+            $operServ,
             new ServiceUidFormatter($link->sid),
             $link->sid,
             $link->name,
