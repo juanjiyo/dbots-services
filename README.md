@@ -32,6 +32,12 @@ dbots publishes and applies the account and `+r` itself.
 | OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
 | OperServ `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |
 
+## Documentation
+
+- [Installation](docs/installation.md) — requirements, IRCd and daemon setup, first run, troubleshooting
+- [Architecture](docs/architecture.md) — layers, flows, the UDB authority, why Symfony
+- [Commands](docs/commands.md) — every service against the original mIRC surface
+
 ## Operations
 
 ```bash
