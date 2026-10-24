@@ -4,52 +4,37 @@ declare(strict_types=1);
 
 namespace Dbots\Irc\Application;
 
-use function date;
 use function sprintf;
 use function strtoupper;
 
 /**
- * Renders a debug line the way the network's #debug channel looks today:
+ * Formats the body of one debug line.
  *
- *   HH:MM  <tag> ¦ <subject> <text>
- *
- * with 14 for the clock, 12 for separators and subjects, and 02 for the tag.
- * The original dBots built these with raw mIRC codes; the codes here are the
- * same numbers, so a client that already styles that channel renders this too.
+ * No prefix and no clock: the `<DeBuG>` the channel shows is the pseudo-client's
+ * nickname and the timestamp is the client's own. This only paints the text,
+ * with 12 for names and subjects and 4 for anything destructive, the same codes
+ * the original mIRC scripts used.
  */
 final readonly class DebugFormatter
 {
     private const string RESET = "\x0F";
 
-    public function __construct(private string $tag = 'DeBuG') {}
+    public function __construct(private readonly string $tag = 'DeBuG') {}
 
     public function line(string $subject, string $text): string
     {
-        return sprintf(
-            "\x0314%s\x0312:\x0314%s%s \x0312\x0302%s\x0312 \u{00A6}%s \x0312%s%s %s",
-            date('H'),
-            date('i'),
-            self::RESET,
-            $this->tag,
-            self::RESET,
-            $subject,
-            self::RESET,
-            $text,
-        );
+        return sprintf('%s %s', $this->subject($subject), $text);
     }
 
-    /** A full sentence: clock and tag, then the text as given. */
+    /** Colour 12, the same one the original used for names and subjects. */
+    private function subject(string $text): string
+    {
+        return "\x0312" . $text . self::RESET;
+    }
+
     public function event(string $text): string
     {
-        return sprintf(
-            "\x0314%s\x0312:\x0314%s%s \x0312\x0302%s\x0312 \u{00A6}%s %s",
-            date('H'),
-            date('i'),
-            self::RESET,
-            $this->tag,
-            self::RESET,
-            $text,
-        );
+        return $text;
     }
 
     /** Interprets a UDB mutation as the human sentence the channel shows. */

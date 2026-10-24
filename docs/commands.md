@@ -100,14 +100,15 @@ sees the whole stream, and keeps it narrower on purpose:
 DBOTS_DEBUG_CHANNEL=#DeBuG
 ```
 
-When set, a `DebugServ` client joins that channel and writes it in the layout
-that channel already uses: clock, tag, subject and a human sentence, with the
-same codes (14 clock, 12 separators and subject, 02 tag).
+When set, a pseudo-client nicknamed `DeBuG` joins that channel. The `<DeBuG>`
+you see is its nickname, and the timestamp is your client's: the message body
+carries neither.
 
 ```text
-23:05  DeBuG ¦ DbgFmt2 STATUS FreshUser
-23:05  DeBuG ¦ DbgFmt2 IDENTIFY en NickServ
-23:06  DeBuG ¦ NickServ añade la prohibición de JuanJo
+JuanJo_Jaen entra al canal #sitioChat
+irc.sitiochat.es cambia modos de #sitioChat a +o JuanJo_Jaen
+Conecta: NICK: JuanJo_Jaen IDENT: ~jj IP/HOST: 1.2.3.4 REALNAME: Juan SERVIDOR: 001
+NickServ añade la prohibición de JuanJo
 ```
 
 The event table is a port of the original `de.mrc` branches: user introduction,

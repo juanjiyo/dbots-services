@@ -79,7 +79,7 @@ final readonly class Daemon
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
-            $services[] = ['DebugServ', sprintf('%sA00005', $this->sid), 'Network Debug Relay'];
+            $services[] = ['DeBuG', sprintf('%sA00005', $this->sid), 'Network Debug Relay'];
         }
 
         foreach ($services as [$nick, $uid, $realname]) {

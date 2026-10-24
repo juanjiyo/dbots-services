@@ -28,7 +28,8 @@ final class DebugRelayTest extends TestCase
         $line = $this->transport->written[0];
 
         self::assertStringStartsWith(':003A00005 PRIVMSG #DeBuG :', $line);
-        self::assertStringContainsString("\x0302DeBuG", $line);
+        // The <DeBuG> the channel shows is the client's nickname, not our text.
+        self::assertStringNotContainsString('<DeBuG>', $line);
         self::assertStringContainsString("\x0312JuanJo", $line);
         self::assertStringContainsString('STATUS en NickServ', $line);
     }
