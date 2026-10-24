@@ -1,0 +1,1 @@
+# dbots is a daemon: it serves IRC, not HTTP, so it has no routes.

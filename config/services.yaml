@@ -1,0 +1,86 @@
+parameters:
+    # Defaults for every environment variable the daemon reads, so a missing
+    # variable never breaks boot and never silently changes behaviour.
+    env(DBOTS_LINK_NAME): 'bots.sitiochat.es'
+    env(DBOTS_LINK_SID): '003'
+    env(DBOTS_LINK_HOST): '127.0.0.1'
+    env(DBOTS_LINK_PORT): '6900'
+    env(DBOTS_LINK_PASSWORD): ''
+    env(DBOTS_LINK_DESCRIPTION): 'dbots services'
+    env(DBOTS_LINK_TLS_VERIFY): '1'
+    env(DBOTS_DATABASE): '%kernel.project_dir%/var/dbots.sqlite'
+    env(DBOTS_ROOT_PASSWORD): ''
+    env(DBOTS_RECONNECT_DELAY): '5'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # Every class in src/ is a service unless it is pure data or the kernel.
+    Dbots\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/Domain/'
+
+    # --- Infrastructure -------------------------------------------------------
+
+    # A filesystem path is a string, so the connection is built explicitly.
+    dbots.pdo:
+        class: PDO
+        factory: ['Dbots\Bootstrap\PdoFactory', 'create']
+        arguments: ['%env(DBOTS_DATABASE)%']
+
+    PDO: '@dbots.pdo'
+
+    Dbots\Domain\Link\ServerLink:
+        arguments:
+            $name: '%env(DBOTS_LINK_NAME)%'
+            $sid: '%env(DBOTS_LINK_SID)%'
+            $password: '%env(DBOTS_LINK_PASSWORD)%'
+            $description: '%env(DBOTS_LINK_DESCRIPTION)%'
+
+    Dbots\Adapter\Out\Transport\TlsStreamTransport:
+        arguments:
+            $host: '%env(DBOTS_LINK_HOST)%'
+            $port: '%env(int:DBOTS_LINK_PORT)%'
+            $timeoutSeconds: 30.0
+            $verifyPeer: '%env(bool:DBOTS_LINK_TLS_VERIFY)%'
+
+    # --- Ports to adapters ----------------------------------------------------
+
+    Dbots\Application\Port\Out\LinkTransportInterface: '@Dbots\Adapter\Out\Transport\TlsStreamTransport'
+
+    Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface: '@Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository'
+    Dbots\NickServ\Application\Port\Out\AccountProjectionInterface: '@Dbots\Udb\UdbAccountProjection'
+
+    Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface: '@Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelRepository'
+    Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface: '@Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelAccessRepository'
+    Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface: '@Dbots\Udb\UdbChannelProjection'
+
+    Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoRepository'
+
+    Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository'
+
+    # --- UDB ------------------------------------------------------------------
+
+    # One six-block view assembled from the services that own each block.
+    Dbots\Udb\BlockProviderInterface:
+        class: Dbots\Udb\CompositeBlockProvider
+        arguments:
+            $providers:
+                - '@Dbots\Udb\AccountBlockProvider'
+                - '@Dbots\Udb\ChannelBlockProvider'
+                - '@Dbots\Udb\SpamBlockProvider'
+
+    Dbots\Udb\AccountBlockProvider:
+        arguments:
+            $serviceHost: '%env(DBOTS_LINK_NAME)%'
+
+    # --- Daemon ---------------------------------------------------------------
+
+    Dbots\Bootstrap\DaemonFactory:
+        arguments:
+            $rootPassword: '%env(DBOTS_ROOT_PASSWORD)%'

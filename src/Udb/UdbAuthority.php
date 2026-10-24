@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dbots\Udb;
 
+use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 
 use function array_map;
@@ -41,17 +42,13 @@ final class UdbAuthority
     private bool $announced = false;
     private ?string $peerSid = null;
 
-    /** @var callable(string): void */
-    private $write;
-
     public function __construct(
         private readonly string $sid,
         private readonly string $serverName,
         private readonly BlockProviderInterface $blocks,
-        callable $write,
+        private readonly LinkTransportInterface $transport,
         private readonly string $epoch,
     ) {
-        $this->write = $write;
     }
 
     public static function generateEpoch(): string
@@ -109,7 +106,7 @@ final class UdbAuthority
     {
         $this->sequence++;
 
-        ($this->write)(sprintf(
+        $this->transport->writeLine(sprintf(
             ':%s DB * DEL %s %d %s::%s',
             $this->sid,
             $this->epoch,
@@ -125,7 +122,7 @@ final class UdbAuthority
 
         $encodedPath = $this->encodePath($path);
 
-        ($this->write)(sprintf(
+        $this->transport->writeLine(sprintf(
             ':%s DB * INS %s %d %s::%s :%s',
             $this->sid,
             $this->epoch,
@@ -147,7 +144,7 @@ final class UdbAuthority
 
         $peer = $this->peerSid ?? '*';
 
-        ($this->write)(sprintf(
+        $this->transport->writeLine(sprintf(
             ':%s DB %s HEL %s ACK %s %s OCL',
             $this->sid,
             $peer ?? '*',
@@ -177,10 +174,10 @@ final class UdbAuthority
         $txid = sprintf('tx%d%s', $round, $block);
         $target = $this->peerSid ?? '*';
 
-        ($this->write)(sprintf(':%s DB %s BEGIN %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
+        $this->transport->writeLine(sprintf(':%s DB %s BEGIN %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
 
         foreach ($records as $path => $value) {
-            ($this->write)(sprintf(
+            $this->transport->writeLine(sprintf(
                 ':%s DB %s PUT %d %s %s %s::%s :%s',
                 $this->sid,
                 $target,
@@ -193,7 +190,7 @@ final class UdbAuthority
             ));
         }
 
-        ($this->write)(sprintf(':%s DB %s END %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
+        $this->transport->writeLine(sprintf(':%s DB %s END %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
     }
 
     private function announceInventory(): void
@@ -203,7 +200,7 @@ final class UdbAuthority
         foreach (self::BLOCKS as $block) {
             $records = $this->blocks->records($block);
 
-            ($this->write)(sprintf(
+            $this->transport->writeLine(sprintf(
                 ':%s DB %s INF %d %s %s %d 0 %d %s %s',
                 $this->sid,
                 $this->peerSid ?? '*',

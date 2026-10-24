@@ -331,7 +331,7 @@ final class OperServCommandHandlerTest extends TestCase
                 '003',
                 'bots.test',
                 new \Dbots\Udb\CompositeBlockProvider([]),
-                static fn (string $line): null => null,
+                new \Dbots\Tests\Support\RecordingTransport(),
                 '0123456789abcdef',
             ),
         );

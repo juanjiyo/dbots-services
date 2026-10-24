@@ -15,13 +15,15 @@ final class UdbAuthorityTest extends TestCase
 {
     private const string EPOCH = '0123456789abcdef';
 
+    private \Dbots\Tests\Support\RecordingTransport $transport;
+
     /** @var list<string> */
-    private array $written = [];
+    private array $written {
+        get => $this->transport->written;
+    }
 
     private function authority(array $blocks = []): UdbAuthority
     {
-        $this->written = [];
-
         $provider = new class($blocks) implements BlockProviderInterface {
             /** @param array<string, array<string, string|int|null>> $blocks */
             public function __construct(private array $blocks) {}
@@ -32,13 +34,13 @@ final class UdbAuthorityTest extends TestCase
             }
         };
 
+        $this->transport = new \Dbots\Tests\Support\RecordingTransport();
+
         return new UdbAuthority(
             '007',
             'bots.example.org',
             $provider,
-            function (string $line): void {
-                $this->written[] = $line;
-            },
+            $this->transport,
             self::EPOCH,
         );
     }
@@ -92,7 +94,7 @@ final class UdbAuthorityTest extends TestCase
     {
         $authority = $this->authority();
         $authority->handle($this->frame(['007', 'HEL', '4', 'bots.example.org', self::EPOCH, 'OCL']));
-        $this->written = [];
+        $this->transport->written = [];
 
         $authority->handle($this->frame(['007', 'RES', '1', 'N']));
 
@@ -110,7 +112,7 @@ final class UdbAuthorityTest extends TestCase
             'N' => ['alice::pass' => 'crypt:$2y$hash'],
         ]);
         $authority->handle($this->frame(['007', 'HEL', '4', 'bots.example.org', self::EPOCH, 'OCL']));
-        $this->written = [];
+        $this->transport->written = [];
 
         $authority->handle($this->frame(['007', 'RES', '1', 'N']));
 

@@ -3,3 +3,5 @@ vendor/
 .phpunit.result.cache
 composer.lock
 var/
+var/
+.env.local

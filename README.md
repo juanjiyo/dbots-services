@@ -1,7 +1,11 @@
 # dbots
 
-IRC services for UnrealIRCd 6 built as a UDB authority, in PHP, with no runtime
-dependencies beyond the standard library.
+IRC services for UnrealIRCd 6 built as a UDB authority, in PHP 8.5 on Symfony 8.1,
+the same shape as the Ares services: a micro-kernel, services declared in YAML
+and autowired.
+
+The goal is to reproduce the dBoTs family (the mIRC bots the network has run for
+years) on a modern stack, with the vocabulary and behaviour users already know.
 
 The daemon links to the IRCd as a services server (S2S), takes ownership of the
 distributed user database (UDB 4) and answers `NickServ` commands. Because UDB
@@ -30,6 +34,13 @@ dbots publishes and applies the account and `+r` itself.
 
 ## Operations
 
+```bash
+php bin/console list                 # the Symfony console
+php bin/console dbots:run            # run in the foreground
+php bin/console dbots:run 30         # run for 30 seconds (tests)
+php bin/console debug:container      # inspect the object graph
+```
+
 The daemon runs as a user systemd unit.
 
 ```bash
@@ -38,7 +49,8 @@ systemctl --user restart dbots       # apply a code change
 tail -f var/dbots.log                # output
 ```
 
-Configuration lives in `~/.config/dbots/env` (mode 600):
+Defaults for every variable live in `.env`; the deployment overrides them from
+`~/.config/dbots/env` (mode 600):
 
 | Variable | Meaning |
 |---|---|
@@ -93,6 +105,10 @@ curl -sk -u 'rpc-user:password' https://127.0.0.1:8600/api \
 ## Architecture
 
 ```text
+bin/console               Symfony console entrypoint
+config/services.yaml      Services, parameters and port-to-adapter aliases
+src/Kernel.php            Symfony micro-kernel
+src/Bootstrap/            DaemonFactory (nick/UID derivation) and the run command
 src/
 ├── Domain/Link/            ServerLink, LinkState
 ├── Application/

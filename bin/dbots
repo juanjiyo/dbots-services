@@ -3,67 +3,23 @@
 
 declare(strict_types=1);
 
-use Dbots\Domain\Link\ServerLink;
 use Dbots\Kernel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Dotenv\Dotenv;
 
-require __DIR__ . '/../vendor/autoload.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-$env = static function (string $key, string $default = ''): string {
-    $value = getenv($key);
+if (is_file(dirname(__DIR__) . '/.env')) {
+    (new Dotenv())->bootEnv(dirname(__DIR__) . '/.env');
+}
 
-    return false === $value || '' === $value ? $default : $value;
-};
+$kernel = new Kernel($_SERVER['APP_ENV'] ?? 'prod', false);
+$application = new Application($kernel);
+$application->setAutoExit(false);
 
-/**
- * Optional first argument is a runtime in seconds (used by tests). Without it
- * the daemon runs until it is stopped, relinking whenever the link drops.
- */
-$runtime = isset($argv[1]) ? max(0, (int) $argv[1]) : 0;
-$deadline = $runtime > 0 ? time() + $runtime : null;
-
-$link = new ServerLink(
-    name: $env('DBOTS_LINK_NAME', 'bots.sitiochat.es'),
-    sid: $env('DBOTS_LINK_SID', '003'),
-    password: $env('DBOTS_LINK_PASSWORD', ''),
-    description: $env('DBOTS_LINK_DESCRIPTION', 'dbots services'),
+return $application->run(
+    new ArrayInput(['command' => 'dbots:run', 'seconds' => $argv[1] ?? '0']),
+    new ConsoleOutput(),
 );
-
-$host = $env('DBOTS_LINK_HOST', '127.0.0.1');
-$port = (int) $env('DBOTS_LINK_PORT', '6900');
-$database = $env('DBOTS_DATABASE', __DIR__ . '/../var/dbots.sqlite');
-$verifyPeer = filter_var($env('DBOTS_LINK_TLS_VERIFY', '1'), FILTER_VALIDATE_BOOL);
-$reconnectDelay = max(1, (int) $env('DBOTS_RECONNECT_DELAY', '5'));
-
-do {
-    $budget = null === $deadline ? 3600 : min(3600, $deadline - time());
-
-    if ($budget <= 0) {
-        break;
-    }
-
-    $daemon = Kernel::create(
-        link: $link,
-        host: $host,
-        port: $port,
-        databasePath: $database,
-        verifyPeer: $verifyPeer,
-    )->daemon();
-
-    try {
-        $daemon->run($budget);
-    } catch (Throwable $exception) {
-        fwrite(STDERR, sprintf("dbots: %s\n", $exception->getMessage()));
-    } finally {
-        $daemon->stop();
-    }
-
-    if (null !== $deadline && time() >= $deadline) {
-        break;
-    }
-
-    if (null === $deadline) {
-        sleep($reconnectDelay);
-    }
-} while (true);
-
-fwrite(STDOUT, "dbots stopped\n");
