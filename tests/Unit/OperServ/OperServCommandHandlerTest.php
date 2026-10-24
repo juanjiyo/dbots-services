@@ -94,6 +94,31 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanOpAndDeop(): void
+    {
+        $this->handler->handle($this->privmsg('OP #chan victim'), $this->state);
+        $this->handler->handle($this->privmsg('DEOP #chan victim'), $this->state);
+
+        self::assertSame(['#chan|+o|victim', '#chan|-o|victim'], $this->enforcement->modes);
+    }
+
+    #[Test]
+    public function anOperCanApplyAChannelMode(): void
+    {
+        $this->handler->handle($this->privmsg('MODE #chan +m'), $this->state);
+
+        self::assertSame(['#chan|+m|'], $this->enforcement->modes);
+    }
+
+    #[Test]
+    public function aNonOperCannotOp(): void
+    {
+        $this->handler->handle($this->privmsg('OP #chan victim', '001BBBBBB'), $this->state);
+
+        self::assertSame([], $this->enforcement->modes);
+    }
+
+    #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
         $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['ChanServ'], 'KILL victim'), $this->state);
@@ -115,6 +140,9 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<string> */
     public array $kicks = [];
 
+    /** @var list<string> */
+    public array $modes = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -123,5 +151,10 @@ final class RecordingEnforcement implements EnforcementInterface
     public function kick(string $channel, string $uid, string $reason): void
     {
         $this->kicks[] = $channel . '|' . $uid . '|' . $reason;
+    }
+
+    public function channelMode(string $channel, string $modes, ?string $target = null): void
+    {
+        $this->modes[] = $channel . '|' . $modes . '|' . ($target ?? '');
     }
 }

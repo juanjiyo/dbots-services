@@ -22,11 +22,18 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
                 created_at TEXT NOT NULL
             )'
         );
+
+        // Older databases predate the topic column; add it in place.
+        $columns = $this->pdo->query('PRAGMA table_info(channels)')->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!in_array('topic', array_column($columns, 'name'), true)) {
+            $this->pdo->exec('ALTER TABLE channels ADD COLUMN topic TEXT NULL');
+        }
     }
 
     public function find(ChannelName $name): ?Channel
     {
-        $statement = $this->pdo->prepare('SELECT name, founder, created_at FROM channels WHERE name = :name');
+        $statement = $this->pdo->prepare('SELECT name, founder, created_at, topic FROM channels WHERE name = :name');
         $statement->execute(['name' => $name->value]);
 
         $row = $statement->fetch(PDO::FETCH_ASSOC);
@@ -37,14 +44,21 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
     public function save(Channel $channel): void
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO channels (name, founder, created_at) VALUES (:name, :founder, :created)'
+            'INSERT INTO channels (name, founder, created_at, topic) VALUES (:name, :founder, :created, :topic)'
         );
 
         $statement->execute([
             'name' => $channel->name->value,
             'founder' => $channel->founder,
             'created' => $channel->createdAt->format('c'),
+            'topic' => $channel->topic,
         ]);
+    }
+
+    public function updateTopic(Channel $channel): void
+    {
+        $statement = $this->pdo->prepare('UPDATE channels SET topic = :topic WHERE name = :name');
+        $statement->execute(['name' => $channel->name->value, 'topic' => $channel->topic]);
     }
 
     public function delete(ChannelName $name): void
@@ -58,7 +72,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
      */
     public function all(): array
     {
-        $statement = $this->pdo->query('SELECT name, founder, created_at FROM channels ORDER BY name');
+        $statement = $this->pdo->query('SELECT name, founder, created_at, topic FROM channels ORDER BY name');
 
         $channels = [];
 
@@ -76,6 +90,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             new ChannelName((string) $row['name']),
             (string) $row['founder'],
             new DateTimeImmutable((string) $row['created_at']),
+            null === ($row['topic'] ?? null) ? null : (string) $row['topic'],
         );
     }
 }

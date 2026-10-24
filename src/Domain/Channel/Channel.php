@@ -18,6 +18,7 @@ final readonly class Channel
         public ChannelName $name,
         public string $founder,
         public DateTimeImmutable $createdAt,
+        public ?string $topic = null,
     ) {
     }
 

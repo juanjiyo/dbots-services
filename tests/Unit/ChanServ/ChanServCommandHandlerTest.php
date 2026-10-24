@@ -14,6 +14,7 @@ use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
+use Dbots\Tests\Support\InMemoryChannelAccessRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use PHPUnit\Framework\Attributes\Test;
@@ -38,8 +39,9 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->projection = new RecordingChannelProjection();
         $this->handler = new ChanServCommandHandler(
             new RegisterChannelHandler($this->channels),
-            new DropChannelHandler($this->channels),
+            new DropChannelHandler($this->channels, new InMemoryChannelAccessRepository()),
             $this->channels,
+            new InMemoryChannelAccessRepository(),
             $this->projection,
             new AccountResolver($this->accounts),
             $this->irc,
@@ -128,6 +130,45 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function theFounderCanGrantAndRevokeAccess(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('access add #test bob'), $this->state);
+        self::assertSame(['#test:bob'], $this->projection->accessAdded);
+
+        $this->handler->handle($this->privmsg('access list #test'), $this->state);
+        self::assertStringContainsString('bob', end($this->irc->replies));
+
+        $this->handler->handle($this->privmsg('access del #test bob'), $this->state);
+        self::assertSame(['#test:bob'], $this->projection->accessRemoved);
+    }
+
+    #[Test]
+    public function aStrangerCannotGrantAccess(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, 'r');
+
+        $this->handler->handle($this->privmsg('access add #test bob', '001BBBBBB'), $state);
+
+        self::assertSame([], $this->projection->accessAdded);
+        self::assertSame(['001BBBBBB: Only the founder can do that.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function theFounderCanSetTheTopic(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('topic #test welcome home'), $this->state);
+
+        self::assertSame(['#test'], $this->projection->topics);
+        self::assertSame('welcome home', $this->channels->find(new \Dbots\Domain\Channel\ChannelName('#test'))?->topic);
+    }
+
+    #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
         $message = new IrcMessage('001AAAAAA', 'PRIVMSG', ['NickServ'], 'register #test');
@@ -151,6 +192,15 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     /** @var list<string> */
     public array $dropped = [];
 
+    /** @var list<string> */
+    public array $accessAdded = [];
+
+    /** @var list<string> */
+    public array $accessRemoved = [];
+
+    /** @var list<string> */
+    public array $topics = [];
+
     public function publishRegistered(string $channel): void
     {
         $this->registered[] = $channel;
@@ -159,5 +209,20 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     public function publishDropped(string $channel): void
     {
         $this->dropped[] = $channel;
+    }
+
+    public function publishAccess(string $channel, string $nick): void
+    {
+        $this->accessAdded[] = $channel . ':' . $nick;
+    }
+
+    public function removeAccess(string $channel, string $nick): void
+    {
+        $this->accessRemoved[] = $channel . ':' . $nick;
+    }
+
+    public function publishTopic(string $channel): void
+    {
+        $this->topics[] = $channel;
     }
 }

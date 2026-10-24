@@ -13,6 +13,8 @@ interface ChannelRepositoryInterface
 
     public function save(Channel $channel): void;
 
+    public function updateTopic(Channel $channel): void;
+
     public function delete(ChannelName $name): void;
 
     /** @return list<Channel> */

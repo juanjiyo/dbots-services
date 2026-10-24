@@ -64,6 +64,9 @@ final readonly class OperServCommandHandler
         match ($command) {
             'KILL' => $this->onKill($sender, $parts, $state),
             'KICK' => $this->onKick($sender, $parts, $state),
+            'OP' => $this->onOp($sender, $parts, $state, '+o'),
+            'DEOP' => $this->onOp($sender, $parts, $state, '-o'),
+            'MODE' => $this->onMode($sender, $parts, $state),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender),
@@ -130,6 +133,46 @@ final readonly class OperServCommandHandler
         $this->reply->reply($sender, sprintf('%s has been kicked from %s.', $nick, $channel));
     }
 
+    /** @param list<string> $args */
+    private function onOp(string $sender, array $args, NetworkState $state, string $mode): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $channel = array_shift($args);
+        $nick = array_shift($args);
+
+        if (null === $channel || null === $nick) {
+            $this->reply->reply($sender, 'Syntax: ' . ('+o' === $mode ? 'OP' : 'DEOP') . ' <#channel> <nick>');
+
+            return;
+        }
+
+        $this->enforcement->channelMode($channel, $mode, $nick);
+        $this->reply->reply($sender, sprintf('%s%s on %s.', '+o' === $mode ? 'Opped ' : 'Deopped ', $nick, $channel));
+    }
+
+    /** @param list<string> $args */
+    private function onMode(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $channel = array_shift($args);
+        $modes = array_shift($args);
+
+        if (null === $channel || null === $modes) {
+            $this->reply->reply($sender, 'Syntax: MODE <#channel> <modes> [argument]');
+
+            return;
+        }
+
+        $this->enforcement->channelMode($channel, $modes, $args[0] ?? null);
+        $this->reply->reply($sender, sprintf('Mode %s applied to %s.', $modes, $channel));
+    }
+
     private function onStats(string $sender, NetworkState $state): void
     {
         $this->reply->reply($sender, sprintf('Users online: %d.', $state->count()));
@@ -163,7 +206,7 @@ final readonly class OperServCommandHandler
 
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: KILL <nick> [reason], KICK <#channel> <nick> [reason], STATS, IRCOPS.');
+        $this->reply->reply($uid, 'Commands: KILL <nick> [reason], KICK <#channel> <nick> [reason], OP|DEOP <#channel> <nick>, MODE <#channel> <modes> [arg], STATS, IRCOPS.');
     }
 
     private function isAddressedToMe(string $target): bool

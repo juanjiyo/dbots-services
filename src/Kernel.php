@@ -8,6 +8,7 @@ use Dbots\Adapter\Out\Transport\TlsStreamTransport;
 use Dbots\Application\Daemon;
 use Dbots\Application\Link\LinkRunner;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
+use Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelAccessRepository;
 use Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelRepository;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
@@ -26,6 +27,7 @@ use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
+use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
@@ -71,6 +73,7 @@ final readonly class Kernel
 
         $accounts = new SqliteAccountRepository($pdo);
         $channels = new SqliteChannelRepository($pdo);
+        $channelAccess = new SqliteChannelAccessRepository($pdo);
         $memos = new SqliteMemoRepository($pdo);
 
         $authority = new UdbAuthority(
@@ -78,7 +81,7 @@ final readonly class Kernel
             $link->name,
             new CompositeBlockProvider([
                 new AccountBlockProvider($accounts, $link->name),
-                new ChannelBlockProvider($channels),
+                new ChannelBlockProvider($channels, $channelAccess),
             ]),
             $transport->writeLine(...),
             $udbEpoch ?? UdbAuthority::generateEpoch(),
@@ -101,14 +104,16 @@ final readonly class Kernel
             new ChangePasswordHandler($accounts),
             new DropNickHandler($accounts, $channels),
             new AccountResolver($accounts),
+            new AccountInfoHandler($accounts, $channels, $memos),
             'NickServ',
             $nickServUid,
         );
 
         $chanServ = new ChanServCommandHandler(
             new RegisterChannelHandler($channels),
-            new DropChannelHandler($channels),
+            new DropChannelHandler($channels, $channelAccess),
             $channels,
+            $channelAccess,
             new UdbChannelProjection($channels, $authority),
             new AccountResolver($accounts),
             $chanReplies,

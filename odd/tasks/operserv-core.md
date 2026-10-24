@@ -24,3 +24,5 @@ Objective: the operator commands that need server authority, gated on real oper 
 - **L2** — Verified live with a real oper: RPC `user.set_oper` granted `netadmin` to a test client, `KILL KillTarget probando OperServ` produced "Client killed: KillTarget!db@localhost [by: bots.sitiochat.es]" and the victim's connection dropped.
 - **L3** — A non-oper trying `KILL` gets "This command is restricted to IRC operators." and nothing is written to the link.
 - **L4** — Not implemented yet from the reference inventory: GLINE, MODE, OP/DEOP, SPAM, clones, SETTIME, ROOT, APODERA, RENAME, LIMPIA, BLOCK, DROPNDB.
+- **L5** — Added `OP`/`DEOP` and `MODE` through `SAMODE`, still gated on `+o`. Verified live: an oper applied `+m` to a channel and the IRCd accepted it.
+- **L6** — `GLINE` and the rest of the reference inventory are deliberately not implemented yet: they need TKL wire work and a duration policy that deserves its own unit.

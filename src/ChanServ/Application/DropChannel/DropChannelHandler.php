@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Dbots\ChanServ\Application\DropChannel;
 
+use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\Domain\Channel\ChannelName;
 use InvalidArgumentException;
 
 final readonly class DropChannelHandler
 {
-    public function __construct(private ChannelRepositoryInterface $channels) {}
+    public function __construct(
+        private ChannelRepositoryInterface $channels,
+        private ChannelAccessRepositoryInterface $access,
+    ) {}
 
     public function __invoke(string $channel, ?string $account): DropChannelResult
     {
@@ -35,6 +39,7 @@ final readonly class DropChannelHandler
         }
 
         $this->channels->delete($name);
+        $this->access->removeAll($name->value);
 
         return DropChannelResult::Dropped;
     }

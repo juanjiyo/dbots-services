@@ -27,4 +27,11 @@ final readonly class S2sEnforcement implements EnforcementInterface
     {
         $this->transport->writeLine(sprintf(':%s SAKICK %s %s :%s', $this->sid, $channel, $uid, $reason));
     }
+
+    public function channelMode(string $channel, string $modes, ?string $target = null): void
+    {
+        $this->transport->writeLine(null === $target
+            ? sprintf(':%s SAMODE %s %s', $this->sid, $channel, $modes)
+            : sprintf(':%s SAMODE %s %s %s', $this->sid, $channel, $modes, $target));
+    }
 }

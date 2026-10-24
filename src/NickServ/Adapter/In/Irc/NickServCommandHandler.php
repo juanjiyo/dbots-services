@@ -7,6 +7,7 @@ namespace Dbots\NickServ\Adapter\In\Irc;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordResult;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
@@ -23,6 +24,8 @@ use function array_shift;
 use function array_values;
 use function explode;
 use function strcasecmp;
+use function implode;
+use function sprintf;
 use function strtoupper;
 
 final readonly class NickServCommandHandler
@@ -35,6 +38,7 @@ final readonly class NickServCommandHandler
         private ChangePasswordHandler $changePassword,
         private DropNickHandler $dropNick,
         private AccountResolver $identity,
+        private AccountInfoHandler $info,
         private string $serviceNick,
         private string $serviceUid,
     ) {
@@ -77,6 +81,7 @@ final readonly class NickServCommandHandler
             'IDENTIFY', 'IDENTIFICA' => $this->onIdentify($sender, $nick, $parts),
             'SET' => $this->onSet($sender, $parts, $state),
             'DROP' => $this->onDrop($sender, $parts, $state),
+            'INFO' => $this->onInfo($sender, $parts),
             'HELP', 'AYUDA' => $this->onHelp($sender),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -213,9 +218,33 @@ final readonly class NickServCommandHandler
         };
     }
 
+    /** @param list<string> $args */
+    private function onInfo(string $uid, array $args): void
+    {
+        $nick = (string) ($args[0] ?? '');
+
+        if ('' === $nick) {
+            $this->reply->reply($uid, 'Syntax: INFO <nick>');
+
+            return;
+        }
+
+        $lines = ($this->info)($nick);
+
+        if (null === $lines) {
+            $this->reply->reply($uid, sprintf('%s is not registered.', $nick));
+
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $this->reply->reply($uid, $line);
+        }
+    }
+
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: REGISTER <password> [email], IDENTIFY <password>, SET PASSWORD <current> <new>, DROP <password>.');
+        $this->reply->reply($uid, 'Commands: REGISTER <password> [email], IDENTIFY <password>, INFO <nick>, SET PASSWORD <current> <new>, DROP <password>.');
     }
 
     private function isAddressedToMe(string $target): bool

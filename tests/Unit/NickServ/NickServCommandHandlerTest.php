@@ -13,6 +13,7 @@ use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface as Channels;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
@@ -45,6 +46,7 @@ final class NickServCommandHandlerTest extends TestCase
             new ChangePasswordHandler($accounts),
             new DropNickHandler($accounts, new NoChannels()),
             new AccountResolver($accounts),
+            new AccountInfoHandler($accounts, new NoChannels(), new \Dbots\Tests\Support\InMemoryMemoRepository()),
             'NickServ',
             '003A00001',
         );
@@ -221,6 +223,7 @@ final class NickServCommandHandlerTest extends TestCase
             new ChangePasswordHandler($this->accounts),
             new DropNickHandler($this->accounts, $channels),
             new AccountResolver($this->accounts),
+            new AccountInfoHandler($this->accounts, $channels, new \Dbots\Tests\Support\InMemoryMemoRepository()),
             'NickServ',
             '003A00001',
         );
@@ -252,6 +255,8 @@ final class NoChannels implements ChannelRepositoryInterface
     }
 
     public function save(Channel $channel): void {}
+
+    public function updateTopic(Channel $channel): void {}
 
     public function delete(ChannelName $name): void {}
 

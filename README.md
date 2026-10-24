@@ -21,11 +21,11 @@ dbots publishes and applies the account and `+r` itself.
 | S2S link (HEL 4, EOS, sync) | Working, verified live |
 | UDB 4 authority (HEL/INF/RES/BEGIN/PUT/END) | Working, verified live |
 | Canonical block digests | Verified byte-for-byte against the module reference |
-| NickServ `REGISTER` / `IDENTIFY` / `HELP` | Working |
-| ChanServ `REGISTER` / `INFO` / `DROP` / `HELP` | Working, verified live |
+| NickServ `REGISTER` / `IDENTIFY` / `INFO` / `SET PASSWORD` / `DROP` | Working |
+| ChanServ `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
-| OperServ `KILL` / `KICK` / `STATS` / `IRCOPS` | Working, verified live |
+| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `STATS` / `IRCOPS` | Working, verified live |
 
 ## Operations
 
@@ -139,6 +139,8 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 /msg OperServ KICK <#channel> <nick> [reason]
 /msg OperServ STATS
 /msg OperServ IRCOPS
+/msg OperServ OP|DEOP <#channel> <nick>
+/msg OperServ MODE <#channel> <modes> [arg]
 ```
 
 Mutating commands require user mode `+o` on the connection. Oper status is read
@@ -162,7 +164,13 @@ is no memo block, so they never enter the replicated database.
 /msg ChanServ REGISTER #channel     (you must be identified)
 /msg ChanServ INFO #channel
 /msg ChanServ DROP #channel         (founder only)
+/msg ChanServ ACCESS LIST|ADD|DEL <#channel> [nick]
+/msg ChanServ TOPIC <#channel> <text>
 ```
+
+Access entries are exported to the C block as `#channel::access::nick`; UDB's JOIN
+hook uses their presence, so a listed account with `+r` passes the registered-channel
+restrictions. The topic is exported as `#channel::topic` and applied by the IRCd.
 
 The founder comes from the sender's account, and the profile is projected to the
 C block, so UDB applies `+q` to the founder and `+r` to the channel immediately.

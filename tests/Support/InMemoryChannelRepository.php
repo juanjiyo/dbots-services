@@ -24,6 +24,11 @@ final class InMemoryChannelRepository implements ChannelRepositoryInterface
         $this->channels[$channel->name->value] = $channel;
     }
 
+    public function updateTopic(Channel $channel): void
+    {
+        $this->channels[$channel->name->value] = $channel;
+    }
+
     public function delete(ChannelName $name): void
     {
         unset($this->channels[$name->value]);
