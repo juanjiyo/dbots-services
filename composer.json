@@ -1,0 +1,25 @@
+{
+    "name": "juanjo/dbots",
+    "description": "dBoTs-style IRC services on an Ares-shaped architecture",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Dbots\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Dbots\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

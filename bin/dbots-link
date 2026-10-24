@@ -1,0 +1,48 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dbots\Adapter\Out\Transport\TlsStreamTransport;
+use Dbots\Application\Link\LinkRunner;
+use Dbots\Domain\Link\LinkState;
+use Dbots\Domain\Link\ServerLink;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$env = static function (string $key, string $default = ''): string {
+    $value = getenv($key);
+
+    return false === $value || '' === $value ? $default : $value;
+};
+
+$link = new ServerLink(
+    name: $env('DBOTS_LINK_NAME', 'bots.sitiochat.es'),
+    sid: $env('DBOTS_LINK_SID', '003'),
+    password: $env('DBOTS_LINK_PASSWORD', ''),
+    description: $env('DBOTS_LINK_DESCRIPTION', 'dbots services'),
+);
+
+$transport = new TlsStreamTransport(
+    host: $env('DBOTS_LINK_HOST', '127.0.0.1'),
+    port: (int) $env('DBOTS_LINK_PORT', '6900'),
+    verifyPeer: filter_var($env('DBOTS_LINK_TLS_VERIFY', '1'), FILTER_VALIDATE_BOOL),
+);
+
+$runner = new LinkRunner($link, $transport, networkName: $env('DBOTS_NETWORK_NAME', 'IRC Network'));
+
+try {
+    $runner->connect();
+    fwrite(STDOUT, sprintf("synced %s (%s)\n", $link->name, $runner->handshake()->remoteSid() ?? '?'));
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'link failed: ' . $exception->getMessage() . "\n");
+    exit(1);
+}
+
+$holdSeconds = (int) ($argv[1] ?? 10);
+$runner->pump($holdSeconds);
+$runner->close();
+
+fwrite(STDOUT, sprintf("closed after %ds (state: %s)\n", $holdSeconds, $runner->handshake()->state()->value));
+
+exit(LinkState::Failed === $runner->handshake()->state() ? 1 : 0);
