@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dbots\NickServ\Adapter\In\Irc;
 
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
@@ -45,6 +46,7 @@ final readonly class NickServCommandHandler
         private AccountRepositoryInterface $accounts,
         private string $serviceNick,
         private string $serviceUid,
+        private HelpCatalog $help,
     ) {
     }
 
@@ -95,7 +97,7 @@ final readonly class NickServCommandHandler
             'LISTFORBID' => $this->onListState($sender, $state, 'forbid'),
             'SWHOIS' => $this->onSwhois($sender, $parts, $state),
             'NOEXPIRE' => $this->onNoexpire($sender, $parts, $state),
-            'HELP', 'AYUDA' => $this->onHelp($sender),
+            'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
     }
@@ -491,9 +493,14 @@ final readonly class NickServCommandHandler
         return false;
     }
 
-    private function onHelp(string $uid): void
+    /** @param list<string> $args */
+    private function onHelp(string $uid, array $args, NetworkState $state): void
     {
-        $this->reply->reply($uid, 'Commands: REGISTER, IDENTIFY, INFO, STATUS, SET PASSWORD, DROP, SUSPEND/UNSUSPEND, FORBID/UNFORBID, SWHOIS, NOEXPIRE.');
+        $isOper = $state->hasMode($uid, 'o');
+
+        foreach ($this->help->render(implode(' ', $args), $isOper) as $line) {
+            $this->reply->reply($uid, $line);
+        }
     }
 
     private function isAddressedToMe(string $target): bool

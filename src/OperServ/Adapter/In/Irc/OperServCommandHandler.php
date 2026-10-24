@@ -13,6 +13,7 @@ use Dbots\Domain\Spam\SpamRule;
 use Dbots\Udb\UdbSpamProjection;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
@@ -60,6 +61,7 @@ final class OperServCommandHandler
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
+        private HelpCatalog $help,
         /** @var list<string> hosts that must never be G-Lined by a clone command */
         private array $protectedHosts = ['localhost', '127.0.0.1'],
         private int $killClonesMinutes = 60,
@@ -114,7 +116,7 @@ final class OperServCommandHandler
             'SPAM' => $this->onSpam($sender, $parts, $state),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
-            'HELP', 'AYUDA' => $this->onHelp($sender),
+            'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
     }
@@ -693,9 +695,14 @@ final class OperServCommandHandler
         return false;
     }
 
-    private function onHelp(string $uid): void
+    /** @param list<string> $args */
+    private function onHelp(string $uid, array $args, NetworkState $state): void
     {
-        $this->reply->reply($uid, 'Commands: KILL, KICK, OP, DEOP, MODE, GLINE, UNGLINE, RENAME, DROPNDB, APODERA, LISTCLONES, KILLCLONES, BLOCK, LIMPIA, SPAM LIST|ADD|DEL, SETTIME (root), ROOT <password>, STATS, IRCOPS.');
+        $isOper = $state->hasMode($uid, 'o');
+
+        foreach ($this->help->render(implode(' ', $args), $isOper) as $line) {
+            $this->reply->reply($uid, $line);
+        }
     }
 
     private function isAddressedToMe(string $target): bool

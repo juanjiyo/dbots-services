@@ -6,6 +6,7 @@ namespace Dbots\MemoServ\Adapter\In\Irc;
 
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
@@ -40,6 +41,7 @@ final readonly class MemoServCommandHandler
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
+        private HelpCatalog $help,
     ) {
     }
 
@@ -72,7 +74,7 @@ final readonly class MemoServCommandHandler
             'LIST', 'LISTA' => $this->onList($sender, $account),
             'READ', 'LEE' => $this->onRead($sender, $account, $rest),
             'DELETE', 'DEL', 'BORRA' => $this->onDelete($sender, $account, $rest),
-            'HELP', 'AYUDA' => $this->onHelp($sender),
+            'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
     }
@@ -170,9 +172,14 @@ final readonly class MemoServCommandHandler
             : sprintf('You have no memo #%d.', $id));
     }
 
-    private function onHelp(string $uid): void
+    /** @param list<string> $args */
+    private function onHelp(string $uid, array $args, NetworkState $state): void
     {
-        $this->reply->reply($uid, 'Commands: SEND <nick> <message>, LIST, READ <number>, DELETE <number>.');
+        $isOper = $state->hasMode($uid, 'o');
+
+        foreach ($this->help->render(implode(' ', $args), $isOper) as $line) {
+            $this->reply->reply($uid, $line);
+        }
     }
 
     private function identifier(string $rest): ?int

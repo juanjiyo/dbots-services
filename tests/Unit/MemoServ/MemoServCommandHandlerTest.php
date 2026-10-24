@@ -17,6 +17,7 @@ use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryMemoRepository;
 use Dbots\Tests\Support\RecordingIrc;
+use Dbots\MemoServ\Application\Help\MemoServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -44,6 +45,7 @@ final class MemoServCommandHandlerTest extends TestCase
             $this->irc,
             'MemoServ',
             '003A00003',
+            MemoServHelp::create(),
         );
 
         $this->state = new NetworkState();

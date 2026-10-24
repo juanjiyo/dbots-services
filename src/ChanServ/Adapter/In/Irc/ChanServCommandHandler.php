@@ -15,6 +15,7 @@ use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
@@ -42,6 +43,7 @@ final readonly class ChanServCommandHandler
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
+        private HelpCatalog $help,
     ) {
     }
 
@@ -78,7 +80,7 @@ final readonly class ChanServCommandHandler
             'INFO' => $this->onInfo($sender, $parts),
             'ACCESS' => $this->onAccess($sender, $account, $parts),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
-            'HELP', 'AYUDA' => $this->onHelp($sender),
+            'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
     }
@@ -296,9 +298,14 @@ final readonly class ChanServCommandHandler
         return $registered;
     }
 
-    private function onHelp(string $uid): void
+    /** @param list<string> $args */
+    private function onHelp(string $uid, array $args, NetworkState $state): void
     {
-        $this->reply->reply($uid, 'Commands: REGISTER <#channel>, DROP <#channel>, INFO <#channel>, ACCESS LIST|ADD|DEL <#channel> [nick], TOPIC <#channel> <text>.');
+        $isOper = $state->hasMode($uid, 'o');
+
+        foreach ($this->help->render(implode(' ', $args), $isOper) as $line) {
+            $this->reply->reply($uid, $line);
+        }
     }
 
     private function isAddressedToMe(string $target): bool

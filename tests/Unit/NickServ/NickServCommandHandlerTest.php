@@ -23,6 +23,7 @@ use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use Dbots\Tests\Support\RecordingProjection;
+use Dbots\NickServ\Application\Help\NickServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -52,6 +53,7 @@ final class NickServCommandHandlerTest extends TestCase
             $accounts,
             'NickServ',
             '003A00001',
+            NickServHelp::create(),
         );
         $this->state = new NetworkState();
         $this->state->introduceUser('001AAAAAA', 'JuanJo');
@@ -230,6 +232,7 @@ final class NickServCommandHandlerTest extends TestCase
             $this->accounts,
             'NickServ',
             '003A00001',
+            NickServHelp::create(),
         );
     }
 

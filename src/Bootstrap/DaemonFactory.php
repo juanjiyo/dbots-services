@@ -9,6 +9,7 @@ use Dbots\Application\Link\LinkRunner;
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
+use Dbots\ChanServ\Application\Help\ChanServHelp;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
@@ -21,6 +22,7 @@ use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
+use Dbots\MemoServ\Application\Help\MemoServHelp;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
@@ -30,12 +32,14 @@ use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
+use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
+use Dbots\OperServ\Application\Help\OperServHelp;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\Udb\AccountBlockProvider;
 use Dbots\Udb\BlockProviderInterface;
@@ -114,6 +118,7 @@ final readonly class DaemonFactory
             $this->accounts,
             'NickServ',
             $nickServUid,
+            NickServHelp::create(),
         );
 
         $chanServ = new ChanServCommandHandler(
@@ -126,6 +131,7 @@ final readonly class DaemonFactory
             new IrcReplySender($this->transport, $chanServUid),
             'ChanServ',
             $chanServUid,
+            ChanServHelp::create(),
         );
 
         $memoServ = new MemoServCommandHandler(
@@ -137,6 +143,7 @@ final readonly class DaemonFactory
             new IrcReplySender($this->transport, $memoServUid),
             'MemoServ',
             $memoServUid,
+            MemoServHelp::create(),
         );
 
         $operServ = new OperServCommandHandler(
@@ -150,6 +157,7 @@ final readonly class DaemonFactory
             new IrcReplySender($this->transport, $operServUid),
             'OperServ',
             $operServUid,
+            OperServHelp::create(),
             rootPassword: $this->rootPassword,
         );
 

@@ -9,6 +9,7 @@ use Dbots\Irc\Application\NetworkState;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\Tests\Support\RecordingIrc;
+use Dbots\OperServ\Application\Help\OperServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -39,6 +40,7 @@ final class OperServCommandHandlerTest extends TestCase
             $this->irc,
             'OperServ',
             '003A00004',
+            OperServHelp::create(),
         );
         $this->state = new NetworkState();
         $this->state->introduceUser('001AAAAAA', 'oper', null, 'o', 'staff.example');
@@ -319,6 +321,7 @@ final class OperServCommandHandlerTest extends TestCase
             $this->irc,
             'OperServ',
             '003A00004',
+            OperServHelp::create(),
             rootPassword: $password,
         );
     }

@@ -18,6 +18,7 @@ use Dbots\Tests\Support\InMemoryChannelAccessRepository;
 use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
+use Dbots\ChanServ\Application\Help\ChanServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -48,6 +49,7 @@ final class ChanServCommandHandlerTest extends TestCase
             $this->irc,
             'ChanServ',
             '003A00002',
+            ChanServHelp::create(),
         );
         $this->state = new NetworkState();
         $this->state->introduceUser('001AAAAAA', 'alice', null, 'r');

@@ -29,7 +29,9 @@ dbots publishes and applies the account and `+r` itself.
 | ChanServ `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
+| Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
 | OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
+| Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
 | OperServ `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |
 
 ## Documentation

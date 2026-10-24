@@ -1,5 +1,15 @@
 # Command reference
 
+Every command below answers `HELP` and `AYUDA`:
+
+```text
+/msg NickServ HELP            index of commands you may use
+/msg NickServ HELP REGISTER   one page: syntax, aliases and an example
+```
+
+The index is permission-filtered: operator-only commands simply do not appear
+for a normal user, and asking for one by name says so instead of showing it.
+
 The authoritative command names are the ones in the original mIRC scripts
 (`sitiochat/dbots/sistema/*.mrc`). Spanish is the primary spelling on this
 network, so both are accepted wherever the original had both.
