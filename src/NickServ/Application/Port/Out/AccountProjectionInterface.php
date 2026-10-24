@@ -6,6 +6,9 @@ namespace Dbots\NickServ\Application\Port\Out;
 
 interface AccountProjectionInterface
 {
-    /** Makes a freshly registered account usable for IRCd-native authentication. */
+    /** Makes an account usable for IRCd-native authentication. */
     public function publish(string $nick): void;
+
+    /** Removes the account from the IRCd's database. */
+    public function remove(string $nick): void;
 }

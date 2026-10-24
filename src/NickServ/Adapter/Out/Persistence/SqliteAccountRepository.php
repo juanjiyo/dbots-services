@@ -70,6 +70,25 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
         ]);
     }
 
+    public function update(Account $account): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE accounts SET password_hash = :hash, email = :email WHERE nick = :nick'
+        );
+
+        $statement->execute([
+            'nick' => $account->nick->value,
+            'hash' => $account->passwordHash,
+            'email' => $account->email,
+        ]);
+    }
+
+    public function delete(Nick $nick): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM accounts WHERE nick = :nick');
+        $statement->execute(['nick' => $nick->value]);
+    }
+
     /**
      * @return list<Account>
      */

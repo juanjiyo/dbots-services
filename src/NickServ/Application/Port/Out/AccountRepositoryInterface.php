@@ -13,6 +13,10 @@ interface AccountRepositoryInterface
 
     public function save(Account $account): void;
 
+    public function update(Account $account): void;
+
+    public function delete(Nick $nick): void;
+
     /** @return list<Account> */
     public function all(): array;
 }

@@ -11,8 +11,16 @@ final class RecordingProjection implements AccountProjectionInterface
     /** @var list<string> */
     public array $published = [];
 
+    /** @var list<string> */
+    public array $removed = [];
+
     public function publish(string $nick): void
     {
         $this->published[] = $nick;
+    }
+
+    public function remove(string $nick): void
+    {
+        $this->removed[] = $nick;
     }
 }

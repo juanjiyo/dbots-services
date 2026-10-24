@@ -23,8 +23,9 @@ use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
-use Dbots\NickServ\Adapter\Out\Irc\S2sAccountLogin;
 use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
+use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
+use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\Udb\AccountBlockProvider;
@@ -91,9 +92,11 @@ final readonly class Kernel
         $nickServ = new NickServCommandHandler(
             new RegisterNickHandler($accounts),
             new IdentifyHandler($accounts),
-            new S2sAccountLogin($transport, $link->sid),
             $nickReplies,
             new UdbAccountProjection($accounts, $authority),
+            new ChangePasswordHandler($accounts),
+            new DropNickHandler($accounts, $channels),
+            new AccountResolver($accounts),
             'NickServ',
             $nickServUid,
         );

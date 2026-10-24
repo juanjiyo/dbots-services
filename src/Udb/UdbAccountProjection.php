@@ -28,4 +28,9 @@ final readonly class UdbAccountProjection implements AccountProjectionInterface
 
         $this->authority->insertPassword($account->nick->value, sprintf('crypt:%s', $account->passwordHash));
     }
+
+    public function remove(string $nick): void
+    {
+        $this->authority->delete('N', sprintf('%s::pass', (new Nick($nick))->value));
+    }
 }
