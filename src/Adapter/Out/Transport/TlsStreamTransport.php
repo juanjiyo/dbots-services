@@ -29,6 +29,15 @@ final class TlsStreamTransport implements LinkTransportInterface
     /** @var resource|null */
     private $stream;
 
+    /**
+     * A read timeout is not a disconnect.
+     *
+     * `feof()` returns true after a timed-out read on a socket, so relying on it
+     * made a quiet link look dead: the daemon dropped it every ~30 s and
+     * reintroduced its services, which the IRCd then killed as ghosts.
+     */
+    private bool $closed = false;
+
     public function __construct(
         private readonly string $host,
         private readonly int $port,
@@ -69,6 +78,7 @@ final class TlsStreamTransport implements LinkTransportInterface
 
         stream_set_timeout($stream, (int) $this->timeoutSeconds);
         $this->stream = $stream;
+        $this->closed = false;
     }
 
     public function readLine(): ?string
@@ -80,6 +90,14 @@ final class TlsStreamTransport implements LinkTransportInterface
         $line = fgets($this->stream);
 
         if (false === $line) {
+            $meta = stream_get_meta_data($this->stream);
+
+            if (true === $meta['timed_out']) {
+                return null;
+            }
+
+            $this->closed = true;
+
             return null;
         }
 
@@ -105,7 +123,7 @@ final class TlsStreamTransport implements LinkTransportInterface
 
     public function isOpen(): bool
     {
-        return is_resource($this->stream) && !feof($this->stream);
+        return is_resource($this->stream) && !$this->closed && !feof($this->stream);
     }
 
     public function close(): void
@@ -115,5 +133,6 @@ final class TlsStreamTransport implements LinkTransportInterface
         }
 
         $this->stream = null;
+        $this->closed = true;
     }
 }

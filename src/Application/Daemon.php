@@ -22,6 +22,7 @@ use function in_array;
 use function strpos;
 use function strtoupper;
 use function substr;
+use function preg_match;
 use function sprintf;
 use function str_contains;
 
@@ -58,6 +59,8 @@ final readonly class Daemon
     {
         $this->runner->connect(fn (string $line): null => $this->onLine($line));
 
+        $this->registerPeer();
+
         $this->introduceServices();
         $this->joinDebugChannel();
 
@@ -93,6 +96,27 @@ final readonly class Daemon
         }
     }
 
+    /** We already know who we linked to from the handshake; record it for display. */
+    private function registerPeer(): void
+    {
+        $handshake = $this->runner->handshake();
+
+        if (null !== $handshake->remoteSid() && null !== $handshake->remoteName()) {
+            $this->state->registerServer($handshake->remoteSid(), $handshake->remoteName());
+        }
+    }
+
+    /** Any other server introduced on the network: `:<sid> SERVER <name> ...`. */
+    private function onServer(IrcMessage $message): void
+    {
+        $name = $message->params[0] ?? null;
+        $sid = $message->source() ?? $this->runner->handshake()->remoteSid();
+
+        if (null !== $sid && null !== $name && 1 === preg_match('/^[0-9][0-9A-Z]{2}$/', $sid)) {
+            $this->state->registerServer($sid, $name);
+        }
+    }
+
     /** The relay only speaks if it is actually sitting in the channel. */
     private function joinDebugChannel(): void
     {
@@ -120,7 +144,7 @@ final readonly class Daemon
         // Translate first: QUIT removes the user from the state, and a debug line
         // that shows a UID instead of a nick is useless.
         $debugEvent = null !== $this->debug && $this->debug->isEnabled() && 'PRIVMSG' !== $message->command
-            ? DebugEvents::translate($message, $this->state->nickOf(...))
+            ? DebugEvents::translate($message, $this->displayName(...))
             : null;
 
         match ($message->command) {
@@ -132,6 +156,7 @@ final readonly class Daemon
             'ACCOUNT' => $this->state->setAccount($this->resolveUid($message->source()), $message->params[0] ?? null),
             'UMODE2' => $this->state->applyModeChange($this->resolveUid($message->source()), $message->params[0] ?? ''),
             'MODE' => $this->onMode($message),
+            'SERVER' => $this->onServer($message),
             default => null,
         };
 
@@ -154,6 +179,12 @@ final readonly class Daemon
         if (str_contains($line, ' INS ') || str_contains($line, ' DEL ')) {
             $this->relayToDebug($line);
         }
+    }
+
+    /** UID to nickname, SID to server name, anything else untouched. */
+    private function displayName(string $id): ?string
+    {
+        return $this->state->nickOf($id) ?? $this->state->serverNameOf($id);
     }
 
     /** Echoes one protocol line to the debug channel. */

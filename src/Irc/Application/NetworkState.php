@@ -28,6 +28,9 @@ final class NetworkState
     /** @var array<string, string> uid => host */
     private array $hosts = [];
 
+    /** @var array<string, string> sid => server name */
+    private array $servers = [];
+
     public function introduceUser(string $uid, string $nick, ?string $account = null, string $modes = '', ?string $host = null): void
     {
         $this->nicks[$uid] = $nick;
@@ -132,6 +135,24 @@ final class NetworkState
         return $nicks;
     }
 
+    public function registerServer(string $sid, string $name): void
+    {
+        if ('' !== $sid && '' !== $name) {
+            $this->servers[$sid] = $name;
+        }
+    }
+
+    /** Resolves a server SID to its name; the debug channel should never show raw SIDs. */
+    public function serverNameOf(string $sid): ?string
+    {
+        return $this->servers[$sid] ?? null;
+    }
+
+    public function isServer(string $id): bool
+    {
+        return isset($this->servers[$id]);
+    }
+
     public function nickOf(string $uid): ?string
     {
         return $this->nicks[$uid] ?? null;
@@ -172,6 +193,7 @@ final class NetworkState
         $this->accounts = [];
         $this->modes = [];
         $this->hosts = [];
+        $this->servers = [];
     }
 
     /** Unused today; kept so callers can normalise account names once they exist. */

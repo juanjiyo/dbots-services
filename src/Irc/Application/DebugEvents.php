@@ -108,7 +108,7 @@ final class DebugEvents
             self::paint(12, 'IDENT:') . ' ' . $ident,
             self::paint(12, 'IP/HOST:') . ' ' . $host,
             self::paint(12, 'REALNAME:') . ' ' . ($message->trailing ?? ''),
-            self::paint(12, 'SERVIDOR:') . ' ' . ($message->prefix ?? ''),
+            self::paint(12, 'SERVIDOR:') . ' ' . self::display((string) ($message->prefix ?? '')),
             '' === $modes ? '' : ' ' . self::paint(12, 'MODOS:') . ' ' . $modes,
         );
 
