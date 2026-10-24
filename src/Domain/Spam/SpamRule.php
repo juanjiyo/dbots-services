@@ -30,9 +30,14 @@ final readonly class SpamRule
     ) {
     }
 
+    /**
+     * The stored form the module demands: a `b64:` prefix followed by the
+     * Base64 of the raw pattern. The prefix is not decoration — the decoder
+     * refuses anything else.
+     */
     public function encodedPattern(): string
     {
-        return base64_encode($this->pattern);
+        return 'b64:' . base64_encode($this->pattern);
     }
 
     /**

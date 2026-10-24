@@ -26,7 +26,7 @@ dbots publishes and applies the account and `+r` itself.
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
 | OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
-| OperServ `SPAM` | Stored only: the rule never becomes an IRCd filter (see README note) |
+| OperServ `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |
 
 ## Operations
 
@@ -154,9 +154,9 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 /msg OperServ ROOT <password>              (grants SETTIME)
 ```
 
-`SPAM` keeps rules in SQLite and replies that enforcement is not active. The six
-`K::F` records do reach the IRCd, but the module does not materialise them as a
-filter, so the command says so instead of implying protection.
+`SPAM` keeps rules in SQLite and exports them as `K::F` profiles with the
+`b64:`-prefixed pattern the module requires, writing `match-type` last because
+that record is what makes the IRCd validate and apply the rule.
 
 Clone commands G-Line the host the nick is connected from, and refuse to do so
 when the host is protected (`localhost`, `127.0.0.1`), so an operator testing

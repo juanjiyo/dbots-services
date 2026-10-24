@@ -10,6 +10,7 @@ use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Spam\SpamRule;
+use Dbots\Udb\UdbSpamProjection;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
@@ -55,6 +56,7 @@ final class OperServCommandHandler
         private ChannelRepositoryInterface $channels,
         private ChannelProjectionInterface $channelProjection,
         private SpamRuleRepositoryInterface $spamRules,
+        private UdbSpamProjection $spamProjection,
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
@@ -621,15 +623,9 @@ final class OperServCommandHandler
         );
 
         $this->spamRules->save($rule);
+        $this->spamProjection->publish($pattern);
 
-        // The K::F records reach the IRCd but the module never materialises them
-        // as a filter (see odd/tasks/operserv-core.md L19). Storing the rule and
-        // claiming protection would be a lie, so say what actually happens.
-        $this->reply->reply($sender, sprintf(
-            'Spamfilter rule for %s (%s) stored locally; the IRCd does not enforce it yet.',
-            $pattern,
-            $action,
-        ));
+        $this->reply->reply($sender, sprintf('Spamfilter rule added for %s (%s).', $pattern, $action));
     }
 
     /** @param list<string> $args */
@@ -644,6 +640,10 @@ final class OperServCommandHandler
         }
 
         $removed = $this->spamRules->delete($pattern);
+
+        if ($removed) {
+            $this->spamProjection->remove($pattern);
+        }
 
         $this->reply->reply($sender, $removed
             ? sprintf('Spamfilter rule for %s removed.', $pattern)

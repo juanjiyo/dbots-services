@@ -38,7 +38,9 @@ use Dbots\Udb\ChannelBlockProvider;
 use Dbots\Udb\CompositeBlockProvider;
 use Dbots\Udb\UdbAccountProjection;
 use Dbots\Udb\UdbAuthority;
+use Dbots\Udb\SpamBlockProvider;
 use Dbots\Udb\UdbChannelProjection;
+use Dbots\Udb\UdbSpamProjection;
 use PDO;
 
 use function dirname;
@@ -84,6 +86,7 @@ final readonly class Kernel
             new CompositeBlockProvider([
                 new AccountBlockProvider($accounts, $link->name),
                 new ChannelBlockProvider($channels, $channelAccess),
+                new SpamBlockProvider($spamRules),
             ]),
             $transport->writeLine(...),
             $udbEpoch ?? UdbAuthority::generateEpoch(),
@@ -144,6 +147,7 @@ final readonly class Kernel
             $channels,
             $channelProjection,
             $spamRules,
+            new UdbSpamProjection($spamRules, $authority),
             $operReplies,
             'OperServ',
             $operServUid,
