@@ -72,6 +72,10 @@ final readonly class Daemon
             return null;
         }
 
+        if ('DB' === $message->command && '1' === getenv('DBOTS_DEBUG')) {
+            fwrite(STDERR, "DB> {$line}\n");
+        }
+
         match ($message->command) {
             'UID' => $this->onUserIntroduced($message),
             'NICK' => $this->onNickChange($message),

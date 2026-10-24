@@ -50,7 +50,7 @@ final class UdbAuthorityTest extends TestCase
 
         $authority->handle($this->frame(['007', 'HEL', '4', '-', self::EPOCH, 'OCL']));
 
-        self::assertSame([':007 DB 007 HEL 4 ACK bots.example.org 0123456789abcdef OCL'], $this->written);
+        self::assertSame([':007 DB 001 HEL 4 ACK bots.example.org 0123456789abcdef OCL'], $this->written);
     }
 
     #[Test]
@@ -99,8 +99,8 @@ final class UdbAuthorityTest extends TestCase
         $digest = NativeDigest::logicalDigest('N', []);
 
         self::assertCount(2, $this->written);
-        self::assertSame(":007 DB 007 BEGIN 1 N tx1N {$digest} 0", $this->written[0]);
-        self::assertSame(":007 DB 007 END 1 N tx1N {$digest} 0", $this->written[1]);
+        self::assertSame(":007 DB 001 BEGIN 1 N tx1N {$digest} 0", $this->written[0]);
+        self::assertSame(":007 DB 001 END 1 N tx1N {$digest} 0", $this->written[1]);
     }
 
     #[Test]

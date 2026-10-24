@@ -84,6 +84,11 @@ final class UdbAuthority
             return;
         }
 
+        // params[0] is the target (us). Replies must go back to the sender.
+        if (null !== $source) {
+            $this->peerSid = $source;
+        }
+
         match ($args[1] ?? '') {
             'HEL' => $this->onHel($args),
             'RES' => $this->onRes($args),
@@ -123,8 +128,7 @@ final class UdbAuthority
             return;
         }
 
-        $peer = $args[0] ?? null;
-        $this->peerSid = $peer;
+        $peer = $this->peerSid ?? '*';
 
         ($this->write)(sprintf(
             ':%s DB %s HEL %s ACK %s %s OCL',
