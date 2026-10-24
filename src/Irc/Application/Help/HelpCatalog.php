@@ -7,6 +7,7 @@ namespace Dbots\Irc\Application\Help;
 use function array_filter;
 use function array_values;
 use function count;
+use function implode;
 use function sprintf;
 use function strtoupper;
 
@@ -14,7 +15,8 @@ use function strtoupper;
  * Help pages for one service.
  *
  * Mirrors the original dBots help: an index of commands and one page per
- * command with its syntax, a short explanation and an example.
+ * command with its syntax, a short explanation and an example, using the same
+ * colour palette the mIRC scripts used.
  */
 final readonly class HelpCatalog
 {
@@ -70,13 +72,17 @@ final readonly class HelpCatalog
     /** @return list<string> */
     private function index(bool $isOper): array
     {
-        $lines = [sprintf('Comandos de %s:', $this->service)];
+        $lines = [IrcFormat::paint(IrcFormat::HEADER, sprintf('[ Comandos de %s ]', $this->service))];
 
         foreach ($this->commands($isOper) as $entry) {
-            $lines[] = sprintf('%s — %s', strtoupper($entry->command), $entry->summary);
+            $lines[] = sprintf('%s %s', IrcFormat::paint(IrcFormat::COMMAND, strtoupper($entry->command)), $entry->summary);
         }
 
-        $lines[] = sprintf('Usa HELP %s <comando> para los detalles.', $this->service);
+        $lines[] = sprintf(
+            '%s %s',
+            IrcFormat::paint(IrcFormat::LABEL, 'Detalle:'),
+            IrcFormat::paint(IrcFormat::COMMAND, sprintf('/msg %s HELP <comando>', $this->service)),
+        );
 
         return $lines;
     }
@@ -85,19 +91,20 @@ final readonly class HelpCatalog
     private function page(HelpEntry $entry): array
     {
         $lines = [
-            sprintf('%s — %s', strtoupper($entry->command), $entry->summary),
-            sprintf('Sintaxis: %s', $entry->syntax),
+            IrcFormat::paint(IrcFormat::HEADER, sprintf('[ %s ]', strtoupper($entry->command))),
+            sprintf('%s %s', IrcFormat::paint(IrcFormat::LABEL, 'Sintaxis:'), $entry->syntax),
+            $entry->summary,
         ];
 
         if ([] !== $entry->aliases) {
-            $lines[] = sprintf('También: %s', implode(', ', $entry->aliases));
+            $lines[] = sprintf('%s %s', IrcFormat::paint(IrcFormat::LABEL, 'También:'), implode(', ', $entry->aliases));
         }
 
         if ('' !== $entry->example) {
-            $lines[] = sprintf('Ejemplo: %s', $entry->example);
+            $lines[] = sprintf('%s %s', IrcFormat::paint(IrcFormat::LABEL, 'Ejemplo:'), $entry->example);
         }
 
-        if (count($lines) === 2) {
+        if (count($lines) === 3) {
             $lines[] = 'Sin más opciones.';
         }
 

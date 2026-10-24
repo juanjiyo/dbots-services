@@ -10,6 +10,11 @@ Every command below answers `HELP` and `AYUDA`:
 The index is permission-filtered: operator-only commands simply do not appear
 for a normal user, and asking for one by name says so instead of showing it.
 
+Colours are the ones the original mIRC help used, so the output looks familiar:
+`3` for the header, `12` for command names, `10` for labels. Every coloured run
+closes with a bare `\x03`, so a client falls back to its own palette instead of
+inheriting ours for the rest of the line.
+
 The authoritative command names are the ones in the original mIRC scripts
 (`sitiochat/dbots/sistema/*.mrc`). Spanish is the primary spelling on this
 network, so both are accepted wherever the original had both.

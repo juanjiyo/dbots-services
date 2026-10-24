@@ -6,6 +6,7 @@ namespace Dbots\Tests\Unit\Help;
 
 use Dbots\ChanServ\Application\Help\ChanServHelp;
 use Dbots\Irc\Application\Help\HelpCatalog;
+use Dbots\Irc\Application\Help\IrcFormat;
 use Dbots\MemoServ\Application\Help\MemoServHelp;
 use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\OperServ\Application\Help\OperServHelp;
@@ -29,7 +30,7 @@ final class HelpCatalogTest extends TestCase
         foreach (self::catalogs() as $name => [$catalog]) {
             $lines = $catalog->render('', false);
             self::assertNotEmpty($lines, $name);
-            self::assertStringContainsString('Comandos de', $lines[0], $name);
+            self::assertStringContainsString('Comandos de', IrcFormat::strip($lines[0]), $name);
         }
     }
 
@@ -56,18 +57,20 @@ final class HelpCatalogTest extends TestCase
     public function aPageShowsSyntaxAndExample(): void
     {
         $lines = NickServHelp::create()->render('REGISTER', false);
+        $plain = IrcFormat::strip(implode(' ', $lines));
 
-        self::assertStringContainsString('Sintaxis: REGISTER', $lines[1]);
-        self::assertStringContainsString('Ejemplo:', implode(' ', $lines));
+        self::assertStringContainsString('Sintaxis: REGISTER', IrcFormat::strip($lines[1]));
+        self::assertStringContainsString('Ejemplo:', $plain);
     }
 
     #[Test]
     public function aliasesResolveToTheirCommand(): void
     {
         $lines = NickServHelp::create()->render('registra', false);
+        $plain = IrcFormat::strip(implode(' ', $lines));
 
-        self::assertStringContainsString('REGISTER', $lines[0]);
-        self::assertStringContainsString('REGISTRA', implode(' ', $lines));
+        self::assertStringContainsString('REGISTER', $plain);
+        self::assertStringContainsString('REGISTRA', $plain);
     }
 
     #[Test]
@@ -76,6 +79,16 @@ final class HelpCatalogTest extends TestCase
         $lines = ChanServHelp::create()->render('INVENTADO', false);
 
         self::assertStringContainsString('No hay ayuda para INVENTADO', $lines[0]);
+    }
+
+    #[Test]
+    public function theIndexUsesTheOriginalPalette(): void
+    {
+        $lines = NickServHelp::create()->render('', false);
+
+        // 3 = header, 12 = command names, exactly as the mIRC help used them.
+        self::assertStringStartsWith("\x03" . '03', $lines[0]);
+        self::assertStringContainsString("\x0312REGISTER\x03", $lines[1]);
     }
 
     #[Test]
