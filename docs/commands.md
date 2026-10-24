@@ -65,7 +65,7 @@ through ChanServ, which is a known deviation to correct when CReG is ported.
 
 | Bot | Command surface |
 |---|---|
-| **CReG** (`cr.mrc`) | `REGISTRA`, `ACEPTA`, `DENIEGA`, `CANCELA`, `LIBERA`, `LISTA`, `INFO`, `ESTADO`, `RESET`, `MARCA`, `OFICIAL`, `COMERCIAL`, `ADMIN`, `OP` — channel registration with operator approval (`APOYA`/`APOYOS` are dropped: no longer needed) |
+| **CReG** (`cr.mrc`) | `REGISTRA`, `ACEPTA`, `DENIEGA`, `CANCELA`, `LIBERA`, `LISTA`, `INFO`, `ESTADO`, `RESET`, `MARCA`, `OFICIAL`, `COMERCIAL`, `ADMIN`, `OP` — channel registration with operator approval |
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
 | **GlobalServ** (`gl.mrc`) | `GLOBAL`, network-wide announcements |
 | **HelpServ** (`he.mrc`) | `BOT`, `CANAL`, `CMODES`, `UMODES`, credits |
