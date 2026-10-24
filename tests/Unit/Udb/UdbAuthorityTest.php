@@ -107,7 +107,7 @@ final class UdbAuthorityTest extends TestCase
     public function itServesRecordsWithTypedValues(): void
     {
         $authority = $this->authority([
-            'N' => ['N::alice::pass' => 'crypt:$2y$hash'],
+            'N' => ['alice::pass' => 'crypt:$2y$hash'],
         ]);
         $authority->handle($this->frame(['007', 'HEL', '4', 'bots.example.org', self::EPOCH, 'OCL']));
         $this->written = [];

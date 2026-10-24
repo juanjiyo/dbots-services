@@ -16,10 +16,19 @@ use function sprintf;
  */
 final readonly class AccountBlockProvider implements BlockProviderInterface
 {
-    public function __construct(private AccountRepositoryInterface $accounts) {}
+    public function __construct(
+        private AccountRepositoryInterface $accounts,
+        private string $serviceHost,
+    ) {}
 
     public function records(string $block): array
     {
+        if ('S' === $block) {
+            // Service mask so IRCd-originated notices come from NickServ and not
+            // from the local server source.
+            return ['nickserv' => 'NickServ!NickServ@' . $this->serviceHost];
+        }
+
         if ('N' !== $block) {
             return [];
         }
@@ -28,7 +37,7 @@ final readonly class AccountBlockProvider implements BlockProviderInterface
 
         foreach ($this->accounts->all() as $account) {
             // Our stored hash is bcrypt, which is a crypt(3) format.
-            $records[sprintf('N::%s::pass', $account->nick->value)] = 'crypt:' . $account->passwordHash;
+            $records[sprintf('%s::pass', $account->nick->value)] = 'crypt:' . $account->passwordHash;
         }
 
         return $records;

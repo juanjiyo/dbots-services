@@ -57,7 +57,7 @@ final readonly class Kernel
         $authority = new UdbAuthority(
             $link->sid,
             $link->name,
-            new AccountBlockProvider($repository),
+            new AccountBlockProvider($repository, $link->name),
             $transport->writeLine(...),
             $udbEpoch ?? UdbAuthority::generateEpoch(),
         );

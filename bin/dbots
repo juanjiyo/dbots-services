@@ -14,6 +14,13 @@ $env = static function (string $key, string $default = ''): string {
     return false === $value || '' === $value ? $default : $value;
 };
 
+/**
+ * Optional first argument is a runtime in seconds (used by tests). Without it
+ * the daemon runs until it is stopped, relinking whenever the link drops.
+ */
+$runtime = isset($argv[1]) ? max(0, (int) $argv[1]) : 0;
+$deadline = $runtime > 0 ? time() + $runtime : null;
+
 $link = new ServerLink(
     name: $env('DBOTS_LINK_NAME', 'bots.sitiochat.es'),
     sid: $env('DBOTS_LINK_SID', '003'),
@@ -21,23 +28,42 @@ $link = new ServerLink(
     description: $env('DBOTS_LINK_DESCRIPTION', 'dbots services'),
 );
 
-$kernel = Kernel::create(
-    link: $link,
-    host: $env('DBOTS_LINK_HOST', '127.0.0.1'),
-    port: (int) $env('DBOTS_LINK_PORT', '6900'),
-    databasePath: $env('DBOTS_DATABASE', __DIR__ . '/../var/dbots.sqlite'),
-    verifyPeer: filter_var($env('DBOTS_LINK_TLS_VERIFY', '1'), FILTER_VALIDATE_BOOL),
-);
+$host = $env('DBOTS_LINK_HOST', '127.0.0.1');
+$port = (int) $env('DBOTS_LINK_PORT', '6900');
+$database = $env('DBOTS_DATABASE', __DIR__ . '/../var/dbots.sqlite');
+$verifyPeer = filter_var($env('DBOTS_LINK_TLS_VERIFY', '1'), FILTER_VALIDATE_BOOL);
+$reconnectDelay = max(1, (int) $env('DBOTS_RECONNECT_DELAY', '5'));
 
-$daemon = $kernel->daemon();
+do {
+    $budget = null === $deadline ? 3600 : min(3600, $deadline - time());
 
-try {
-    $daemon->run((int) ($argv[1] ?? 30));
-} catch (Throwable $exception) {
-    fwrite(STDERR, 'dbots failed: ' . $exception->getMessage() . "\n");
-    exit(1);
-} finally {
-    $daemon->stop();
-}
+    if ($budget <= 0) {
+        break;
+    }
+
+    $daemon = Kernel::create(
+        link: $link,
+        host: $host,
+        port: $port,
+        databasePath: $database,
+        verifyPeer: $verifyPeer,
+    )->daemon();
+
+    try {
+        $daemon->run($budget);
+    } catch (Throwable $exception) {
+        fwrite(STDERR, sprintf("dbots: %s\n", $exception->getMessage()));
+    } finally {
+        $daemon->stop();
+    }
+
+    if (null !== $deadline && time() >= $deadline) {
+        break;
+    }
+
+    if (null === $deadline) {
+        sleep($reconnectDelay);
+    }
+} while (true);
 
 fwrite(STDOUT, "dbots stopped\n");

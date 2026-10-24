@@ -7,7 +7,6 @@ namespace Dbots\Udb;
 use Dbots\Irc\Adapter\In\IrcMessage;
 
 use function array_map;
-use function array_slice;
 use function count;
 use function explode;
 use function implode;
@@ -15,7 +14,6 @@ use function in_array;
 use function preg_match;
 use function random_int;
 use function sprintf;
-use function substr;
 
 /**
  * UDB 4 authority side: answers HEL, publishes block inventories and serves
@@ -99,14 +97,18 @@ final class UdbAuthority
     /** Publishes a credential so the IRCd can authenticate `NICK nick:password`. */
     public function insertPassword(string $nick, string $passwordHash): void
     {
-        $this->insert(sprintf('N::%s::pass', $nick), $passwordHash);
+        $this->insert('N', sprintf('%s::pass', $nick), $passwordHash);
     }
 
-    public function insert(string $fullPath, string|int|null $value): void
+    /**
+     * Record paths never include the block letter: the digest and the row
+     * components start at the record's own first component.
+     */
+    public function insert(string $block, string $path, string|int|null $value): void
     {
         $this->sequence++;
 
-        [$block, $encodedPath] = $this->split($fullPath);
+        $encodedPath = $this->encodePath($path);
 
         ($this->write)(sprintf(
             ':%s DB * INS %s %d %s::%s :%s',
@@ -163,8 +165,6 @@ final class UdbAuthority
         ($this->write)(sprintf(':%s DB %s BEGIN %d %s %s %s %d', $this->sid, $target, $round, $block, $txid, $digest, $this->sequence));
 
         foreach ($records as $path => $value) {
-            [$recordBlock, $encodedPath] = $this->split($path);
-
             ($this->write)(sprintf(
                 ':%s DB %s PUT %d %s %s %s::%s :%s',
                 $this->sid,
@@ -172,8 +172,8 @@ final class UdbAuthority
                 $round,
                 $block,
                 $txid,
-                $recordBlock,
-                $encodedPath,
+                $block,
+                $this->encodePath($path),
                 NativeDigest::wireValue($value),
             ));
         }
@@ -203,13 +203,8 @@ final class UdbAuthority
         }
     }
 
-    /** @return array{string, string} block letter and percent-encoded remainder */
-    private function split(string $fullPath): array
+    private function encodePath(string $path): string
     {
-        $components = explode('::', $fullPath);
-        $block = $components[0];
-        $remainder = array_slice($components, 1);
-
-        return [$block, implode('::', array_map(NativeDigest::encodeComponent(...), $remainder))];
+        return implode('::', array_map(NativeDigest::encodeComponent(...), explode('::', $path)));
     }
 }
