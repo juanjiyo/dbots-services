@@ -22,8 +22,9 @@ dbots publishes and applies the account and `+r` itself.
 | UDB 4 authority (HEL/INF/RES/BEGIN/PUT/END) | Working, verified live |
 | Canonical block digests | Verified byte-for-byte against the module reference |
 | NickServ `REGISTER` / `IDENTIFY` / `HELP` | Working |
+| ChanServ `REGISTER` / `INFO` / `DROP` / `HELP` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
-| ChanServ / MemoServ / OperServ | Not started |
+| MemoServ / OperServ | Not started |
 
 ## Operations
 
@@ -101,6 +102,10 @@ src/
 │   ├── Adapter/In/         IrcMessage, IrcMessageParser
 │   ├── Adapter/Out/Irc/    ServiceUidFormatter
 │   └── Application/        NetworkState (UID -> nick)
+├── ChanServ/
+│   ├── Adapter/In/Irc/     ChanServCommandHandler
+│   ├── Adapter/Out/        SQLite channels
+│   └── Application/        RegisterChannel, DropChannel + ports
 ├── NickServ/
 │   ├── Adapter/In/Irc/     NickServCommandHandler
 │   ├── Adapter/Out/        SQLite accounts, SVSLOGIN, NOTICEs
@@ -108,13 +113,31 @@ src/
 └── Udb/
     ├── NativeDigest.php    canonical block digest (port of the module reference)
     ├── UdbAuthority.php    HEL/INF/RES/BEGIN/PUT/END + live INS
-    ├── AccountBlockProvider.php
+    ├── AccountBlockProvider.php    N and S blocks
+    ├── ChannelBlockProvider.php    C block
+    ├── CompositeBlockProvider.php  one six-block view
     └── UdbAccountProjection.php
 ```
 
 The handshake is a pure state machine fed with lines, so the protocol is tested
 without sockets. Only `TlsStreamTransport` knows about sockets, and only
 `UdbAuthority` knows about UDB framing.
+
+## Channel registration
+
+```text
+/msg ChanServ REGISTER #channel     (you must be identified)
+/msg ChanServ INFO #channel
+/msg ChanServ DROP #channel         (founder only)
+```
+
+The founder comes from the sender's account, and the profile is projected to the
+C block, so UDB applies `+q` to the founder and `+r` to the channel immediately.
+Dropping removes both.
+
+Note that identity is derived from `+r` plus the account store: a client `UID`
+frame carries the user modes and the IP, never the account name, and `+r` arrives
+after the introduction as `UMODE2`.
 
 ## Tests
 

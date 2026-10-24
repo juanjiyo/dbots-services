@@ -11,8 +11,8 @@ use function sprintf;
 /**
  * Projects registered accounts into the UDB N block.
  *
- * The digest is computed over full record paths ("N::<nick>::pass"), which is
- * the same shape the module's reference implementation hashes.
+ * Record paths never include the block letter: the module reads the block from
+ * the frame and hashes the remaining components.
  */
 final readonly class AccountBlockProvider implements BlockProviderInterface
 {

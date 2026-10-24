@@ -10,6 +10,7 @@ use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\NetworkState;
+use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 
@@ -27,6 +28,7 @@ final readonly class Daemon
         private IrcMessageParser $parser,
         private NetworkState $state,
         private NickServCommandHandler $nickServ,
+        private ChanServCommandHandler $chanServ,
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
@@ -43,7 +45,7 @@ final readonly class Daemon
     {
         $this->runner->connect(fn (string $line): null => $this->onLine($line));
 
-        $this->introduceNickServ();
+        $this->introduceServices();
 
         $this->runner->pump($seconds, fn (string $line): null => $this->onLine($line));
     }
@@ -53,15 +55,22 @@ final readonly class Daemon
         $this->runner->close();
     }
 
-    private function introduceNickServ(): void
+    private function introduceServices(): void
     {
-        $this->transport->writeLine($this->uidFormatter->format(
-            nick: 'NickServ',
-            uid: sprintf('%sA00001', $this->sid),
-            realname: 'Nickname Registration Services',
-            ident: 'NickServ',
-            host: $this->serviceHost,
-        ));
+        $services = [
+            ['NickServ', sprintf('%sA00001', $this->sid), 'Nickname Registration Services'],
+            ['ChanServ', sprintf('%sA00002', $this->sid), 'Channel Registration Services'],
+        ];
+
+        foreach ($services as [$nick, $uid, $realname]) {
+            $this->transport->writeLine($this->uidFormatter->format(
+                nick: $nick,
+                uid: $uid,
+                realname: $realname,
+                ident: $nick,
+                host: $this->serviceHost,
+            ));
+        }
     }
 
     private function onLine(string $line): null
@@ -72,8 +81,8 @@ final readonly class Daemon
             return null;
         }
 
-        if ('DB' === $message->command && '1' === getenv('DBOTS_DEBUG')) {
-            fwrite(STDERR, "DB> {$line}\n");
+        if ('1' === getenv('DBOTS_DEBUG') && in_array($message->command, ['DB', 'PRIVMSG', 'ACCOUNT', 'UID', 'MODE', 'UMODE2'], true)) {
+            fwrite(STDERR, "{$message->command}> {$line}\n");
         }
 
         match ($message->command) {
@@ -81,7 +90,10 @@ final readonly class Daemon
             'NICK' => $this->onNickChange($message),
             'QUIT' => $this->onUserQuit($message),
             'DB' => $this->udb?->handle($message),
-            'PRIVMSG' => $this->nickServ->handle($message, $this->state),
+            'PRIVMSG' => $this->onPrivmsg($message),
+            'ACCOUNT' => $this->state->setAccount($this->resolveUid($message->source()), $message->params[0] ?? null),
+            'UMODE2' => $this->state->applyModeChange($this->resolveUid($message->source()), $message->params[0] ?? ''),
+            'MODE' => $this->onMode($message),
             default => null,
         };
 
@@ -92,12 +104,49 @@ final readonly class Daemon
     {
         $nick = $message->params[0] ?? null;
         $uid = $message->params[5] ?? null;
+        $modes = $message->params[7] ?? '';
 
         if (null === $nick || null === $uid) {
             return;
         }
 
-        $this->state->introduceUser($uid, $nick);
+        // A client UID carries the user modes but not the account; identity is
+        // derived from +r plus our own account store.
+        $this->state->introduceUser($uid, $nick, null, ltrim($modes, '+'));
+    }
+
+    /**
+     * Sources arrive as a UID for server-originated frames and as a nick for
+     * some user-originated ones, so both forms have to resolve to the UID.
+     */
+    private function resolveUid(?string $source): string
+    {
+        if (null === $source) {
+            return '';
+        }
+
+        if (null !== $this->state->nickOf($source)) {
+            return $source;
+        }
+
+        return $this->state->uidOf($source) ?? $source;
+    }
+
+    private function onMode(IrcMessage $message): void
+    {
+        $target = $message->params[0] ?? null;
+
+        if (null === $target || str_starts_with($target, '#')) {
+            return;
+        }
+
+        $this->state->applyModeChange($this->resolveUid($target), $message->params[1] ?? '');
+    }
+
+    private function onPrivmsg(IrcMessage $message): void
+    {
+        $this->nickServ->handle($message, $this->state);
+        $this->chanServ->handle($message, $this->state);
     }
 
     private function onNickChange(IrcMessage $message): void

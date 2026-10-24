@@ -76,4 +76,37 @@ final class IrcWireTest extends TestCase
         self::assertNull($state->nickOf('001AAAAAA'));
         self::assertSame(0, $state->count());
     }
+
+    #[Test]
+    public function itTracksIdentificationThroughModeChanges(): void
+    {
+        $state = new NetworkState();
+        $state->introduceUser('001AAAAAA', 'alice', null, 'iwxT');
+
+        self::assertFalse($state->hasMode('001AAAAAA', 'r'));
+
+        // UnrealIRCd sends the identified flag after the introduction.
+        $state->applyModeChange('001AAAAAA', '+r');
+        self::assertTrue($state->hasMode('001AAAAAA', 'r'));
+
+        $state->applyModeChange('001AAAAAA', '-r+b');
+        self::assertFalse($state->hasMode('001AAAAAA', 'r'));
+        self::assertTrue($state->hasMode('001AAAAAA', 'b'));
+        self::assertTrue($state->hasMode('001AAAAAA', 'i'), 'existing modes survive');
+    }
+
+    #[Test]
+    public function itRecordsAndClearsAccounts(): void
+    {
+        $state = new NetworkState();
+        $state->introduceUser('001AAAAAA', 'alice');
+
+        self::assertNull($state->accountOf('001AAAAAA'));
+
+        $state->setAccount('001AAAAAA', 'alice');
+        self::assertSame('alice', $state->accountOf('001AAAAAA'));
+
+        $state->setAccount('001AAAAAA', null);
+        self::assertNull($state->accountOf('001AAAAAA'));
+    }
 }

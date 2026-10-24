@@ -19,6 +19,12 @@ final readonly class IrcReplySender implements ReplyInterface
 
     public function reply(string $targetUid, string $text): void
     {
-        $this->transport->writeLine(sprintf(':%s NOTICE %s :%s', $this->serviceUid, $targetUid, $text));
+        $line = sprintf(':%s NOTICE %s :%s', $this->serviceUid, $targetUid, $text);
+
+        if ('1' === getenv('DBOTS_DEBUG')) {
+            fwrite(STDERR, "OUT> {$line}\n");
+        }
+
+        $this->transport->writeLine($line);
     }
 }

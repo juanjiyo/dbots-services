@@ -104,6 +104,21 @@ final class UdbAuthority
      * Record paths never include the block letter: the digest and the row
      * components start at the record's own first component.
      */
+    /** Removes a record from the IRCd's store. */
+    public function delete(string $block, string $path): void
+    {
+        $this->sequence++;
+
+        ($this->write)(sprintf(
+            ':%s DB * DEL %s %d %s::%s',
+            $this->sid,
+            $this->epoch,
+            $this->sequence,
+            $block,
+            $this->encodePath($path),
+        ));
+    }
+
     public function insert(string $block, string $path, string|int|null $value): void
     {
         $this->sequence++;

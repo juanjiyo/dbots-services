@@ -92,7 +92,13 @@ final class TlsStreamTransport implements LinkTransportInterface
             throw new RuntimeException('Cannot write on a closed transport.');
         }
 
-        if (false === fwrite($this->stream, $line . "\r\n")) {
+        $written = @fwrite($this->stream, $line . "\r\n");
+
+        if (false === $written || '1' === getenv('DBOTS_DEBUG')) {
+            fwrite(STDERR, sprintf("WRITE> %s (result: %s)\n", $line, var_export($written, true)));
+        }
+
+        if (false === $written) {
             throw new RuntimeException('Failed to write to the link transport.');
         }
     }

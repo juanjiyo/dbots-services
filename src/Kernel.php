@@ -7,6 +7,10 @@ namespace Dbots;
 use Dbots\Adapter\Out\Transport\TlsStreamTransport;
 use Dbots\Application\Daemon;
 use Dbots\Application\Link\LinkRunner;
+use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
+use Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelRepository;
+use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
+use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\Domain\Link\ServerLink;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
@@ -18,8 +22,12 @@ use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\Udb\AccountBlockProvider;
+use Dbots\Udb\ChannelBlockProvider;
+use Dbots\Udb\CompositeBlockProvider;
 use Dbots\Udb\UdbAccountProjection;
 use Dbots\Udb\UdbAuthority;
+use Dbots\Udb\UdbChannelProjection;
+use PDO;
 
 use function dirname;
 use function is_dir;
@@ -27,9 +35,8 @@ use function mkdir;
 use function sprintf;
 
 /**
- * Manual wiring. Deliberately no DI container yet: there are a dozen objects
- * and a container would hide more than it explains. Swap it in when the graph
- * hurts.
+ * Manual wiring. Deliberately no DI container yet: a container would hide more
+ * than it explains at this size. Swap it in when the graph hurts.
  */
 final readonly class Kernel
 {
@@ -51,25 +58,46 @@ final readonly class Kernel
             mkdir(dirname($databasePath), 0o775, true);
         }
 
-        $repository = SqliteAccountRepository::fromPath($databasePath);
-        $serviceUid = sprintf('%sA00001', $link->sid);
+        $pdo = new PDO('sqlite:' . $databasePath);
+
+        $accounts = new SqliteAccountRepository($pdo);
+        $channels = new SqliteChannelRepository($pdo);
 
         $authority = new UdbAuthority(
             $link->sid,
             $link->name,
-            new AccountBlockProvider($repository, $link->name),
+            new CompositeBlockProvider([
+                new AccountBlockProvider($accounts, $link->name),
+                new ChannelBlockProvider($channels),
+            ]),
             $transport->writeLine(...),
             $udbEpoch ?? UdbAuthority::generateEpoch(),
         );
 
+        $nickServUid = sprintf('%sA00001', $link->sid);
+        $chanServUid = sprintf('%sA00002', $link->sid);
+        $nickReplies = new IrcReplySender($transport, $nickServUid);
+        $chanReplies = new IrcReplySender($transport, $chanServUid);
+
         $nickServ = new NickServCommandHandler(
-            new RegisterNickHandler($repository),
-            new IdentifyHandler($repository),
+            new RegisterNickHandler($accounts),
+            new IdentifyHandler($accounts),
             new S2sAccountLogin($transport, $link->sid),
-            new IrcReplySender($transport, $serviceUid),
-            new UdbAccountProjection($repository, $authority),
+            $nickReplies,
+            new UdbAccountProjection($accounts, $authority),
             'NickServ',
-            $serviceUid,
+            $nickServUid,
+        );
+
+        $chanServ = new ChanServCommandHandler(
+            new RegisterChannelHandler($channels),
+            new DropChannelHandler($channels),
+            $channels,
+            new UdbChannelProjection($channels, $authority),
+            $accounts,
+            $chanReplies,
+            'ChanServ',
+            $chanServUid,
         );
 
         $daemon = new Daemon(
@@ -78,6 +106,7 @@ final readonly class Kernel
             new IrcMessageParser(),
             new NetworkState(),
             $nickServ,
+            $chanServ,
             new ServiceUidFormatter($link->sid),
             $link->sid,
             $link->name,
