@@ -25,7 +25,8 @@ dbots publishes and applies the account and `+r` itself.
 | ChanServ `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
 | MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
-| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `STATS` / `IRCOPS` | Working, verified live |
+| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
+| OperServ `SPAM` | Stored only: the rule never becomes an IRCd filter (see README note) |
 
 ## Operations
 
@@ -149,7 +150,13 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 /msg OperServ LISTCLONES <nick>
 /msg OperServ KILLCLONES <nick> [reason]   (G-Lines the host for 60m)
 /msg OperServ BLOCK <nick> [reason]        (G-Lines the host for 300m)
+/msg OperServ LIMPIA <#channel>
+/msg OperServ ROOT <password>              (grants SETTIME)
 ```
+
+`SPAM` keeps rules in SQLite and replies that enforcement is not active. The six
+`K::F` records do reach the IRCd, but the module does not materialise them as a
+filter, so the command says so instead of implying protection.
 
 Clone commands G-Line the host the nick is connected from, and refuse to do so
 when the host is protected (`localhost`, `127.0.0.1`), so an operator testing

@@ -25,6 +25,7 @@ use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
+use Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
@@ -75,6 +76,7 @@ final readonly class Kernel
         $channels = new SqliteChannelRepository($pdo);
         $channelAccess = new SqliteChannelAccessRepository($pdo);
         $memos = new SqliteMemoRepository($pdo);
+        $spamRules = new SqliteSpamRuleRepository($pdo);
 
         $authority = new UdbAuthority(
             $link->sid,
@@ -141,9 +143,11 @@ final readonly class Kernel
             $accountProjection,
             $channels,
             $channelProjection,
+            $spamRules,
             $operReplies,
             'OperServ',
             $operServUid,
+            rootPassword: (string) (getenv('DBOTS_ROOT_PASSWORD') ?: ''),
         );
 
         $daemon = new Daemon(

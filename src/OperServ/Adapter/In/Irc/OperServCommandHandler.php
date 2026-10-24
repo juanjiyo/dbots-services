@@ -9,6 +9,8 @@ use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
+use Dbots\Domain\Spam\SpamRule;
+use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
@@ -24,6 +26,9 @@ use function array_slice;
 use function array_values;
 use function explode;
 use function count;
+use function hash_equals;
+use function in_array;
+use function time;
 use function implode;
 use function sprintf;
 use function strcasecmp;
@@ -38,14 +43,18 @@ use function substr;
  * Every mutating command requires the sender to carry user mode +o; the daemon
  * never infers operator status from a nickname or from who is registered.
  */
-final readonly class OperServCommandHandler
+final class OperServCommandHandler
 {
+    /** @var array<string, true> users that authenticated as root during this link */
+    private array $roots = [];
+
     public function __construct(
         private EnforcementInterface $enforcement,
         private AccountRepositoryInterface $accounts,
         private AccountProjectionInterface $accountProjection,
         private ChannelRepositoryInterface $channels,
         private ChannelProjectionInterface $channelProjection,
+        private SpamRuleRepositoryInterface $spamRules,
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
@@ -53,6 +62,7 @@ final readonly class OperServCommandHandler
         private array $protectedHosts = ['localhost', '127.0.0.1'],
         private int $killClonesMinutes = 60,
         private int $blockMinutes = 300,
+        private string $rootPassword = '',
     ) {
     }
 
@@ -96,6 +106,10 @@ final readonly class OperServCommandHandler
             'LISTCLONES' => $this->onListClones($sender, $parts, $state),
             'KILLCLONES' => $this->onHostBan($sender, $parts, $state, 'killclones'),
             'BLOCK' => $this->onHostBan($sender, $parts, $state, 'block'),
+            'SETTIME' => $this->onSetTime($sender, $state),
+            'ROOT' => $this->onRoot($sender, $parts),
+            'LIMPIA' => $this->onClean($sender, $parts, $state),
+            'SPAM' => $this->onSpam($sender, $parts, $state),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender),
@@ -481,6 +495,161 @@ final readonly class OperServCommandHandler
         return $state->hostOf($uid);
     }
 
+    private function onSetTime(string $sender, NetworkState $state): void
+    {
+        if (!$this->requireRoot($sender, $state)) {
+            return;
+        }
+
+        $this->enforcement->setTime(time());
+        $this->reply->reply($sender, 'Network time resynchronised.');
+    }
+
+    /** @param list<string> $args */
+    private function onRoot(string $sender, array $args): void
+    {
+        $password = array_shift($args);
+
+        if ('' === $this->rootPassword) {
+            $this->reply->reply($sender, 'Root access is not configured.');
+
+            return;
+        }
+
+        if (null === $password) {
+            $this->reply->reply($sender, 'Syntax: ROOT <password>');
+
+            return;
+        }
+
+        if (!hash_equals($this->rootPassword, $password)) {
+            $this->reply->reply($sender, 'Incorrect password.');
+
+            return;
+        }
+
+        $this->roots[$sender] = true;
+        $this->reply->reply($sender, 'You are now identified as root.');
+    }
+
+    /** @param list<string> $args */
+    private function onClean(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $channel = array_shift($args);
+
+        if (null === $channel) {
+            $this->reply->reply($sender, 'Syntax: LIMPIA <#channel>');
+
+            return;
+        }
+
+        // Only parameterless modes: -k and -l would need their arguments, and
+        // guessing them is how a "cleanup" ends up breaking the channel.
+        $this->enforcement->channelMode($channel, '-imnpst');
+        $this->reply->reply($sender, sprintf('%s has been cleaned (modes -imnpst).', $channel));
+    }
+
+    /** @param list<string> $args */
+    private function onSpam(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $action = strtoupper((string) array_shift($args));
+
+        match ($action) {
+            'LIST' => $this->onSpamList($sender),
+            'ADD' => $this->onSpamAdd($sender, $args),
+            'DEL', 'DELETE' => $this->onSpamDelete($sender, $args),
+            default => $this->reply->reply($sender, 'Syntax: SPAM LIST | ADD <pattern> <action> [reason] | DEL <pattern>'),
+        };
+    }
+
+    private function onSpamList(string $sender): void
+    {
+        $rules = $this->spamRules->all();
+
+        if ([] === $rules) {
+            $this->reply->reply($sender, 'No spamfilter rules are defined.');
+
+            return;
+        }
+
+        foreach ($rules as $rule) {
+            $this->reply->reply($sender, sprintf(
+                '%s -> %s on %s (%s)',
+                $rule->pattern,
+                $rule->action,
+                $rule->targets,
+                $rule->reason,
+            ));
+        }
+    }
+
+    /** @param list<string> $args */
+    private function onSpamAdd(string $sender, array $args): void
+    {
+        $pattern = array_shift($args);
+        $action = array_shift($args);
+
+        if (null === $pattern || null === $action) {
+            $this->reply->reply($sender, 'Syntax: SPAM ADD <pattern> <action> [reason]');
+
+            return;
+        }
+
+        if (!in_array($action, SpamRule::ACTIONS, true)) {
+            $this->reply->reply($sender, 'Unknown action. Use one of: ' . implode(', ', SpamRule::ACTIONS) . '.');
+
+            return;
+        }
+
+        $reason = [] === $args ? 'Spam' : implode(' ', array_values($args));
+
+        $rule = new SpamRule(
+            $pattern,
+            $action,
+            'cpnN',
+            3600,
+            $reason,
+            time() + 30 * 86400,
+        );
+
+        $this->spamRules->save($rule);
+
+        // The K::F profile reaches the IRCd but the module does not materialise
+        // it as a filter, so this rule is stored and NOT enforced yet. Say so
+        // instead of implying protection that does not exist.
+        $this->reply->reply($sender, sprintf(
+            'Spamfilter rule for %s (%s) stored locally; enforcement is not active yet.',
+            $pattern,
+            $action,
+        ));
+    }
+
+    /** @param list<string> $args */
+    private function onSpamDelete(string $sender, array $args): void
+    {
+        $pattern = array_shift($args);
+
+        if (null === $pattern) {
+            $this->reply->reply($sender, 'Syntax: SPAM DEL <pattern>');
+
+            return;
+        }
+
+        $removed = $this->spamRules->delete($pattern);
+
+        $this->reply->reply($sender, $removed
+            ? sprintf('Spamfilter rule for %s removed.', $pattern)
+            : sprintf('No spamfilter rule matches %s.', $pattern));
+    }
+
     private function onStats(string $sender, NetworkState $state): void
     {
         $this->reply->reply($sender, sprintf('Users online: %d.', $state->count()));
@@ -503,7 +672,7 @@ final readonly class OperServCommandHandler
 
     private function requireOper(string $sender, NetworkState $state): bool
     {
-        if ($state->hasMode($sender, 'o')) {
+        if ($state->hasMode($sender, 'o') || isset($this->roots[$sender])) {
             return true;
         }
 
@@ -512,9 +681,21 @@ final readonly class OperServCommandHandler
         return false;
     }
 
+    /** Root is a level above oper, as in the reference's status levels. */
+    private function requireRoot(string $sender, NetworkState $state): bool
+    {
+        if (isset($this->roots[$sender])) {
+            return true;
+        }
+
+        $this->reply->reply($sender, 'This command requires root access. Use ROOT <password>.');
+
+        return false;
+    }
+
     private function onHelp(string $uid): void
     {
-        $this->reply->reply($uid, 'Commands: KILL, KICK, OP, DEOP, MODE, GLINE, UNGLINE, RENAME, DROPNDB, APODERA, LISTCLONES <nick>, KILLCLONES <nick> [reason], BLOCK <nick> [reason], STATS, IRCOPS.');
+        $this->reply->reply($uid, 'Commands: KILL, KICK, OP, DEOP, MODE, GLINE, UNGLINE, RENAME, DROPNDB, APODERA, LISTCLONES, KILLCLONES, BLOCK, LIMPIA, SPAM LIST|ADD|DEL, SETTIME (root), ROOT <password>, STATS, IRCOPS.');
     }
 
     private function isAddressedToMe(string $target): bool

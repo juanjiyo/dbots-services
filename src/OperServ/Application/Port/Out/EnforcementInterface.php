@@ -20,4 +20,7 @@ interface EnforcementInterface
 
     /** Forces a connected user to a new nickname. */
     public function rename(string $uid, string $newNick): void;
+
+    /** Sets the network time (UnrealIRCd TSCTL SVSTIME). */
+    public function setTime(int $timestamp): void;
 }

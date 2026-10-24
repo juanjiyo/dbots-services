@@ -34,6 +34,7 @@ final class OperServCommandHandlerTest extends TestCase
             new \Dbots\Tests\Support\RecordingProjection(),
             $this->channels,
             new \Dbots\Tests\Support\RecordingChannelProjection(),
+            new \Dbots\Tests\Support\InMemorySpamRuleRepository(),
             $this->irc,
             'OperServ',
             '003A00004',
@@ -261,11 +262,63 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function rootAuthenticationGatesRootCommands(): void
+    {
+        $handler = $this->rootedHandler('secreto');
+
+        $handler->handle($this->privmsg('SETTIME'), $this->state);
+        self::assertSame(['001AAAAAA: This command requires root access. Use ROOT <password>.'], $this->irc->replies);
+
+        $this->irc->replies = [];
+        $handler->handle($this->privmsg('ROOT secreto'), $this->state);
+        self::assertSame(['001AAAAAA: You are now identified as root.'], $this->irc->replies);
+
+        $this->irc->replies = [];
+        $handler->handle($this->privmsg('SETTIME'), $this->state);
+        self::assertSame(['001AAAAAA: Network time resynchronised.'], $this->irc->replies);
+        self::assertCount(1, $this->enforcement->times);
+    }
+
+    #[Test]
+    public function aWrongRootPasswordIsRejected(): void
+    {
+        $handler = $this->rootedHandler('secreto');
+
+        $handler->handle($this->privmsg('ROOT nope'), $this->state);
+
+        self::assertSame(['001AAAAAA: Incorrect password.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function limpiaclearsTheCommonModes(): void
+    {
+        $this->handler->handle($this->privmsg('LIMPIA #chan'), $this->state);
+
+        self::assertSame(['#chan|-imnpst|'], $this->enforcement->modes);
+    }
+
+    #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
         $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['ChanServ'], 'KILL victim'), $this->state);
 
         self::assertSame([], $this->enforcement->kills);
+    }
+
+    private function rootedHandler(string $password): OperServCommandHandler
+    {
+        return new OperServCommandHandler(
+            $this->enforcement,
+            $this->accounts,
+            new \Dbots\Tests\Support\RecordingProjection(),
+            $this->channels,
+            new \Dbots\Tests\Support\RecordingChannelProjection(),
+            new \Dbots\Tests\Support\InMemorySpamRuleRepository(),
+            $this->irc,
+            'OperServ',
+            '003A00004',
+            rootPassword: $password,
+        );
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
@@ -293,6 +346,9 @@ final class RecordingEnforcement implements EnforcementInterface
 
     /** @var list<string> */
     public array $renames = [];
+
+    /** @var list<int> */
+    public array $times = [];
 
     public function kill(string $uid, string $reason): void
     {
@@ -322,5 +378,10 @@ final class RecordingEnforcement implements EnforcementInterface
     public function rename(string $uid, string $newNick): void
     {
         $this->renames[] = $uid . '->' . $newNick;
+    }
+
+    public function setTime(int $timestamp): void
+    {
+        $this->times[] = $timestamp;
     }
 }

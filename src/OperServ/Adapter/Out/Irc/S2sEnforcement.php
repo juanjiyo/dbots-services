@@ -60,6 +60,11 @@ final readonly class S2sEnforcement implements EnforcementInterface
         ));
     }
 
+    public function setTime(int $timestamp): void
+    {
+        $this->transport->writeLine(sprintf(':%s TSCTL SVSTIME %d', $this->sid, $timestamp));
+    }
+
     public function rename(string $uid, string $newNick): void
     {
         $this->transport->writeLine(sprintf(':%s SVSNICK %s %s %d', $this->sid, $uid, $newNick, time()));
