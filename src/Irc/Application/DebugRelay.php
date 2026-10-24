@@ -6,8 +6,11 @@ namespace Dbots\Irc\Application;
 
 use Dbots\Application\Port\Out\LinkTransportInterface;
 
+use function in_array;
 use function preg_match;
 use function sprintf;
+use function strtoupper;
+use function date;
 
 /**
  * Mirrors service activity into a staff channel, like the original dBots
@@ -31,14 +34,15 @@ final readonly class DebugRelay
         return '' !== $this->channel;
     }
 
-    public function command(string $actor, string $command, string $detail = ''): void
+    /**
+     * Mirrors one raw protocol line, the way the original debug link did.
+     *
+     * The original showed `(date - time) => <line>`; keeping the wire form is
+     * the point — a summary teaches you nothing about what the services said.
+     */
+    public function line(string $line): void
     {
-        $this->send(sprintf('CMD %s: %s%s', $actor, $command, '' === $detail ? '' : ' — ' . $detail));
-    }
-
-    public function mutation(string $line): void
-    {
-        $this->send('DB ' . $this->redact($line));
+        $this->send(sprintf('(%s - %s) => %s', date('d/m/Y'), date('H:i'), $this->redact($line)));
     }
 
     public function note(string $message): void
@@ -46,11 +50,23 @@ final readonly class DebugRelay
         $this->send($message);
     }
 
+    /**
+     * Commands whose arguments are a secret. Their line is mirrored with the
+     * arguments hidden: the original dumped everything, but a password in a
+     * channel outlives the session that typed it.
+     */
+    private const array SECRET_COMMANDS = ['REGISTER', 'REGISTRA', 'IDENTIFY', 'IDENTIFICA', 'DROP', 'ROOT', 'SET'];
+
     /** Removes anything that could carry a credential out of the log line. */
     public function redact(string $line): string
     {
-        // N::<nick>::pass <value>, and any UDB value that looks like a hash.
-        $line = (string) preg_replace('/pass\s+:\S+/i', 'pass :<redacted>', $line);
+        // A command carrying a password or a token.
+        if (1 === preg_match('/^(.*PRIVMSG \S+ :)(\S+)(.*)$/i', $line, $matches)
+            && in_array(strtoupper($matches[2]), self::SECRET_COMMANDS, true)) {
+            return $matches[1] . $matches[2] . ' <argumentos ocultos>';
+        }
+
+        // N::<nick>::pass and any UDB value that looks like a credential.
         $line = (string) preg_replace('/::pass\s+:\S+/i', '::pass :<redacted>', $line);
         $line = (string) preg_replace('/!s[A-Za-z0-9+\/=]{20,}/', '!s<redacted>', $line);
 

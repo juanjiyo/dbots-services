@@ -17,11 +17,8 @@ use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 
-use function in_array;
 use function sprintf;
 use function str_contains;
-use function strtok;
-use function strtoupper;
 
 /**
  * Runs the daemon: links, introduces the service pseudo-clients and keeps the
@@ -127,6 +124,11 @@ final readonly class Daemon
             default => null,
         };
 
+        // The original debug link mirrored the commands the services received.
+        if ('PRIVMSG' === $message->command) {
+            $this->relayToDebug($line);
+        }
+
         return null;
     }
 
@@ -151,10 +153,18 @@ final readonly class Daemon
     {
         $this->udb?->handle($message);
 
-        // Only live mutations are worth mirroring; a reconciliation storm is not.
-        if (null !== $this->debug && $this->debug->isEnabled()
-            && (str_contains($line, ' INS ') || str_contains($line, ' DEL '))) {
-            $this->debug->mutation($line);
+        // A reconciliation storm would swamp the channel; live mutations are what
+        // an operator wants to watch.
+        if (str_contains($line, ' INS ') || str_contains($line, ' DEL ')) {
+            $this->relayToDebug($line);
+        }
+    }
+
+    /** Echoes one protocol line to the debug channel, like the original link did. */
+    private function relayToDebug(string $line): void
+    {
+        if (null !== $this->debug && $this->debug->isEnabled()) {
+            $this->debug->line($line);
         }
     }
 
@@ -209,7 +219,7 @@ final readonly class Daemon
         $this->memoServ->handle($message, $this->state);
         $this->operServ->handle($message, $this->state);
 
-        $this->relayCommand($message);
+
     }
 
     /**

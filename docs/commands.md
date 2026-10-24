@@ -100,12 +100,19 @@ sees the whole stream, and keeps it narrower on purpose:
 DBOTS_DEBUG_CHANNEL=#DeBuG
 ```
 
-When set, a `DebugServ` client joins that channel and reports:
+When set, a `DebugServ` client joins that channel and mirrors the **raw protocol
+line**, exactly like the original `de.mrc` did:
 
-* `CMD <nick>: <VERB> — <service>` for each service command executed. **Only the
-  verb**: the arguments may contain a password, and a debug channel is a terrible
-  place for one.
-* `DB <line>` for live UDB mutations (`INS`), with credentials redacted before the
-  line is written.
+```text
+(25/10/2026 - 00:43) => :0014GW66Z PRIVMSG 004A00001 :STATUS FreshUser
+(25/10/2026 - 00:43) => :004 DB * INS 0123456789abcdef 7 N::JuanJo::forbid :!s...
+```
+
+Two redactions, both deliberate:
+
+* commands whose arguments are a secret (`REGISTER`, `IDENTIFY`, `DROP`, `ROOT`,
+  `SET`) keep their name and lose their arguments;
+* `N::*::pass` values and long Base64 blobs are replaced before the line is
+  written.
 
 Reconciliation traffic is never mirrored; a sync storm would drown the channel.
