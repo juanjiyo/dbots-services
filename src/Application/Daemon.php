@@ -9,6 +9,7 @@ use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
+use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
@@ -16,7 +17,11 @@ use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 
+use function in_array;
 use function sprintf;
+use function str_contains;
+use function strtok;
+use function strtoupper;
 
 /**
  * Runs the daemon: links, introduces the service pseudo-clients and keeps the
@@ -37,6 +42,8 @@ final readonly class Daemon
         private string $sid,
         private string $serviceHost,
         private ?UdbAuthority $udb = null,
+        private ?DebugRelay $debug = null,
+        private string $debugChannel = '',
     ) {
     }
 
@@ -50,6 +57,7 @@ final readonly class Daemon
         $this->runner->connect(fn (string $line): null => $this->onLine($line));
 
         $this->introduceServices();
+        $this->joinDebugChannel();
 
         $this->runner->pump($seconds, fn (string $line): null => $this->onLine($line));
     }
@@ -68,6 +76,10 @@ final readonly class Daemon
             ['OperServ', sprintf('%sA00004', $this->sid), 'Network Operations Services'],
         ];
 
+        if (null !== $this->debug && $this->debug->isEnabled()) {
+            $services[] = ['DebugServ', sprintf('%sA00005', $this->sid), 'Network Debug Relay'];
+        }
+
         foreach ($services as [$nick, $uid, $realname]) {
             $this->transport->writeLine($this->uidFormatter->format(
                 nick: $nick,
@@ -77,6 +89,18 @@ final readonly class Daemon
                 host: $this->serviceHost,
             ));
         }
+    }
+
+    /** The relay only speaks if it is actually sitting in the channel. */
+    private function joinDebugChannel(): void
+    {
+        if (null === $this->debug || !$this->debug->isEnabled()) {
+            return;
+        }
+
+        $uid = sprintf('%sA00005', $this->sid);
+        $this->transport->writeLine(sprintf(':%s JOIN %s', $uid, $this->debugChannel));
+        $this->transport->writeLine(sprintf(':%s MODE %s +o %s', $this->sid, $this->debugChannel, $uid));
     }
 
     private function onLine(string $line): null
@@ -95,7 +119,7 @@ final readonly class Daemon
             'UID' => $this->onUserIntroduced($message),
             'NICK' => $this->onNickChange($message),
             'QUIT' => $this->onUserQuit($message),
-            'DB' => $this->udb?->handle($message),
+            'DB' => $this->onDbFrame($message, $line),
             'PRIVMSG' => $this->onPrivmsg($message),
             'ACCOUNT' => $this->state->setAccount($this->resolveUid($message->source()), $message->params[0] ?? null),
             'UMODE2' => $this->state->applyModeChange($this->resolveUid($message->source()), $message->params[0] ?? ''),
@@ -104,6 +128,34 @@ final readonly class Daemon
         };
 
         return null;
+    }
+
+    /** Maps one of our service UIDs (or nicknames) to its display name. */
+    private function serviceName(?string $target): ?string
+    {
+        $known = [
+            sprintf('%sA00001', $this->sid) => 'NickServ',
+            sprintf('%sA00002', $this->sid) => 'ChanServ',
+            sprintf('%sA00003', $this->sid) => 'MemoServ',
+            sprintf('%sA00004', $this->sid) => 'OperServ',
+        ];
+
+        if (null === $target) {
+            return null;
+        }
+
+        return $known[$target] ?? (in_array($target, $known, true) ? $target : null);
+    }
+
+    private function onDbFrame(IrcMessage $message, string $line): void
+    {
+        $this->udb?->handle($message);
+
+        // Only live mutations are worth mirroring; a reconciliation storm is not.
+        if (null !== $this->debug && $this->debug->isEnabled()
+            && (str_contains($line, ' INS ') || str_contains($line, ' DEL '))) {
+            $this->debug->mutation($line);
+        }
     }
 
     private function onUserIntroduced(IrcMessage $message): void
@@ -156,6 +208,35 @@ final readonly class Daemon
         $this->chanServ->handle($message, $this->state);
         $this->memoServ->handle($message, $this->state);
         $this->operServ->handle($message, $this->state);
+
+        $this->relayCommand($message);
+    }
+
+    /**
+     * Reports who ran which service command.
+     *
+     * Only the verb: the arguments may contain a password or a memo body, and a
+     * debug channel is the last place those should appear.
+     */
+    private function relayCommand(IrcMessage $message): void
+    {
+        if (null === $this->debug || !$this->debug->isEnabled()) {
+            return;
+        }
+
+        // The IRCd routes to the UID, not the nick, so translate back.
+        $service = $this->serviceName($message->target());
+
+        if (null === $service) {
+            return;
+        }
+
+        $verb = strtoupper(strtok($message->text(), ' ') ?: '');
+        $actor = $this->state->nickOf($message->source() ?? '') ?? 'unknown';
+
+        if ('' !== $verb) {
+            $this->debug->command($actor, $verb, $service);
+        }
     }
 
     private function onNickChange(IrcMessage $message): void

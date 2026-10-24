@@ -11,6 +11,7 @@ parameters:
     env(DBOTS_DATABASE): '%kernel.project_dir%/var/dbots.sqlite'
     env(DBOTS_ROOT_PASSWORD): ''
     env(DBOTS_RECONNECT_DELAY): '5'
+    env(DBOTS_DEBUG_CHANNEL): ''
 
 services:
     _defaults:
@@ -84,3 +85,4 @@ services:
     Dbots\Bootstrap\DaemonFactory:
         arguments:
             $rootPassword: '%env(DBOTS_ROOT_PASSWORD)%'
+            $debugChannel: '%env(DBOTS_DEBUG_CHANNEL)%'

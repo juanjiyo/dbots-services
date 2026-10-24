@@ -74,3 +74,23 @@ through ChanServ, which is a known deviation to correct when CReG is ported.
 
 Absolute counts: OperServ is complete against its reference; NickServ is about a
 third; ChanServ less than that; MemoServ roughly half.
+
+## Debug relay
+
+The original network ran a `de.mrc` "debug" bot: a second S2S link that dumped the
+raw protocol into a staff channel. dbots folds that into the daemon, which already
+sees the whole stream, and keeps it narrower on purpose:
+
+```conf
+DBOTS_DEBUG_CHANNEL=#DeBuG
+```
+
+When set, a `DebugServ` client joins that channel and reports:
+
+* `CMD <nick>: <VERB> — <service>` for each service command executed. **Only the
+  verb**: the arguments may contain a password, and a debug channel is a terrible
+  place for one.
+* `DB <line>` for live UDB mutations (`INS`), with credentials redacted before the
+  line is written.
+
+Reconciliation traffic is never mirrored; a sync storm would drown the channel.

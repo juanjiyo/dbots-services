@@ -17,6 +17,7 @@ use Dbots\Domain\Link\ServerLink;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
@@ -65,6 +66,7 @@ final readonly class DaemonFactory
         private SpamRuleRepositoryInterface $spamRules,
         private BlockProviderInterface $blocks,
         private string $rootPassword = '',
+        private string $debugChannel = '',
         private int $syncTimeoutSeconds = 30,
     ) {
     }
@@ -151,6 +153,8 @@ final readonly class DaemonFactory
             rootPassword: $this->rootPassword,
         );
 
+        $debug = new DebugRelay($this->transport, sprintf('%sA00005', $sid), $this->debugChannel);
+
         return new Daemon(
             new LinkRunner($this->link, $this->transport, $this->syncTimeoutSeconds),
             $this->transport,
@@ -164,6 +168,8 @@ final readonly class DaemonFactory
             $sid,
             $host,
             $authority,
+            $debug,
+            $this->debugChannel,
         );
     }
 }
