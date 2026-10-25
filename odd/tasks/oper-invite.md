@@ -21,7 +21,7 @@ Objective: add the `INVITE <#canal>` command to `OPeR`, matching the original
 - [x] **T3** (S4) — Add the help entry.
 - [x] **T4** (S5) — Update `docs/commands.md`.
 - [x] **T5** — Unit tests.
-- [ ] **T6** — Run `composer check`, commit, and push.
+- [x] **T6** — Run `composer check`, commit, and push.
 
 ## Log
 
