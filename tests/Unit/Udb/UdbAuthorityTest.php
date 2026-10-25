@@ -64,18 +64,23 @@ final class UdbAuthorityTest extends TestCase
 
         $authority->handle($this->frame(['007', 'HEL', '4', 'bots.example.org', self::EPOCH, 'OCL']));
 
-        self::assertCount(7, $this->written);
+        // ACK, six inventories, then the ordered barrier HEL.
+        self::assertCount(8, $this->written);
         self::assertStringContainsString('HEL 4 ACK bots.example.org', $this->written[0]);
 
-        $infLines = array_slice($this->written, 1);
+        $infLines = array_slice($this->written, 1, 6);
 
         self::assertCount(6, $infLines);
 
         foreach (['N', 'C', 'I', 'S', 'L', 'K'] as $index => $block) {
-            self::assertStringContainsString(" INF 1 {$block} ", $infLines[$index]);
+            self::assertStringContainsString(" {$block} ", $infLines[$index]);
+            self::assertStringContainsString(' INF ', $infLines[$index]);
         }
 
         self::assertStringContainsString(NativeDigest::logicalDigest('N', []), $infLines[0]);
+
+        self::assertStringContainsString('HEL 4 ? ', $this->written[7]);
+        self::assertStringNotContainsString('ACK', $this->written[7]);
     }
 
     #[Test]

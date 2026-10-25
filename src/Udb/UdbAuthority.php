@@ -12,9 +12,11 @@ use function count;
 use function explode;
 use function implode;
 use function in_array;
+use function max;
 use function preg_match;
 use function random_int;
 use function sprintf;
+use function time;
 
 /**
  * UDB 4 authority side: answers HEL, publishes block inventories and serves
@@ -195,7 +197,9 @@ final class UdbAuthority
 
     private function announceInventory(): void
     {
-        $this->round = 1;
+        // A round identifier has to be non-zero and distinct per round; the
+        // reference implementation derives it from the clock.
+        $this->round = max(1, time());
 
         foreach (self::BLOCKS as $block) {
             $records = $this->blocks->records($block);
@@ -213,6 +217,22 @@ final class UdbAuthority
                 $this->epoch,
             ));
         }
+
+        // An ordered TCP barrier: the peer's ACK proves it has processed every
+        // INF frame, so any RES for a divergent block is already on its way.
+        // Without it the IRCd never advances the round and never promotes.
+        //
+        // The selector must be `?`, not our name: the module reads it as
+        // "may this peer be my sync source?" and only `?` answers yes. With our
+        // own name it compares against the receiver's name, fails, and the peer
+        // never becomes a follower — so it never asks for a snapshot.
+        $this->transport->writeLine(sprintf(
+            ':%s DB %s HEL %s ? %s OCL',
+            $this->sid,
+            $this->peerSid ?? '*',
+            self::PROTOCOL,
+            $this->epoch,
+        ));
     }
 
     private function encodePath(string $path): string
