@@ -17,7 +17,7 @@ Objective: reserve every service pseudo-client nickname on UnrealIRCd 6.2.x so t
 - [x] **T4** — Update `OperServCommandHandlerTest` fake enforcement for the new interface method.
 - [x] **T5** — Add `S2sEnforcementTest` covering the `SQLINE` wire format.
 - [x] **T6** — Update `ModuleRuntimeTest` to verify module nicks are reserved.
-- [ ] **T7** — Run `composer check`, commit, and push.
+- [x] **T7** — Run `composer check`, commit, and push.
 
 ## Log
 
