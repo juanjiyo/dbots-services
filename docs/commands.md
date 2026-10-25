@@ -37,7 +37,8 @@ the original; **todo** is not implemented.
 | `SWHOIS <nick> <text>` | done | Operator only; UDB `N::<nick>::swhois` |
 | `NOEXPIRE <nick>` | done | Operator only; toggles the flag |
 | `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, AUTOMODE…) | todo | |
-| `SENDPASS` / `SENDNEWPASS`, `GETPASS` | todo | Passwords are hashed, so they cannot be read back; only a reset is possible |
+| `SENDPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it via memo |
+| `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
 | `VIEWIP` | todo | Will move to a future `HostServ`; `VHOST` / `DROPVHOST` deliberately live there, not in NiCK |
 | `MARCA` / `MARCADEL` / `MERCADEL`, `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
 

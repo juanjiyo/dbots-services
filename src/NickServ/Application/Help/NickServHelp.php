@@ -26,6 +26,7 @@ final class NickServHelp
             new HelpEntry('LISTFORBID', 'LISTFORBID', 'Lista los nicks prohibidos.', '/msg NiCK LISTFORBID', operOnly: true),
             new HelpEntry('SWHOIS', 'SWHOIS <nick> <texto>', 'Fija el SWHOIS que verá quien haga /WHOIS.', '/msg NiCK SWHOIS JuanJo Miembro del staff', operOnly: true),
             new HelpEntry('NOEXPIRE', 'NOEXPIRE <nick>', 'Activa o desactiva la exención de caducidad.', '/msg NiCK NOEXPIRE JuanJo', operOnly: true),
+            new HelpEntry('SENDPASS', 'SENDPASS <nick>', 'Genera una contraseña temporal y la envía por memo a la cuenta.', '/msg NiCK SENDPASS JuanJo', operOnly: true),
         ]);
     }
 }

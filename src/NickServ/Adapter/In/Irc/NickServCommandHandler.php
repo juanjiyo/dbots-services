@@ -22,6 +22,8 @@ use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
+use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
+use Dbots\NickServ\Application\SendPassword\SendPasswordResult;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -42,6 +44,7 @@ final readonly class NickServCommandHandler
         private AccountProjectionInterface $projection,
         private ChangePasswordHandler $changePassword,
         private DropNickHandler $dropNick,
+        private SendPasswordHandler $sendPassword,
         private AccountResolver $identity,
         private AccountInfoHandler $info,
         private AccountRepositoryInterface $accounts,
@@ -98,6 +101,7 @@ final readonly class NickServCommandHandler
             'LISTFORBID' => $this->onListState($sender, $state, 'forbid'),
             'SWHOIS' => $this->onSwhois($sender, $parts, $state),
             'NOEXPIRE' => $this->onNoexpire($sender, $parts, $state),
+            'SENDPASS' => $this->onSendPass($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -464,6 +468,33 @@ final readonly class NickServCommandHandler
 
         $this->projection->publish($account->nick->value);
         $this->reply->reply($uid, sprintf('NOEXPIRE is now %s for %s.', $account->noexpire ? 'off' : 'on', $account->nick->value));
+    }
+
+    /** @param list<string> $args */
+    private function onSendPass(string $uid, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, 'Syntax: SENDPASS <nick>');
+
+            return;
+        }
+
+        $result = ($this->sendPassword)($target);
+
+        match ($result->status) {
+            SendPasswordResult::SENT => $this->reply->reply($uid, sprintf(
+                'Password reset for %s. A memo with the temporary password has been sent.',
+                $result->account,
+            )),
+            SendPasswordResult::UNKNOWN_ACCOUNT => $this->reply->reply($uid, sprintf('%s is not registered.', $target)),
+            default => $this->reply->reply($uid, 'The password could not be reset.'),
+        };
     }
 
     private function findAccount(string $uid, string $nick): ?Account

@@ -57,6 +57,7 @@ use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
+use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\OperServ\Application\Help\OperServHelp;
@@ -154,6 +155,7 @@ final readonly class DaemonFactory
             $accountProjection,
             new ChangePasswordHandler($this->accounts),
             new DropNickHandler($this->accounts, $this->channels),
+            new SendPasswordHandler($this->accounts, $this->memos),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $this->channels, $this->memos),
             $this->accounts,

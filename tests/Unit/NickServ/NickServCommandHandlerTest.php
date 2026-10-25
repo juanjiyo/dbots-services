@@ -19,7 +19,9 @@ use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
+use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
+use Dbots\Tests\Support\InMemoryMemoRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use Dbots\Tests\Support\RecordingProjection;
 use PHPUnit\Framework\Attributes\Test;
@@ -30,6 +32,7 @@ final class NickServCommandHandlerTest extends TestCase
     private RecordingIrc $irc;
     private RecordingProjection $projection;
     private InMemoryAccountRepository $accounts;
+    private InMemoryMemoRepository $memos;
     private NickServCommandHandler $handler;
     private NetworkState $state;
 
@@ -37,6 +40,7 @@ final class NickServCommandHandlerTest extends TestCase
     {
         $accounts = new InMemoryAccountRepository();
         $this->accounts = $accounts;
+        $this->memos = new InMemoryMemoRepository();
         $this->irc = new RecordingIrc();
         $this->projection = new RecordingProjection();
         $this->handler = new NickServCommandHandler(
@@ -46,8 +50,9 @@ final class NickServCommandHandlerTest extends TestCase
             $this->projection,
             new ChangePasswordHandler($accounts),
             new DropNickHandler($accounts, new NoChannels()),
+            new SendPasswordHandler($accounts, $this->memos),
             new AccountResolver($accounts),
-            new AccountInfoHandler($accounts, new NoChannels(), new \Dbots\Tests\Support\InMemoryMemoRepository()),
+            new AccountInfoHandler($accounts, new NoChannels(), $this->memos),
             $accounts,
             'NiCK',
             '003A00001',
@@ -225,8 +230,9 @@ final class NickServCommandHandlerTest extends TestCase
             $this->projection,
             new ChangePasswordHandler($this->accounts),
             new DropNickHandler($this->accounts, $channels),
+            new SendPasswordHandler($this->accounts, $this->memos),
             new AccountResolver($this->accounts),
-            new AccountInfoHandler($this->accounts, $channels, new \Dbots\Tests\Support\InMemoryMemoRepository()),
+            new AccountInfoHandler($this->accounts, $channels, $this->memos),
             $this->accounts,
             'NiCK',
             '003A00001',
@@ -273,6 +279,7 @@ final class NickServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('STATUS JuanJo'), $oper);
 
+        self::assertNotEmpty($this->irc->replies);
         self::assertStringContainsString('suspended', $this->irc->replies[0]);
     }
 
@@ -290,6 +297,48 @@ final class NickServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('status no:valido'), $this->state);
 
         self::assertSame(['001AAAAAA: That nickname is not registered.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anOperCanResetAPasswordAndItIsSentByMemo(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $oper = $this->operState();
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SENDPASS JuanJo', '001AAAAAA'), $oper);
+
+        self::assertSame(['001AAAAAA: Password reset for JuanJo. A memo with the temporary password has been sent.'], $this->irc->replies);
+        self::assertCount(1, $this->memos->forRecipient('JuanJo'));
+
+        $memo = $this->memos->forRecipient('JuanJo')[0];
+        self::assertSame('NickServ', $memo->sender);
+        self::assertStringContainsString('temporary password is:', $memo->body);
+
+        $plain = (string) preg_replace('/.*temporary password is: /', '', $memo->body);
+        self::assertSame(IdentifyResultForTest::NewPasswordWorks, $this->identifyWith($plain));
+    }
+
+    #[Test]
+    public function nonOpersCannotUseSendPass(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SENDPASS JuanJo'), $this->state);
+
+        self::assertSame(['001AAAAAA: This command is restricted to IRC operators.'], $this->irc->replies);
+        self::assertSame([], $this->memos->forRecipient('JuanJo'));
+    }
+
+    #[Test]
+    public function sendPassRejectsAnUnknownAccount(): void
+    {
+        $oper = $this->operState();
+
+        $this->handler->handle($this->privmsg('SENDPASS Nobody', '001AAAAAA'), $oper);
+
+        self::assertSame(['001AAAAAA: Nobody is not registered.'], $this->irc->replies);
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
