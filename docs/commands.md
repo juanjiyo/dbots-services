@@ -135,6 +135,25 @@ at first.
 | `CREDITOS` | done | The dBoTs authors |
 | anything else | done | `Comando desconocido <cmd>`, as the original |
 
+## CeNTeR
+
+The control service: the staff ladder and the module system. Its gate is
+**Administrador**, and anything that hands out Administrador or above — or loads
+code — needs **Root**.
+
+`ROOT <password>` opens a Root session; that is the way in for the very first
+Root, since nobody holds a rank on a fresh install.
+
+| Command | Status | Notes |
+|---|---|---|
+| `PREOPER`, `OPER` `ADD\|DEL <nick>` | done | Administrador |
+| `ADMIN ADD\|DEL <nick>` | done | Root |
+| `REMOPER <nick>` | done | Root; strips whatever rank was there |
+| `ROOT <password>`, `ROOT ADD\|DEL <nick>` | done | Session gate and Root rank |
+| `MODULO LIST\|LOAD\|UNLOAD [name]` | done | Root; a change applies on restart |
+| `KILL`, `GLINE`, `CLONES` | not here | They live in OPeR; two doors to one action is a bug factory |
+| `RAW`, `RESTART`, `MODULO` (mIRC side), `TABLA`, `BOT`, `UPDATE`, `OPTIMIZA`… | dropped | They drove the mIRC script loader, the bot's ini database or its process |
+
 ## Modules
 
 A bot that is not a network service lives in `modules/<Name>/` with a

@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- CeNTeR: the control service, with the staff ladder (`PREOPER`, `OPER`, `ADMIN`,
+  `REMOPER`, `ROOT`) and `MODULO LIST|LOAD|UNLOAD`.
 - CHaN: `LEVELS`, `SET`, `ACCESS` with levels, rank commands, `CLEAR`, `AKICK`,
   `SUSPEND`, `FORBID`, `LIST` and `GETPASS`.
 - CHaN: the join reactor — entry message, akick ban and kick, `NOJOIN` threshold

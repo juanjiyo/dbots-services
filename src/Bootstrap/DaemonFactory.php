@@ -8,6 +8,8 @@ use Dbots\Application\Daemon;
 use Dbots\Application\Link\LinkRunner;
 use Dbots\Application\MemoAnnouncer;
 use Dbots\Application\Port\Out\LinkTransportInterface;
+use Dbots\CenTeRServ\Adapter\In\Irc\CenTeRServCommandHandler;
+use Dbots\CenTeRServ\Application\Help\CenTeRServHelp;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ChanServ\Adapter\Out\Irc\IrcChannelActions;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
@@ -83,6 +85,7 @@ final readonly class DaemonFactory
         private ChannelOptionRepositoryInterface $channelOptions,
         private ModuleRegistry $modules,
         private StaffAuthority $staff,
+        private \Dbots\Staff\Application\Port\Out\StaffRankRepositoryInterface $staffRanks,
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private SpamRuleRepositoryInterface $spamRules,
@@ -205,6 +208,21 @@ final readonly class DaemonFactory
             ],
         );
 
+        $centerServUid = sprintf('%sA00008', $sid);
+
+        $centerServ = new CenTeRServCommandHandler(
+            new IrcReplySender($this->transport, $centerServUid),
+            $this->staff,
+            $this->staffRanks,
+            $this->accounts,
+            $this->modules,
+            new AccountResolver($this->accounts),
+            'CeNTeR',
+            $centerServUid,
+            CenTeRServHelp::create(),
+            $this->rootPassword,
+        );
+
         $operServ = new OperServCommandHandler(
             new S2sEnforcement($this->transport, $sid),
             $this->accounts,
@@ -233,6 +251,7 @@ final readonly class DaemonFactory
             $operServ,
             $cregServ,
             $helpServ,
+            $centerServ,
             new ServiceUidFormatter($sid),
             $sid,
             $host,

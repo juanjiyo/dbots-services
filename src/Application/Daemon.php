@@ -6,6 +6,7 @@ namespace Dbots\Application;
 
 use Dbots\Application\Link\LinkRunner;
 use Dbots\Application\Port\Out\LinkTransportInterface;
+use Dbots\CenTeRServ\Adapter\In\Irc\CenTeRServCommandHandler;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
 use Dbots\Domain\Link\LinkState;
@@ -55,6 +56,7 @@ final readonly class Daemon
         private OperServCommandHandler $operServ,
         private CRegServCommandHandler $cregServ,
         private HeLPServCommandHandler $helpServ,
+        private CenTeRServCommandHandler $centerServ,
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
@@ -105,6 +107,7 @@ final readonly class Daemon
             ['OPeR', sprintf('%sA00004', $this->sid), 'Network Operations Services'],
             ['CReG', sprintf('%sA00006', $this->sid), 'Channel Registration Requests'],
             ['HeLP', sprintf('%sA00007', $this->sid), 'Network Help Services'],
+            ['CeNTeR', sprintf('%sA00008', $this->sid), 'Network Control Services'],
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
@@ -253,7 +256,7 @@ final readonly class Daemon
             return;
         }
 
-        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007'];
+        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008'];
 
         foreach (array_keys($this->modules) as $index) {
             $suffixes[] = substr($this->moduleUid($index), strlen($this->sid));
@@ -480,6 +483,7 @@ final readonly class Daemon
         $this->operServ->handle($message, $this->state);
         $this->cregServ->handle($message, $this->state);
         $this->helpServ->handle($message, $this->state);
+        $this->centerServ->handle($message, $this->state);
 
         foreach ($this->modules as $index => $module) {
             try {
