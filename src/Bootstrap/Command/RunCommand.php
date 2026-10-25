@@ -43,9 +43,9 @@ final class RunCommand extends Command
         $io->title('dbots');
 
         do {
-            $budget = null === $deadline ? 3600 : min(3600, $deadline - time());
+            $budget = null === $deadline ? null : max(0, $deadline - time());
 
-            if ($budget <= 0) {
+            if (null !== $budget && $budget <= 0) {
                 break;
             }
 

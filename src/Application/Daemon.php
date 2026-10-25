@@ -75,7 +75,7 @@ final readonly class Daemon
         return $this->runner->handshake()->state();
     }
 
-    public function run(int $seconds): void
+    public function run(?int $seconds): void
     {
         $this->runner->connect(fn (string $line): null => $this->onLine($line));
 
@@ -296,6 +296,7 @@ final readonly class Daemon
             'QUIT' => $this->onUserQuit($message),
             'DB' => $this->onDbFrame($message, $line),
             'PRIVMSG' => $this->onPrivmsg($message),
+            'PING' => $this->onPing($message),
             'ACCOUNT' => $this->state->setAccount($this->resolveUid($message->source()), $message->params[0] ?? null),
             'UMODE2' => $this->onUmode2($message),
             'MODE' => $this->onMode($message),
@@ -327,6 +328,18 @@ final readonly class Daemon
         if (str_contains($line, ' INS ') || str_contains($line, ' DEL ')) {
             $this->relayToDebug($line);
         }
+    }
+
+    /** Keep the S2S link alive; the IRCd drops silent servers. */
+    private function onPing(IrcMessage $message): void
+    {
+        $target = $message->text() ?? ($message->params[0] ?? '');
+
+        if ('' === $target) {
+            return;
+        }
+
+        $this->transport->writeLine(sprintf(':%s PONG %s', $this->sid, $target));
     }
 
     /**

@@ -67,16 +67,18 @@ final class LinkRunner
     /**
      * Reads and dispatches lines for the given number of seconds.
      *
+     * Pass null to run until the transport closes.
+     *
      * The optional handler sees every line after the handshake has processed
      * it, which is where the network state and command routing live.
      *
      * @param (callable(string): void)|null $onLine
      */
-    public function pump(int $seconds, ?callable $onLine = null): void
+    public function pump(?int $seconds, ?callable $onLine = null): void
     {
-        $deadline = time() + $seconds;
+        $deadline = null === $seconds ? null : time() + $seconds;
 
-        while (time() <= $deadline && $this->transport->isOpen()) {
+        while ((null === $deadline || time() <= $deadline) && $this->transport->isOpen()) {
             $line = $this->transport->readLine();
 
             if (null === $line) {

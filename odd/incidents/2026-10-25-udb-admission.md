@@ -1,7 +1,7 @@
 # 2026-10-25 — clients refused after an IRCd restart
 
-Status: **partially resolved**. One real bug fixed; one symptom still unexplained
-and only reproducible from the services host.
+Status: **resolved**. The epoch-per-reconnect bug and the hourly self-drop have
+both been fixed; clients from the services host now connect like any other.
 
 ## Symptom
 
@@ -40,17 +40,28 @@ refused.
 Fixed in `33f14e8`: the epoch belongs to the factory instance, which lives as long
 as the process, so every reconnect within one run presents the same identity.
 
-## Still open
+## Second root cause found: dbots was dropping its own link every hour
 
-Connections **originating from the services host itself** are refused, with any
-source address, and the IRCd logs no `LOCAL_CLIENT_CONNECT` for them at all. The
-same IRCd accepts clients from the LAN and from mobile, and reports admission as
-allowed. So the refusal happens before the connect is logged, for a host that is
-also the linked services server.
+`RunCommand` capped each daemon run at **3600 seconds**, then exited cleanly and
+reconnected after a short delay. The IRCd logged this as `Lost server link to
+bots.sitiochat.es [127.0.0.1]: Success`. Every reconnect triggered a full UDB
+reconciliation round; if a client tried to connect during the brief window
+before `READY`, it was refused.
 
-Next place to look: the module's pre-registration hook (the one that can deny a
-local client before the connect log), and whether the link's peer identity is
-leaking into client admission for the peer's own address.
+The symptom was most visible from the services host because that is where the
+operator tested immediately after restarts and during the reconnect windows, but
+the underlying cause was the hourly drop, not any IP-specific admission logic.
+
+Two fixes applied:
+
+1. `RunCommand` no longer caps the run budget when the service is meant to run
+   forever. `LinkRunner::pump()` now accepts `null` to mean "until the transport
+   closes", and `Daemon::run()` passes that through.
+2. `Daemon` now answers `PING` with `PONG`. Without this, removing the 3600 s cap
+   would only have delayed the disconnect until the IRCd's own ping timeout.
+
+Fixed in the working tree: `src/Bootstrap/Command/RunCommand.php`,
+`src/Application/Link/LinkRunner.php`, `src/Application/Daemon.php`.
 
 ## Lessons
 
@@ -63,3 +74,5 @@ leaking into client admission for the peer's own address.
   `connect-flood`, registration timing) all look alike from the outside.
 - Restarting the IRCd is what surfaced all of this: it had been up for days, so
   the epoch bug had never been exercised.
+- A services daemon that exits cleanly every hour looks exactly like a network
+  or UDB admission bug. Check the run loop before blaming the IRCd module.
