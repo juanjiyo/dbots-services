@@ -161,11 +161,11 @@ Root, since nobody holds a rank on a fresh install.
 ## CLoNeS
 
 Clone exception manager. Requires a CeNTeR rank of **Administrador** because
-every mutation rewrites the InspIRCd `<connect>` include and signals the IRCd.
+every mutation rewrites the UnrealIRCd `allow` include and signals the IRCd.
 
 | Command | Status | Notes |
 |---|---|---|
-| `PERM <IP\|host> <N>` | done | Permanent `<connect>` exception with `localmax="N" globalmax="N"` |
+| `PERM <IP\|host> <N>` | done | Permanent `allow` block with `maxperip N` |
 | `ADD <IP\|host> <N> <duration>` | done | Temporary exception; duration is `30d`, `6m` or `1y` |
 | `RENEW <IP\|host> <duration>` | done | Updates expiration, keeps `N` |
 | `EDIT <IP\|host> <N> <duration>` | done | Changes `N` and expiration |

@@ -21,7 +21,7 @@ use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\ClonesServ\Adapter\In\Irc\ClonesServCommandHandler;
-use Dbots\ClonesServ\Adapter\Out\Config\InspircdClonesWriter;
+use Dbots\ClonesServ\Adapter\Out\Config\UnrealircdClonesWriter;
 use Dbots\ClonesServ\Adapter\Out\Persistence\SqliteClonesExceptionRepository;
 use Dbots\ClonesServ\Application\Port\Out\ClonesExceptionRepositoryInterface;
 use Dbots\ClonesServ\Application\Port\Out\ClonesWriterInterface;
@@ -103,8 +103,8 @@ final readonly class DaemonFactory
         private int $syncTimeoutSeconds = 30,
         private ?ClonesExceptionRepositoryInterface $clonesExceptions = null,
         private ?ClonesWriterInterface $clonesWriter = null,
-        private string $clonesConfigPath = '/home/irc/inspircd/conf/clones.conf',
-        private string $clonesPidFilePath = '/home/irc/inspircd/data/inspircd.pid',
+        private string $clonesConfigPath = '/home/irc/unrealircd/conf/clones.conf',
+        private string $clonesPidFilePath = '/home/irc/unrealircd/data/unrealircd.pid',
     ) {
         // One epoch per process, not per connection: UDB reads it as this
         // authority's identity, so a new value on every reconnect looks like a
@@ -271,7 +271,7 @@ final readonly class DaemonFactory
 
         $clonesServ = new ClonesServCommandHandler(
             $this->clonesExceptions ?? new SqliteClonesExceptionRepository(new PDO('sqlite::memory:')),
-            $this->clonesWriter ?? new InspircdClonesWriter($this->clonesConfigPath, $this->clonesPidFilePath),
+            $this->clonesWriter ?? new UnrealircdClonesWriter($this->clonesConfigPath, $this->clonesPidFilePath),
             $this->staff,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $clonesServUid),

@@ -16,11 +16,10 @@ use function mkdir;
 use function posix_kill;
 use function rename;
 use function sprintf;
-use function str_replace;
 use function tempnam;
 use function unlink;
 
-final readonly class InspircdClonesWriter implements ClonesWriterInterface
+final readonly class UnrealircdClonesWriter implements ClonesWriterInterface
 {
     public function __construct(
         private string $configPath,
@@ -33,12 +32,9 @@ final readonly class InspircdClonesWriter implements ClonesWriterInterface
         $lines = [];
 
         foreach ($exceptions as $exception) {
-            $name = 'clones_' . str_replace(['.', ':', '-'], '_', $exception->host);
             $lines[] = sprintf(
-                '<connect name="%s" allow="%s" parent="main" localmax="%d" globalmax="%d">',
-                $name,
+                "allow {\n    mask *@%s;\n    class clients;\n    maxperip %d;\n}",
                 $exception->host,
-                $exception->clones,
                 $exception->clones,
             );
         }

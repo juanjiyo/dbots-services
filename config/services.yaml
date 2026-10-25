@@ -13,8 +13,8 @@ parameters:
     env(DBOTS_RECONNECT_DELAY): '5'
     env(DBOTS_DEBUG_CHANNEL): ''
     env(DBOTS_JAIL_CHANNEL): ''
-    env(DBOTS_CLONES_CONF): '/home/irc/inspircd/conf/clones.conf'
-    env(DBOTS_INSPIRCD_PID_FILE): '/home/irc/inspircd/data/inspircd.pid'
+    env(DBOTS_CLONES_CONF): '/home/irc/unrealircd/conf/clones.conf'
+    env(DBOTS_CLONES_PID_FILE): '/home/irc/unrealircd/data/unrealircd.pid'
 
 services:
     _defaults:
@@ -83,10 +83,10 @@ services:
 
     Dbots\ClonesServ\Application\Port\Out\ClonesExceptionRepositoryInterface: '@Dbots\ClonesServ\Adapter\Out\Persistence\SqliteClonesExceptionRepository'
     Dbots\ClonesServ\Application\Port\Out\ClonesWriterInterface:
-        class: Dbots\ClonesServ\Adapter\Out\Config\InspircdClonesWriter
+        class: Dbots\ClonesServ\Adapter\Out\Config\UnrealircdClonesWriter
         arguments:
             $configPath: '%env(DBOTS_CLONES_CONF)%'
-            $pidFilePath: '%env(DBOTS_INSPIRCD_PID_FILE)%'
+            $pidFilePath: '%env(DBOTS_CLONES_PID_FILE)%'
 
     Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface: '@Dbots\CRegServ\Adapter\Out\Persistence\SqliteChannelRequestRepository'
 
@@ -113,4 +113,4 @@ services:
             $debugChannel: '%env(DBOTS_DEBUG_CHANNEL)%'
             $jailChannel: '%env(DBOTS_JAIL_CHANNEL)%'
             $clonesConfigPath: '%env(DBOTS_CLONES_CONF)%'
-            $clonesPidFilePath: '%env(DBOTS_INSPIRCD_PID_FILE)%'
+            $clonesPidFilePath: '%env(DBOTS_CLONES_PID_FILE)%'

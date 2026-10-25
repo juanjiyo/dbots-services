@@ -25,7 +25,7 @@ final readonly class ServiceUidFormatter
         string $realname,
         string $ident,
         string $host,
-        string $modes = '+Sio',
+        string $modes = '+BHinrqk',
     ): string {
         return sprintf(
             ':%s UID %s 0 %d %s %s %s 0 %s %s * * :%s',
