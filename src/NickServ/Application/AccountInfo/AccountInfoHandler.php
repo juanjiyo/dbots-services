@@ -10,7 +10,6 @@ use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use InvalidArgumentException;
 
-use function count;
 use function sprintf;
 
 final readonly class AccountInfoHandler

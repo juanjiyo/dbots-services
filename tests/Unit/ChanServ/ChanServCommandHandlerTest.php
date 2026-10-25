@@ -6,25 +6,24 @@ namespace Dbots\Tests\Unit\ChanServ;
 
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
-use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
-use Dbots\Irc\Adapter\In\IrcMessage;
-use Dbots\Irc\Application\NetworkState;
+use Dbots\ChanServ\Application\Help\ChanServHelp;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
 use Dbots\Domain\Channel\ChannelName;
+use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\NetworkState;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
-use Dbots\Tests\Support\RecordingChannelActions;
-use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\InMemoryChannelAkickRepository;
 use Dbots\Tests\Support\InMemoryChannelForbidRepository;
-use Dbots\Tests\Support\InMemoryChannelOptionRepository;
 use Dbots\Tests\Support\InMemoryChannelLevelRepository;
+use Dbots\Tests\Support\InMemoryChannelOptionRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
+use Dbots\Tests\Support\RecordingChannelActions;
+use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\RecordingIrc;
-use Dbots\ChanServ\Application\Help\ChanServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -912,4 +911,3 @@ final class ChanServCommandHandlerTest extends TestCase
         return new IrcMessage($uid, 'PRIVMSG', ['CHaN'], $text);
     }
 }
-

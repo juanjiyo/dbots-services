@@ -10,8 +10,6 @@ use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Spam\SpamRule;
-use Dbots\Udb\UdbSpamProjection;
-use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
@@ -19,25 +17,27 @@ use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\OperServ\Application\Duration;
-use InvalidArgumentException;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
+use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
+use Dbots\Udb\UdbSpamProjection;
+use InvalidArgumentException;
 
 use function array_filter;
 use function array_shift;
 use function array_slice;
 use function array_values;
-use function explode;
 use function count;
+use function explode;
 use function hash_equals;
-use function in_array;
-use function time;
 use function implode;
+use function in_array;
+use function random_int;
 use function sprintf;
 use function strcasecmp;
 use function strpos;
-use function random_int;
 use function strtoupper;
 use function substr;
+use function time;
 
 /**
  * IRC operator commands.

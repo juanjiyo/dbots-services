@@ -14,7 +14,6 @@ use function preg_replace;
 use function sprintf;
 use function str_contains;
 use function str_starts_with;
-use function substr;
 use function trim;
 
 /**

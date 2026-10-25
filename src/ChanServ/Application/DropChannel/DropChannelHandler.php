@@ -14,7 +14,8 @@ final readonly class DropChannelHandler
     public function __construct(
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $access,
-    ) {}
+    ) {
+    }
 
     public function __invoke(string $channel, ?string $account): DropChannelResult
     {

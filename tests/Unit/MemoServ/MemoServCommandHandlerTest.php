@@ -12,12 +12,12 @@ use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
+use Dbots\MemoServ\Application\Help\MemoServHelp;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryMemoRepository;
 use Dbots\Tests\Support\RecordingIrc;
-use Dbots\MemoServ\Application\Help\MemoServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -164,5 +164,14 @@ final class MemoServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('send bob hello'), $this->state);
         $this->irc->replies = [];
+    }
+
+    #[Test]
+    public function itAnswersTheHelpIndexWithoutCrashing(): void
+    {
+        $this->handler->handle($this->privmsg('HELP'), $this->state);
+
+        self::assertNotEmpty($this->irc->replies);
+        self::assertStringContainsString('MeMo', $this->irc->replies[0]);
     }
 }

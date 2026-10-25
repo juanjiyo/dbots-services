@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Dbots\CRegServ\Application\Approve;
 
 use DateTimeImmutable;
-
-use function sprintf;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
-use Dbots\Domain\Registration\ChannelRequest;
 use Dbots\Domain\Memo\Memo;
+use Dbots\Domain\Registration\ChannelRequest;
 use Dbots\Domain\Registration\RequestStatus;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use InvalidArgumentException;
+
+use function sprintf;
 
 final readonly class ApproveHandler
 {

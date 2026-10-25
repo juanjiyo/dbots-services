@@ -20,7 +20,8 @@ final readonly class AccountBlockProvider implements BlockProviderInterface
     public function __construct(
         private AccountRepositoryInterface $accounts,
         private string $serviceHost,
-    ) {}
+    ) {
+    }
 
     /**
      * The N records for one account, keyed by path without the block letter.

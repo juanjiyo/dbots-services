@@ -8,7 +8,9 @@ use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 
 final readonly class DeleteMemoHandler
 {
-    public function __construct(private MemoRepositoryInterface $memos) {}
+    public function __construct(private MemoRepositoryInterface $memos)
+    {
+    }
 
     public function __invoke(int $id, ?string $account): bool
     {

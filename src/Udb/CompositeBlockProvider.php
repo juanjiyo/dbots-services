@@ -13,7 +13,9 @@ namespace Dbots\Udb;
 final readonly class CompositeBlockProvider implements BlockProviderInterface
 {
     /** @param list<BlockProviderInterface> $providers */
-    public function __construct(private array $providers) {}
+    public function __construct(private array $providers)
+    {
+    }
 
     public function records(string $block): array
     {

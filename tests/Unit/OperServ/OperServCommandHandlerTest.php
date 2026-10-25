@@ -7,9 +7,9 @@ namespace Dbots\Tests\Unit\OperServ;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
+use Dbots\OperServ\Application\Help\OperServHelp;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\Tests\Support\RecordingIrc;
-use Dbots\OperServ\Application\Help\OperServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

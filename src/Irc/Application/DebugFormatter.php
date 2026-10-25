@@ -19,7 +19,9 @@ final readonly class DebugFormatter
 {
     private const string RESET = "\x0F";
 
-    public function __construct(private readonly string $tag = 'DeBuG') {}
+    public function __construct(private readonly string $tag = 'DeBuG')
+    {
+    }
 
     public function line(string $subject, string $text): string
     {

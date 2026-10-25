@@ -28,7 +28,8 @@ final readonly class ChannelBlockProvider implements BlockProviderInterface
     public function __construct(
         private ChannelRepositoryInterface $channels,
         private ChannelOptionRepositoryInterface $options,
-    ) {}
+    ) {
+    }
 
     /** The option bits UDB understands, derived from the channel switches. */
     private function optionsMask(\Dbots\Domain\Channel\ChannelName $channel): int

@@ -17,7 +17,9 @@ use InvalidArgumentException;
  */
 final readonly class AccountResolver
 {
-    public function __construct(private AccountRepositoryInterface $accounts) {}
+    public function __construct(private AccountRepositoryInterface $accounts)
+    {
+    }
 
     public function resolve(string $uid, NetworkState $state): ?string
     {

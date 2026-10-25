@@ -24,9 +24,11 @@ final class UdbAuthorityTest extends TestCase
 
     private function authority(array $blocks = []): UdbAuthority
     {
-        $provider = new class($blocks) implements BlockProviderInterface {
+        $provider = new class ($blocks) implements BlockProviderInterface {
             /** @param array<string, array<string, string|int|null>> $blocks */
-            public function __construct(private array $blocks) {}
+            public function __construct(private array $blocks)
+            {
+            }
 
             public function records(string $block): array
             {

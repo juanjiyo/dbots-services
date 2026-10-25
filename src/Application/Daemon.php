@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Dbots\Application;
 
 use Dbots\Application\Link\LinkRunner;
-use Dbots\Domain\Link\LinkState;
 use Dbots\Application\Port\Out\LinkTransportInterface;
+use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
+use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
+use Dbots\Domain\Link\LinkState;
+use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
-use Dbots\Irc\Application\DebugEvents;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\DebugEvents;
 use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
-use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
-use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
-use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
@@ -24,14 +24,14 @@ use Dbots\Udb\UdbAuthority;
 
 use function array_map;
 use function array_slice;
+use function explode;
 use function in_array;
+use function preg_match;
+use function sprintf;
+use function str_contains;
 use function strpos;
 use function strtoupper;
 use function substr;
-use function preg_match;
-use function explode;
-use function sprintf;
-use function str_contains;
 
 /**
  * Runs the daemon: links, introduces the service pseudo-clients and keeps the

@@ -9,7 +9,9 @@ use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 
 final readonly class ReadMemoHandler
 {
-    public function __construct(private MemoRepositoryInterface $memos) {}
+    public function __construct(private MemoRepositoryInterface $memos)
+    {
+    }
 
     /** Returns the memo and marks it read, or null when it is not the caller's. */
     public function __invoke(int $id, ?string $account): ?Memo

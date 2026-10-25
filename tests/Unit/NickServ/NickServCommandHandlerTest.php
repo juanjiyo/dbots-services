@@ -4,27 +4,24 @@ declare(strict_types=1);
 
 namespace Dbots\Tests\Unit\NickServ;
 
-use Dbots\Irc\Adapter\In\IrcMessage;
-use Dbots\Irc\Application\NetworkState;
-use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
-use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
-use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface as Channels;
-use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Channel\ChannelSetting;
+use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\NetworkState;
+use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
+use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use Dbots\Tests\Support\RecordingProjection;
-use Dbots\NickServ\Application\Help\NickServHelp;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -202,7 +199,7 @@ final class NickServCommandHandlerTest extends TestCase
 
     private function identifyWith(string $password): IdentifyResultForTest
     {
-        $result = (new IdentifyHandler($this->accounts))( 'JuanJo', $password);
+        $result = (new IdentifyHandler($this->accounts))('JuanJo', $password);
 
         return IdentifyResultForTest::NewPasswordWorks === $this->map($result) ? IdentifyResultForTest::NewPasswordWorks : IdentifyResultForTest::Other;
     }
@@ -287,6 +284,14 @@ final class NickServCommandHandlerTest extends TestCase
         return $state;
     }
 
+    #[Test]
+    public function itReportsAnInvalidNickInsteadOfThrowing(): void
+    {
+        $this->handler->handle($this->privmsg('status no:valido'), $this->state);
+
+        self::assertSame(['001AAAAAA: That nickname is not registered.'], $this->irc->replies);
+    }
+
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
         return new IrcMessage('001AAAAAA', 'PRIVMSG', ['NiCK'], $text);
@@ -305,24 +310,37 @@ final class NoChannels implements ChannelRepositoryInterface
     public function __construct(
         private ?string $name = null,
         private ?string $founder = null,
-    ) {}
+    ) {
+    }
 
     public function find(ChannelName $name): ?Channel
     {
         return null === $this->name ? null : new Channel(new ChannelName($this->name), (string) $this->founder, new \DateTimeImmutable());
     }
 
-    public function save(Channel $channel): void {}
+    public function save(Channel $channel): void
+    {
+    }
 
-    public function updateTopic(Channel $channel): void {}
+    public function updateTopic(Channel $channel): void
+    {
+    }
 
-    public function updateFounder(Channel $channel): void {}
+    public function updateFounder(Channel $channel): void
+    {
+    }
 
-    public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void {}
+    public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void
+    {
+    }
 
-    public function updateSuspension(Channel $channel): void {}
+    public function updateSuspension(Channel $channel): void
+    {
+    }
 
-    public function delete(ChannelName $name): void {}
+    public function delete(ChannelName $name): void
+    {
+    }
 
     public function all(): array
     {

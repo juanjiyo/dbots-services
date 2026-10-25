@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Dbots\NickServ\Adapter\In\Irc;
 
+use Dbots\Domain\Account\Account;
+use Dbots\Domain\Account\Nick;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
-use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordResult;
@@ -15,21 +17,20 @@ use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\DropNick\DropNickResult;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Identify\IdentifyResult;
-use Dbots\Domain\Account\Account;
-use Dbots\Domain\Account\Nick;
 use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
+use InvalidArgumentException;
 
 use function array_filter;
 use function array_shift;
 use function array_values;
 use function explode;
-use function strcasecmp;
 use function implode;
 use function sprintf;
+use function strcasecmp;
 use function strtoupper;
 
 final readonly class NickServCommandHandler

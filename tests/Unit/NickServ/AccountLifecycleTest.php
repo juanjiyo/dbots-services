@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dbots\Tests\Unit\NickServ;
 
+use DateTimeImmutable;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
@@ -12,7 +13,6 @@ use Dbots\NickServ\Application\Identify\IdentifyResult;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
 use Dbots\Tests\Support\InMemoryAccountRepository;
-use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

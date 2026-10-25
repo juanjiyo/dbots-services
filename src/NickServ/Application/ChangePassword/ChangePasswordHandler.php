@@ -12,7 +12,9 @@ use InvalidArgumentException;
 
 final readonly class ChangePasswordHandler
 {
-    public function __construct(private AccountRepositoryInterface $accounts) {}
+    public function __construct(private AccountRepositoryInterface $accounts)
+    {
+    }
 
     public function __invoke(?string $account, string $current, string $new): ChangePasswordResult
     {

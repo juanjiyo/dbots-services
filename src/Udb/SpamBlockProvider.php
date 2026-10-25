@@ -16,7 +16,9 @@ use function sprintf;
  */
 final readonly class SpamBlockProvider implements BlockProviderInterface
 {
-    public function __construct(private SpamRuleRepositoryInterface $rules) {}
+    public function __construct(private SpamRuleRepositoryInterface $rules)
+    {
+    }
 
     public function records(string $block): array
     {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Dbots\CRegServ\Adapter\In\Irc;
 
 use DateTimeImmutable;
+use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\CRegServ\Application\Approve\ApproveHandler;
 use Dbots\CRegServ\Application\Approve\ApproveResult;
 use Dbots\CRegServ\Application\Cancel\CancelHandler;
@@ -13,8 +15,6 @@ use Dbots\CRegServ\Application\Deny\DenyResult;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
 use Dbots\CRegServ\Application\Request\RequestRegistrationResult;
-use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
-use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Registration\ChannelKind;

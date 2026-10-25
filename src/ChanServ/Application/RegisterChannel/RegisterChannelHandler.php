@@ -12,7 +12,9 @@ use InvalidArgumentException;
 
 final readonly class RegisterChannelHandler
 {
-    public function __construct(private ChannelRepositoryInterface $channels) {}
+    public function __construct(private ChannelRepositoryInterface $channels)
+    {
+    }
 
     /**
      * @param string|null $account the sender's registered account, null when not identified

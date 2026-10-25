@@ -14,7 +14,9 @@ final class RecordingTransport implements LinkTransportInterface
     /** @var list<string> */
     public array $incoming = [];
 
-    public function open(): void {}
+    public function open(): void
+    {
+    }
 
     public function readLine(): ?string
     {
@@ -31,5 +33,7 @@ final class RecordingTransport implements LinkTransportInterface
         return true;
     }
 
-    public function close(): void {}
+    public function close(): void
+    {
+    }
 }

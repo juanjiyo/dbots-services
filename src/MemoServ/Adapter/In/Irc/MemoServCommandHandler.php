@@ -7,13 +7,13 @@ namespace Dbots\MemoServ\Adapter\In\Irc;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
+use Dbots\Irc\Application\Help\IrcFormat;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoResult;
-use Dbots\Irc\Application\Help\IrcFormat;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 
 use function array_filter;
@@ -21,17 +21,17 @@ use function array_shift;
 use function array_slice;
 use function array_values;
 use function count;
+use function ctype_digit;
 use function explode;
 use function implode;
-use function ctype_digit;
 use function ltrim;
 use function sprintf;
+use function str_contains;
 use function strcasecmp;
 use function strpos;
-use function str_contains;
-use function trim;
 use function strtoupper;
 use function substr;
+use function trim;
 
 final readonly class MemoServCommandHandler
 {
@@ -70,6 +70,7 @@ final readonly class MemoServCommandHandler
         $space = strpos($text, ' ');
         $command = strtoupper(false === $space ? $text : substr($text, 0, $space));
         $rest = false === $space ? '' : substr($text, $space + 1);
+        $parts = $this->tokenise($rest);
         $account = $this->accounts->resolve($sender, $state);
 
         match ($command) {

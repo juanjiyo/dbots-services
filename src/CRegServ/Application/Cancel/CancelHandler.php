@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Dbots\CRegServ\Application\Cancel;
 
-use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use DateTimeImmutable;
+use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Registration\ChannelRequest;
 use Dbots\Domain\Registration\RequestStatus;
@@ -13,7 +13,9 @@ use InvalidArgumentException;
 
 final readonly class CancelHandler
 {
-    public function __construct(private ChannelRequestRepositoryInterface $requests) {}
+    public function __construct(private ChannelRequestRepositoryInterface $requests)
+    {
+    }
 
     /** The requester withdraws their own pending request. */
     public function __invoke(string $channel, ?string $account): bool

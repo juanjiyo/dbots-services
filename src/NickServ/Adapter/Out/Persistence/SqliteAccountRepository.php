@@ -9,7 +9,6 @@ use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use PDO;
-use RuntimeException;
 
 use function sprintf;
 

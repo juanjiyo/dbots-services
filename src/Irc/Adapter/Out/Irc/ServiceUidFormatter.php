@@ -15,7 +15,9 @@ use function time;
  */
 final readonly class ServiceUidFormatter
 {
-    public function __construct(private string $sid) {}
+    public function __construct(private string $sid)
+    {
+    }
 
     public function format(
         string $nick,

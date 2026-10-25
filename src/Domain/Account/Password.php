@@ -21,7 +21,9 @@ final readonly class Password
 {
     public const int MIN_LENGTH = 6;
 
-    private function __construct(private string $plain) {}
+    private function __construct(private string $plain)
+    {
+    }
 
     public static function fromPlain(string $plain): self
     {

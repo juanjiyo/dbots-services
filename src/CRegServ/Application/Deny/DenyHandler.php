@@ -7,8 +7,8 @@ namespace Dbots\CRegServ\Application\Deny;
 use DateTimeImmutable;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\Domain\Channel\ChannelName;
-use Dbots\Domain\Registration\ChannelRequest;
 use Dbots\Domain\Memo\Memo;
+use Dbots\Domain\Registration\ChannelRequest;
 use Dbots\Domain\Registration\RequestStatus;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use InvalidArgumentException;
@@ -20,7 +20,8 @@ final readonly class DenyHandler
     public function __construct(
         private ChannelRequestRepositoryInterface $requests,
         private MemoRepositoryInterface $memos,
-    ) {}
+    ) {
+    }
 
     public function __invoke(string $channel, string $staff, string $reason): DenyResult
     {

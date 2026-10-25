@@ -1,0 +1,9 @@
+parameters:
+    level: 6
+    phpVersion: 80500
+    paths:
+        - src
+        - tests
+    tmpDir: var/phpstan
+includes:
+    - phpstan-baseline.neon

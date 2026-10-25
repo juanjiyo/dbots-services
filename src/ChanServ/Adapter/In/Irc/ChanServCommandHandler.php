@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Dbots\ChanServ\Adapter\In\Irc;
 
+use DateTimeImmutable;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelResult;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelActionsInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelAkickRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelForbidRepositoryInterface;
-use Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\Domain\Account\Nick;
@@ -23,29 +24,28 @@ use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Channel\ChannelOption;
 use Dbots\Domain\Channel\ChannelSetting;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
-use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
-use DateTimeImmutable;
 use InvalidArgumentException;
 
 use function array_filter;
 use function array_shift;
+use function array_slice;
 use function array_values;
 use function explode;
-use function array_slice;
 use function implode;
 use function in_array;
-use function str_starts_with;
 use function preg_match;
 use function preg_quote;
 use function sprintf;
-use function strcasecmp;
-use function str_replace;
 use function str_contains;
+use function str_replace;
 use function str_split;
+use function str_starts_with;
+use function strcasecmp;
 use function strtoupper;
 
 final class ChanServCommandHandler
