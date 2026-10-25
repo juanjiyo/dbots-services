@@ -158,7 +158,7 @@ final readonly class Daemon
             $this->state->joinChannel($channel, [$token], $rank);
 
             if ($live) {
-                $this->chanServ->announceEntry($token, $channel, $this->state);
+                $this->chanServ->onMemberJoined($token, $channel, $this->state);
             }
         }
     }
@@ -173,7 +173,7 @@ final readonly class Daemon
             $this->state->joinChannel($channel, [$uid]);
 
             // The entry message greets the user, the way `chanserv.c.r` does.
-            $this->chanServ->announceEntry($uid, $channel, $this->state);
+            $this->chanServ->onMemberJoined($uid, $channel, $this->state);
         }
     }
 

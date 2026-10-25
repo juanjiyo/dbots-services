@@ -246,10 +246,11 @@ final class ChanServCommandHandler
     }
 
     /**
-     * `chanserv.c.r` notices the entry message when somebody joins, replacing
-     * `<nick>` with their nick. It needs no permission: it is a greeting.
+     * `chanserv.c.r`: everything that happens when somebody joins a registered
+     * channel — the entry message, the akick, the nojoin threshold and the rank
+     * the level table grants.
      */
-    public function announceEntry(string $uid, string $channel, NetworkState $state): void
+    public function onMemberJoined(string $uid, string $channel, NetworkState $state): void
     {
         try {
             $registered = $this->channels->find(new ChannelName($channel));
@@ -257,16 +258,66 @@ final class ChanServCommandHandler
             return;
         }
 
-        $message = $registered?->entryMessage;
-
-        if (null === $message || '' === $message) {
+        if (null === $registered || $registered->isSuspended()) {
             return;
         }
 
-        $this->reply->reply($uid, str_replace('<nick>', $state->nickOf($uid) ?? '', $message));
+        $name = $registered->name->value;
+        $account = $this->accounts->resolve($uid, $state);
+        $nick = $state->nickOf($uid) ?? '';
+
+        $message = $registered->entryMessage;
+
+        if (null !== $message && '' !== $message) {
+            $this->reply->reply($uid, str_replace('<nick>', $nick, $message));
+        }
+
+        $authority = $this->authority($uid, $account, $registered, $state);
+
+        // An IRCop and the founder are never kicked by the levels.
+        if ($authority >= 500) {
+            return;
+        }
+
+        $akick = null !== $account ? $this->akickFor($name, $account) : null;
+
+        if (null !== $akick) {
+            $this->actions->mode($name, '+b', $nick);
+            $this->actions->kick($name, $uid, sprintf('(%s) -> %s', $akick->setBy, $akick->reason));
+
+            return;
+        }
+
+        if ($authority < $this->levels->threshold($registered->name, ChannelLevel::NoJoin)) {
+            $this->actions->mode($name, '+b', $nick);
+            $this->actions->kick($name, $uid, 'NOJOIN');
+
+            return;
+        }
+
+        $rank = match (true) {
+            $authority >= $this->levels->threshold($registered->name, ChannelLevel::AutoOp) => '+o',
+            $authority >= $this->levels->threshold($registered->name, ChannelLevel::AutoHalfOp) => '+h',
+            $authority >= $this->levels->threshold($registered->name, ChannelLevel::AutoVoice) => '+v',
+            default => null,
+        };
+
+        if (null !== $rank) {
+            $this->actions->mode($name, $rank, $uid);
+        }
     }
 
-    /** @param list<string> $args */
+    private function akickFor(string $channel, string $account): ?Akick
+    {
+        foreach ($this->akicks->forChannel($channel) as $akick) {
+            if (0 === strcasecmp($akick->nick, $account)) {
+                return $akick;
+            }
+        }
+
+        return null;
+    }
+
     /** @param list<string> $args */
     private function onAccess(string $uid, ?string $account, array $args, NetworkState $state): void
     {

@@ -282,9 +282,52 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('set #test entrymsg Hola <nick>, lee las normas'), $this->state);
         $this->irc->replies = [];
 
-        $this->handler->announceEntry('001AAAAAA', '#test', $this->state);
+        $this->handler->onMemberJoined('001AAAAAA', '#test', $this->state);
 
         self::assertSame(['001AAAAAA: Hola alice, lee las normas'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aRankGrantedByTheTableIsAppliedOnJoin(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 300'), $this->state);
+        $state = new NetworkState();
+        $state->introduceUser('001CCCCCC', 'carol', 'carol', 'r');
+        $state->joinChannel('#test', ['001CCCCCC']);
+
+        $this->handler->onMemberJoined('001CCCCCC', '#test', $state);
+
+        self::assertSame(['#test +o 001CCCCCC'], $this->actions->modes);
+        self::assertSame([], $this->actions->kicks);
+    }
+
+    #[Test]
+    public function anAkickedUserIsBannedAndKickedOnJoin(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('akick #test add bob molesta'), $this->state);
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', 'bob', 'r');
+        $state->joinChannel('#test', ['001BBBBBB']);
+
+        $this->handler->onMemberJoined('001BBBBBB', '#test', $state);
+
+        self::assertSame(['#test +b bob'], $this->actions->modes);
+        self::assertSame(['#test 001BBBBBB: (alice) -> molesta'], $this->actions->kicks);
+    }
+
+    #[Test]
+    public function theFounderIsNeverKickedByTheLevels(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('levels #test set nojoin 500'), $this->state);
+
+        $this->handler->onMemberJoined('001AAAAAA', '#test', $this->state);
+
+        self::assertSame([], $this->actions->kicks);
     }
 
     #[Test]
@@ -292,8 +335,8 @@ final class ChanServCommandHandlerTest extends TestCase
     {
         $this->channels->seed('#Test', 'alice');
 
-        $this->handler->announceEntry('001AAAAAA', '#test', $this->state);
-        $this->handler->announceEntry('001AAAAAA', '#sinRegistrar', $this->state);
+        $this->handler->onMemberJoined('001AAAAAA', '#test', $this->state);
+        $this->handler->onMemberJoined('001AAAAAA', '#sinRegistrar', $this->state);
 
         self::assertSame([], $this->irc->replies);
     }

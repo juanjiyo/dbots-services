@@ -110,6 +110,16 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S54** — On join, a registered non-suspended channel greets with its entry
+  message, then: an akicked account is banned and kicked with
+  `(setter) -> reason`; a user below `NOJOIN` is banned and kicked; otherwise the
+  highest rank the table grants (`AUTOOP`, `AUTOHALFOP`, `AUTOVOICE`) is applied.
+- **S55** — An IRCop or the founder (level 500) is never kicked or ranked by the
+  join reactor.
+- **S56** — The reactor only runs for live joins, never during the burst, or it
+  would greet and rank the whole network at link time.
+- **S57** — Suspended channels are skipped: UDB already refuses `+q` and notices
+  the reason.
 - **S50** — `SET <#channel> <OPTION> ON|OFF` stores the switch and answers with
   that option's own sentence, which differs per option
   (`Opción de Secure Ops activada.`, `El canal <channel> será auto-limitado.`,
@@ -205,9 +215,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   clients we do not have.
 - **T16** (S50-S53) — **done**. `SET` switches, `MLOCK`, and the two UDB option
   bits. `NAME` does not exist in `ch.mrc`'s `SET`; `ESPECIAL` was dropped.
-- **T17** — the `ch.mrc` event reactor: `on JOIN` (entry message, `+o` from
-  levels), `on MODE` (mlock re-application, secureops, deop outside levels),
-  `on TOPIC` (topiclock), `on PART`/`on KICK` bookkeeping.
+- **T17a** (S54-S57) — **done**. The join reactor: entry message, akick,
+  `NOJOIN` and the rank the table grants.
+- **T17b** — The mode reactor: re-apply `MLOCK`, `SECUREOPS`/`SECUREHALFOPS`.
+- **T17c** — The topic reactor: `TOPICLOCK` restores, `KEEPTOPIC` remembers.
 
 ## Log
 
@@ -222,6 +233,12 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L24** — The join reactor is now possible because `PERSISTENT` makes a
+  registered channel exist while empty, so its joins arrive as `SJOIN`. Live
+  verification of the akick path was blocked by the test harness itself: repeated
+  probe connections left dozens of sockets in the IRCd's unknown-connection pool
+  and new clients were refused with `451 You have not registered`. The unit tests
+  cover the logic; the live run is still owed.
 - **L23** — Catches on T16: `NAME` is not a `SET` option in `ch.mrc` (the earlier
   grep list was wrong), and `MLOCK` needs its own validation because the original
   only accepts a fixed letter set and reports the rest instead of applying them.
