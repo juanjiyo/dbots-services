@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dbots\Irc\Application;
 
+use function array_keys;
 use function in_array;
 use function str_replace;
 use function str_split;
@@ -19,6 +20,9 @@ use function strtoupper;
  */
 final class NetworkState
 {
+    /** @var array<string, array<string, true>> channel => ban mask => true */
+    private array $bans = [];
+
     /** @var array<string, string> uid => nick */
     private array $nicks = [];
 
@@ -193,9 +197,14 @@ final class NetworkState
             }
 
             if (!in_array($mode, ['q', 'a', 'o', 'h', 'v'], true)) {
-                // Not a rank: it may still consume a parameter, but we do not track it.
+                // `b` carries a mask we can remember; the rest are not tracked.
                 if (in_array($mode, ['b', 'e', 'I', 'k'], true)) {
+                    $param = $params[$index] ?? null;
                     ++$index;
+
+                    if ('b' === $mode && null !== $param) {
+                        $this->applyBan($channel, $param, $adding);
+                    }
                 }
 
                 continue;
@@ -218,6 +227,43 @@ final class NetworkState
             // about the first joiner of a channel created from a UDB profile.
             $this->channels[$channel][$uid] = str_replace($mode, '', $this->channels[$channel][$uid] ?? '');
         }
+    }
+
+    /** @return list<string> members carrying the given rank, as UIDs */
+    public function membersWithRank(string $channel, string $rank): array
+    {
+        $members = [];
+
+        foreach ($this->channels[$channel] ?? [] as $uid => $modes) {
+            if (str_contains($modes, $rank)) {
+                $members[] = $uid;
+            }
+        }
+
+        return $members;
+    }
+
+    /** @return list<string> every member of the channel, as UIDs */
+    public function membersOf(string $channel): array
+    {
+        return array_keys($this->channels[$channel] ?? []);
+    }
+
+    private function applyBan(string $channel, string $mask, bool $adding): void
+    {
+        if ($adding) {
+            $this->bans[$channel][$mask] = true;
+
+            return;
+        }
+
+        unset($this->bans[$channel][$mask]);
+    }
+
+    /** @return list<string> */
+    public function bansOf(string $channel): array
+    {
+        return array_keys($this->bans[$channel] ?? []);
     }
 
     public function isInChannel(string $channel, string $uid): bool

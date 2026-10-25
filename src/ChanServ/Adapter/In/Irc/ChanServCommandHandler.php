@@ -96,6 +96,7 @@ final class ChanServCommandHandler
             'OP', 'DEOP', 'HALFOP', 'DEHALFOP', 'VOICE', 'DEVOICE' => $this->onRank($command, $sender, $account, $parts, $state),
             'INVITE' => $this->onInvite($sender, $account, $parts, $state),
             'UNBAN' => $this->onUnban($sender, $account, $parts, $state),
+            'CLEAR' => $this->onClear($sender, $account, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -504,6 +505,95 @@ final class ChanServCommandHandler
 
         $this->actions->mode($registered->name->value, '-b', $nick);
         $this->reply->reply($uid, sprintf('Has sido desbaneado de %s.', $registered->name->value));
+    }
+
+    /**
+     * `CLEAR <#channel> <option>`, from `chanserv.clear`.
+     *
+     * @param list<string> $args
+     */
+    private function onClear(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $option = strtoupper((string) ($args[1] ?? ''));
+
+        if ('' === $channel || '' === $option) {
+            $this->reply->reply($uid, 'Error de Sintaxis: CLEAR <canal> <opción>');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        if (!$this->requireLevel($uid, $registered, ChannelLevel::Clear, $this->authority($uid, $account, $registered, $state))) {
+            return;
+        }
+
+        $name = $registered->name->value;
+
+        match ($option) {
+            'MODES' => $this->clearModes($uid, $name),
+            'OPS' => $this->clearRank($uid, $name, 'o', $state),
+            'HALFOPS' => $this->clearRank($uid, $name, 'h', $state),
+            'VOICES' => $this->clearRank($uid, $name, 'v', $state),
+            'BANS' => $this->clearBans($uid, $name, $state),
+            'USERS' => $this->clearUsers($uid, $name, $state),
+            'TOPIC' => $this->restoreTopic($uid, $registered),
+            default => $this->reply->reply($uid, 'Error de Sintaxis: CLEAR <canal> <opción>'),
+        };
+    }
+
+    private function clearModes(string $uid, string $channel): void
+    {
+        // The original wipes the same set in one MODE line.
+        $this->actions->channelModes($channel, '-ntimlpsRMG');
+        $this->reply->reply($uid, sprintf('Todos los modos en canal %s han sido borrados.', $channel));
+    }
+
+    private function clearRank(string $uid, string $channel, string $rank, NetworkState $state): void
+    {
+        foreach ($state->membersWithRank($channel, $rank) as $member) {
+            $this->actions->mode($channel, sprintf('-%s', $rank), $member);
+        }
+
+        $this->reply->reply($uid, sprintf('Modo +%s de operadores han sido desactivados del canal %s.', $rank, $channel));
+    }
+
+    private function clearBans(string $uid, string $channel, NetworkState $state): void
+    {
+        $masks = $state->bansOf($channel);
+
+        if ([] === $masks) {
+            $this->reply->reply($uid, sprintf('El canal %s no tiene bans que borrar.', $channel));
+
+            return;
+        }
+
+        foreach ($masks as $mask) {
+            $this->actions->mode($channel, '-b', $mask);
+        }
+
+        $this->reply->reply($uid, sprintf('Todos los bans en canal %s han sido borrados.', $channel));
+    }
+
+    private function clearUsers(string $uid, string $channel, NetworkState $state): void
+    {
+        foreach ($state->membersOf($channel) as $member) {
+            $this->actions->kick($channel, $member, 'CLEAR USERS');
+        }
+
+        $this->reply->reply($uid, sprintf('Todos los usuarios han sido expulsados del canal %s.', $channel));
+    }
+
+    private function restoreTopic(string $uid, Channel $channel): void
+    {
+        $topic = $channel->topic ?? '';
+        $this->actions->setTopic($channel->name->value, $topic);
+        $this->reply->reply($uid, sprintf('Tópico de %s restaurado.', $channel->name->value));
     }
 
     /** The channel exists, or the sender is told it does not. */

@@ -362,6 +362,94 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function clearModesWipesTheModeSetInOneLine(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('clear #test modes'), $this->state);
+
+        self::assertSame(['#test -ntimlpsRMG'], $this->actions->channelModeLines);
+        self::assertSame(['001AAAAAA: Todos los modos en canal #test han sido borrados.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function clearOpsDropsEveryOpWeKnowAbout(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->joinAs('001BBBBBB', 'bob');
+        $this->joinAs('001CCCCCC', 'carol');
+        $this->state->applyChannelModeChange('#test', '+o', ['001BBBBBB']);
+        $this->state->applyChannelModeChange('#test', '+o', ['001CCCCCC']);
+
+        $this->handler->handle($this->privmsg('clear #test ops'), $this->state);
+
+        self::assertSame(['#test -o 001BBBBBB', '#test -o 001CCCCCC'], $this->actions->modes);
+        self::assertSame(
+            ['001AAAAAA: Modo +o de operadores han sido desactivados del canal #test.'],
+            $this->irc->replies,
+        );
+    }
+
+    #[Test]
+    public function clearTopicRestoresTheStoredOne(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('topic #test Bienvenidos'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('clear #test topic'), $this->state);
+
+        self::assertSame(['#test: Bienvenidos'], $this->actions->topics);
+        self::assertSame(['001AAAAAA: Tópico de #test restaurado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function clearBansLiftsEveryBanWeSaw(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->state->applyChannelModeChange('#test', '+b', ['*!*@spam.example']);
+
+        $this->handler->handle($this->privmsg('clear #test bans'), $this->state);
+
+        self::assertContains('#test -b *!*@spam.example', $this->actions->modes);
+        self::assertSame(['001AAAAAA: Todos los bans en canal #test han sido borrados.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function clearUsersKicksEveryMemberAsTheServer(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->joinAs('001BBBBBB', 'bob');
+        $this->joinAs('001CCCCCC', 'carol');
+
+        $this->handler->handle($this->privmsg('clear #test users'), $this->state);
+
+        self::assertSame(
+            ['#test 001BBBBBB: CLEAR USERS', '#test 001CCCCCC: CLEAR USERS'],
+            $this->actions->kicks,
+        );
+        self::assertSame(['001AAAAAA: Todos los usuarios han sido expulsados del canal #test.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function clearNeedsFounderLevelAndAValidOption(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, 'r');
+
+        $this->handler->handle($this->privmsg('clear #test modes', '001BBBBBB'), $state);
+        $this->handler->handle($this->privmsg('clear #test nada'), $this->state);
+        $this->handler->handle($this->privmsg('clear #test'), $this->state);
+
+        self::assertSame([
+            '001BBBBBB: Permiso denegado.',
+            '001AAAAAA: Error de Sintaxis: CLEAR <canal> <opción>',
+            '001AAAAAA: Error de Sintaxis: CLEAR <canal> <opción>',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
     public function accessLevelsFollowTheTable(): void
     {
         $this->channels->seed('#Test', 'alice');

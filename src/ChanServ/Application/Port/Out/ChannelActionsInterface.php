@@ -12,7 +12,14 @@ interface ChannelActionsInterface
 {
     public function mode(string $channel, string $modes, string $target): void;
 
+    public function channelModes(string $channel, string $modes): void;
+
+    public function setTopic(string $channel, string $text): void;
+
     public function invite(string $channel, string $uid): void;
+
+    /** Removes a member as the server does, so it works without channel status. */
+    public function kick(string $channel, string $uid, string $reason): void;
 
     public function notice(string $channel, string $text): void;
 }

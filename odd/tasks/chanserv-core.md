@@ -104,6 +104,13 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S31** — `CLEAR <#channel> <option>` requires the `CLEAR` key (500 by default)
+  and answers with the original wording per option.
+- **S32** — `CLEAR OPS|HALFOPS|VOICES` removes the rank from every member we know
+  holds it, and `CLEAR USERS` removes every known member as the server
+  (`SAKICK`), so it works even when ChanServ has no status left after `CLEAR OPS`.
+- **S33** — `CLEAR BANS` lifts every mask seen in the `MODE` stream; `BANS` keep
+  themselves in `NetworkState` for that reason only.
 - **S30** — Membership comes from three places, because the protocol offers
   three: `SJOIN` (a live join, or the burst), the channel `MODE` stream (a mode
   target is always a member, which is how the founder of an empty registered
@@ -127,8 +134,7 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   the `authority()` calculation later commands reuse.
 - **T13** (S26-S29) — **done**. `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`,
   `INVITE`, `UNBAN`.
-- **T13b** — `CLEAR MODES|BANS|OPS|HALFOPS|VOICES|USERS|TOPIC`. `OPS`, `HALFOPS`,
-  `VOICES` and `USERS` walk every member, so they need their own slice.
+- **T13b** (S31-S33) — **done**. `CLEAR MODES|BANS|OPS|HALFOPS|VOICES|USERS|TOPIC`.
 - **T14** — `AKICK`.
 - **T15** — `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND`, `FORBID`/`UNFORBID`/`LISTFORBID`,
   `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
@@ -152,6 +158,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L17** — `CLEAR` needed two kinds of state we did not keep: who holds which rank
+  (already there since the membership fix) and the ban list (added from the `MODE`
+  stream). What it still cannot do is reach a member who joined invisibly, because
+  there is no event to learn from.
 - **L16** — The first join of a registered channel is invisible. The IRCd creates
   the channel from the profile, asks us for the records (`DB ... PUT C::#x::...`)
   and sends the joiner `-o`/`+q`, but no `JOIN` and no `SJOIN`. The `MODE` stream

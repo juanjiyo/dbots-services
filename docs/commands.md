@@ -61,7 +61,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `SET <#channel> PASSWORD <password>` | done | Hashed; `IDENTIFY` accepts only the new one |
 | `OP` / `DEOP` / `HALFOP` / `DEHALFOP` / `VOICE` / `DEVOICE <#channel> <nick>` | done | Threshold per rank from the table; removing also needs standing above the holder |
 | `INVITE <#channel>`, `UNBAN <#channel>` | done | `UNBAN` sends `-b <nick>`, so it only lifts a ban written as the bare nick |
-| `CLEAR <#channel> <option>` | todo | `MODES`, `BANS`, `OPS`, `HALFOPS`, `VOICES`, `USERS`, `TOPIC` |
+| `CLEAR <#channel> <option>` | done | `MODES`, `BANS`, `OPS`, `HALFOPS`, `VOICES`, `USERS`, `TOPIC`; bounded by what the mode stream has shown us |
 | `KICK` | dropped | By decision: channels kick with native `+o` |
 | `AKICK`, `LEVELS`, `DELACCESS`, `SECUREOPS`… | todo | The rank model |
 | `SET *` (founder, successor, entrymsg, mlock, topiclock…), `SUSPEND`, `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |

@@ -138,7 +138,7 @@ final readonly class DaemonFactory
             $this->channels,
             $this->channelAccess,
             $this->channelLevels,
-            new IrcChannelActions($this->transport, $chanServUid),
+            new IrcChannelActions($this->transport, $chanServUid, $sid),
             $channelProjection,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $chanServUid),
