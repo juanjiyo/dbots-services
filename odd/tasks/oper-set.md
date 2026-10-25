@@ -36,7 +36,7 @@ behaviour for configuring the UDB `S` block service settings.
 - [ ] **T8** (S8) — Unit tests.
 - [ ] **T9** — Wire repository, provider, and projection in `DaemonFactory` and
   `config/services.yaml`.
-- [ ] **T10** — Run `composer check`, commit, and push.
+- [x] **T10** — Run `composer check`, commit, and push.
 
 ## Log
 
