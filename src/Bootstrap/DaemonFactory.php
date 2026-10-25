@@ -94,7 +94,13 @@ final readonly class DaemonFactory
         private string $debugChannel = '',
         private int $syncTimeoutSeconds = 30,
     ) {
+        // One epoch per process, not per connection: UDB reads it as this
+        // authority's identity, so a new value on every reconnect looks like a
+        // different instance and the IRCd never finishes bootstrapping.
+        $this->epoch = self::epoch();
     }
+
+    private string $epoch;
 
     public static function epoch(): string
     {
@@ -116,7 +122,7 @@ final readonly class DaemonFactory
             $host,
             $this->blocks,
             $this->transport,
-            self::epoch(),
+            $this->epoch,
         );
 
         $accountProjection = new UdbAccountProjection(
