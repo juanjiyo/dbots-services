@@ -320,6 +320,8 @@ final class NoChannels implements ChannelRepositoryInterface
 
     public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void {}
 
+    public function updateSuspension(Channel $channel): void {}
+
     public function delete(ChannelName $name): void {}
 
     public function all(): array

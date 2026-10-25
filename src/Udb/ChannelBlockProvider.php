@@ -34,6 +34,10 @@ final readonly class ChannelBlockProvider implements BlockProviderInterface
         foreach ($this->channels->all() as $channel) {
             $records[sprintf('%s::founder', $channel->name->value)] = $channel->founder;
 
+            if ($channel->isSuspended()) {
+                $records[sprintf('%s::suspend', $channel->name->value)] = $channel->suspendReason;
+            }
+
             if (null !== $channel->topic && '' !== $channel->topic) {
                 $records[sprintf('%s::topic', $channel->name->value)] = $channel->topic;
             }

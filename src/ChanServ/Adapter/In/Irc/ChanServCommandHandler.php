@@ -25,6 +25,7 @@ use Dbots\Irc\Application\NetworkState;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
+use DateTimeImmutable;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -103,6 +104,9 @@ final class ChanServCommandHandler
             'UNBAN' => $this->onUnban($sender, $account, $parts, $state),
             'CLEAR' => $this->onClear($sender, $account, $parts, $state),
             'AKICK' => $this->onAkick($sender, $account, $parts, $state),
+            'SUSPEND' => $this->onSuspend($sender, $parts, $state),
+            'UNSUSPEND' => $this->onUnsuspend($sender, $parts, $state),
+            'LISTSUSPEND' => $this->onListSuspend($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -727,6 +731,131 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, 'Han sido expulsados del canal los nicks con akick.');
     }
 
+    /** @param list<string> $args */
+    private function onSuspend(string $uid, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $reason = implode(' ', array_slice($args, 1));
+
+        if ('' === $channel || '' === $reason) {
+            $this->reply->reply($uid, 'Error de Sintaxis: SUSPEND <canal> <motivo>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        if ($registered->isSuspended()) {
+            $this->reply->reply($uid, sprintf('El canal %s ya está suspendido.', $registered->name->value));
+
+            return;
+        }
+
+        $this->channels->updateSuspension(new Channel(
+            $registered->name,
+            $registered->founder,
+            $registered->createdAt,
+            $registered->topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+            $reason,
+            $state->nickOf($uid),
+            new DateTimeImmutable(),
+        ));
+        $this->projection->publishSuspension($registered->name->value);
+
+        $this->reply->reply($uid, sprintf('El canal %s ha sido suspendido.', $registered->name->value));
+    }
+
+    /** @param list<string> $args */
+    private function onUnsuspend(string $uid, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: UNSUSPEND <canal>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        if (!$registered->isSuspended()) {
+            $this->reply->reply($uid, sprintf('El canal %s no está suspendido.', $registered->name->value));
+
+            return;
+        }
+
+        $this->channels->updateSuspension(new Channel(
+            $registered->name,
+            $registered->founder,
+            $registered->createdAt,
+            $registered->topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+        ));
+        $this->projection->publishSuspension($registered->name->value);
+
+        $this->reply->reply($uid, sprintf('El canal %s ha sido liberado.', $registered->name->value));
+    }
+
+    private function onListSuspend(string $uid, NetworkState $state): void
+    {
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $suspended = array_values(array_filter(
+            $this->channels->all(),
+            static fn (Channel $channel): bool => $channel->isSuspended(),
+        ));
+
+        $this->reply->reply($uid, 'Listado de canales suspendidos');
+
+        if ([] === $suspended) {
+            $this->reply->reply($uid, 'Lista vacía.');
+
+            return;
+        }
+
+        foreach ($suspended as $channel) {
+            $this->reply->reply($uid, sprintf('%s - Motivo: %s', $channel->name->value, (string) $channel->suspendReason));
+        }
+    }
+
+    private function isOper(string $uid, NetworkState $state): bool
+    {
+        return $state->hasMode($uid, 'o');
+    }
+
     /** The channel exists, or the sender is told it does not. */
     private function registeredChannel(string $uid, string $channel): ?Channel
     {
@@ -769,6 +898,12 @@ final class ChanServCommandHandler
 
     private function requireLevel(string $uid, Channel $channel, ChannelLevel $key, int $authority): bool
     {
+        if ($channel->isSuspended()) {
+            $this->reply->reply($uid, sprintf('El canal %s está suspendido.', $channel->name->value));
+
+            return false;
+        }
+
         if ($authority >= $this->levels->threshold($channel->name, $key)) {
             return true;
         }
@@ -1012,6 +1147,12 @@ final class ChanServCommandHandler
 
         if (null === $registered) {
             $this->reply->reply($uid, sprintf('%s is not registered.', $channel));
+
+            return null;
+        }
+
+        if ($registered->isSuspended()) {
+            $this->reply->reply($uid, sprintf('El canal %s está suspendido.', $registered->name->value));
 
             return null;
         }

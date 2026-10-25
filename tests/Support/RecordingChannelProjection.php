@@ -23,6 +23,9 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     /** @var list<string> */
     public array $topics = [];
 
+    /** @var list<string> */
+    public array $suspensions = [];
+
     public function publishRegistered(string $channel): void
     {
         $this->registered[] = $channel;
@@ -46,5 +49,10 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     public function publishTopic(string $channel): void
     {
         $this->topics[] = $channel;
+    }
+
+    public function publishSuspension(string $channel): void
+    {
+        $this->suspensions[] = $channel;
     }
 }

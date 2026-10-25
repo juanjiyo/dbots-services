@@ -25,7 +25,15 @@ final readonly class Channel
         public ?string $url = null,
         public ?string $email = null,
         public ?string $entryMessage = null,
+        public ?string $suspendReason = null,
+        public ?string $suspendedBy = null,
+        public ?DateTimeImmutable $suspendedAt = null,
     ) {
+    }
+
+    public function isSuspended(): bool
+    {
+        return null !== $this->suspendReason;
     }
 
     /** The channel password identifies its founder, as in the original CReG. */

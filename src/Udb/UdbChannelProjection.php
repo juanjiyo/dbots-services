@@ -41,6 +41,7 @@ final readonly class UdbChannelProjection implements ChannelProjectionInterface
     {
         $this->authority->delete('C', sprintf('%s::founder', (new ChannelName($channel))->value));
         $this->authority->delete('C', sprintf('%s::topic', (new ChannelName($channel))->value));
+        $this->authority->delete('C', sprintf('%s::suspend', (new ChannelName($channel))->value));
     }
 
     public function publishAccess(string $channel, string $nick): void
@@ -51,6 +52,25 @@ final readonly class UdbChannelProjection implements ChannelProjectionInterface
     public function removeAccess(string $channel, string $nick): void
     {
         $this->authority->delete('C', sprintf('%s::access::%s', (new ChannelName($channel))->value, (new Nick($nick))->value));
+    }
+
+    public function publishSuspension(string $channel): void
+    {
+        $registered = $this->channels->find(new ChannelName($channel));
+
+        if (null === $registered) {
+            return;
+        }
+
+        $path = sprintf('%s::suspend', $registered->name->value);
+
+        if (!$registered->isSuspended()) {
+            $this->authority->delete('C', $path);
+
+            return;
+        }
+
+        $this->authority->insert('C', $path, (string) $registered->suspendReason);
     }
 
     public function publishTopic(string $channel): void

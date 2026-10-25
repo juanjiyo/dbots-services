@@ -365,6 +365,50 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperSuspendsAndTheChannelStopsAcceptingChanges(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('suspend #test incumple normas', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('set #test desc otra cosa'), $this->state);
+
+        self::assertSame([
+            '001OOOOOO: El canal #test ha sido suspendido.',
+            '001AAAAAA: El canal #test está suspendido.',
+        ], $this->irc->replies);
+        self::assertSame(['#test'], $this->projection->suspensions);
+    }
+
+    #[Test]
+    public function suspendAndUnsuspendNeedAnOper(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('suspend #test motivo'), $this->state);
+        $this->handler->handle($this->privmsg('listsuspend'), $this->state);
+
+        self::assertSame(['001AAAAAA: Permiso denegado.', '001AAAAAA: Permiso denegado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function unsuspendReleasesTheChannelAndListsuspendNamesIt(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('suspend #test incumple normas', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('listsuspend', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('unsuspend #test', '001OOOOOO'), $state);
+
+        self::assertContains('001OOOOOO: #test - Motivo: incumple normas', $this->irc->replies);
+        self::assertSame('001OOOOOO: El canal #test ha sido liberado.', $this->irc->replies[array_key_last($this->irc->replies)]);
+        self::assertSame(['#test', '#test'], $this->projection->suspensions);
+    }
+
+    #[Test]
     public function akickAddsListsAndRemovesAEntry(): void
     {
         $this->channels->seed('#Test', 'alice');

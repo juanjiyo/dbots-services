@@ -65,7 +65,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `KICK` | dropped | By decision: channels kick with native `+o` |
 | `AKICK <#channel> ADD\|DEL\|LIST\|ENFORCE [nick] [reason]` | done | `AKICK-CHANGE` 499, `AKICK-LIST` 300; 50 entries max |
 | `DELACCESS`, `SECUREOPS`… | todo | The rest of the rank model |
-| `SET *` (founder, successor, entrymsg, mlock, topiclock…), `SUSPEND`, `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
+| `SUSPEND <#channel> <reason>`, `UNSUSPEND <#channel>`, `LISTSUSPEND` | done | Oper only; publishes `C::<channel>::suspend`, so the IRCd enforces it |
+| `SET *` (successor, mlock, topiclock…), `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
 
 ## MeMo
 

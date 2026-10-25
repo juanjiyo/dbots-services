@@ -104,6 +104,14 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S38** — `SUSPEND <#channel> <reason>` is oper-only and publishes
+  `C::<channel>::suspend` with the reason, so the IRCd itself drops `+r`, refuses
+  `+q` and tells joiners why.
+- **S39** — While suspended, every mutating command refuses with
+  `El canal <channel> está suspendido.`; `INFO` still works, so staff can see why.
+- **S40** — `UNSUSPEND` removes the record and answers `El canal <channel> ha sido liberado.`
+- **S41** — `LISTSUSPEND` is oper-only and prints `Listado de canales suspendidos`
+  then `<channel> - Motivo: <reason>` per channel.
 - **S34** — `AKICK <#channel> ADD <nick> [reason]` only accepts a registered nick,
   refuses a duplicate and stops at 50 entries, with the original wording.
 - **S35** — `AKICK DEL <nick>` and `AKICK LIST` follow, the list showing
@@ -145,8 +153,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 - **T13b** (S31-S33) — **done**. `CLEAR MODES|BANS|OPS|HALFOPS|VOICES|USERS|TOPIC`.
 - **T14** (S34-S37) — **done**. `AKICK ADD|DEL|LIST|ENFORCE`, table-driven by
   `AKICK-CHANGE` (499) and `AKICK-LIST` (300).
-- **T15** — `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND`, `FORBID`/`UNFORBID`/`LISTFORBID`,
-  `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
+- **T15a** (S38-S41) — **done**. `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND` with the UDB
+  `C::<channel>::suspend` record.
+- **T15b** — `FORBID`/`UNFORBID`/`LISTFORBID` (`C::<channel>::forbid`).
+- **T15c** — `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
 - **T16** — `SET` options that drive the reactor: `MLOCK`, `TOPICLOCK`,
   `KEEPTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PRIVATE`, `SECURE`,
   `RESTRICTED`, `PBANS`, `PMODE`, `NOEXPIRE`, `DEBUG`, `NAME`, `DEFTOPIC`.
@@ -167,6 +177,9 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L19** — Suspend is the first CHaN feature the IRCd enforces on its own: the
+  record is the policy. Our own refusal is belt and braces, and exists so a founder
+  understands why their command failed instead of seeing nothing happen.
 - **L18** — AKICK is storage plus an explicit `ENFORCE`; the automatic kick on
   join has to wait for T17 for the same reason the entry message did.
 - **L17** — `CLEAR` needed two kinds of state we did not keep: who holds which rank

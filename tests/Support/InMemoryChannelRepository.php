@@ -52,6 +52,11 @@ final class InMemoryChannelRepository implements ChannelRepositoryInterface
         };
     }
 
+    public function updateSuspension(Channel $channel): void
+    {
+        $this->channels[$channel->name->value] = $channel;
+    }
+
     public function delete(ChannelName $name): void
     {
         unset($this->channels[$name->value]);

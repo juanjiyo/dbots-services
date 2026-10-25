@@ -31,7 +31,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             $this->pdo->exec('ALTER TABLE channels ADD COLUMN topic TEXT NULL');
         }
 
-        foreach (['password_hash', 'description', 'url', 'email', 'entry_message'] as $column) {
+        foreach (['password_hash', 'description', 'url', 'email', 'entry_message', 'suspend_reason', 'suspended_by', 'suspended_at'] as $column) {
             if (!in_array($column, array_column($columns, 'name'), true)) {
                 $this->pdo->exec(sprintf('ALTER TABLE channels ADD COLUMN %s TEXT NULL', $column));
             }
@@ -40,7 +40,8 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
 
     public function find(ChannelName $name): ?Channel
     {
-        $statement = $this->pdo->prepare('SELECT name, founder, created_at, topic, password_hash, description, url, email, entry_message
+        $statement = $this->pdo->prepare('SELECT name, founder, created_at, topic, password_hash, description, url, email, entry_message,
+                    suspend_reason, suspended_by, suspended_at
              FROM channels WHERE name = :name');
         $statement->execute(['name' => $name->value]);
 
@@ -91,6 +92,19 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
         $statement->execute(['name' => $name->value, 'value' => $value]);
     }
 
+    public function updateSuspension(Channel $channel): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE channels SET suspend_reason = :reason, suspended_by = :by, suspended_at = :at WHERE name = :name'
+        );
+        $statement->execute([
+            'name' => $channel->name->value,
+            'reason' => $channel->suspendReason,
+            'by' => $channel->suspendedBy,
+            'at' => $channel->suspendedAt?->format('c'),
+        ]);
+    }
+
     public function delete(ChannelName $name): void
     {
         $statement = $this->pdo->prepare('DELETE FROM channels WHERE name = :name');
@@ -102,7 +116,8 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
      */
     public function all(): array
     {
-        $statement = $this->pdo->query('SELECT name, founder, created_at, topic, password_hash, description, url, email, entry_message
+        $statement = $this->pdo->query('SELECT name, founder, created_at, topic, password_hash, description, url, email, entry_message,
+                    suspend_reason, suspended_by, suspended_at
              FROM channels ORDER BY name');
 
         $channels = [];
@@ -127,6 +142,9 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             null === ($row['url'] ?? null) ? null : (string) $row['url'],
             null === ($row['email'] ?? null) ? null : (string) $row['email'],
             null === ($row['entry_message'] ?? null) ? null : (string) $row['entry_message'],
+            null === ($row['suspend_reason'] ?? null) ? null : (string) $row['suspend_reason'],
+            null === ($row['suspended_by'] ?? null) ? null : (string) $row['suspended_by'],
+            null === ($row['suspended_at'] ?? null) ? null : new DateTimeImmutable((string) $row['suspended_at']),
         );
     }
 }
