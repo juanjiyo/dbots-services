@@ -69,7 +69,8 @@ final class CRegServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('REGISTRA #pedido mi canal'), $this->state);
 
-        self::assertStringContainsString('Solicitud registrada', $this->irc->replies[0]);
+        self::assertSame('001AAAAAA: El canal #pedido ha sido aceptado para el registro.', $this->irc->replies[0]);
+        self::assertStringContainsString('a la espera de aprobación', $this->irc->replies[1]);
         self::assertTrue($this->requests->find('#pedido')?->isWaiting());
     }
 
@@ -93,7 +94,7 @@ final class CRegServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('ACEPTA #pedido', '001BBBBBB'), $this->state);
 
-        self::assertSame(['001BBBBBB: #pedido registrado.'], $this->irc->replies);
+        self::assertSame(['001BBBBBB: El canal #pedido ha sido registrado.'], $this->irc->replies);
         self::assertSame('alice', $this->channels->find(new ChannelName('#pedido'))?->founder);
     }
 
@@ -106,13 +107,13 @@ final class CRegServCommandHandlerTest extends TestCase
 
         // The staff user carries +o and is not in the CReG admin list: level 5.
         $this->handler->handle($this->privmsg('ACEPTA #pedido', '001BBBBBB'), $this->state);
-        self::assertSame(['001BBBBBB: #pedido registrado.'], $this->irc->replies);
+        self::assertSame(['001BBBBBB: El canal #pedido ha sido registrado.'], $this->irc->replies);
 
         $this->state->joinChannel('#otro', ['001AAAAAA'], 'o');
         $this->handler->handle($this->privmsg('REGISTRA #otro'), $this->state);
         $this->irc->replies = [];
         $this->handler->handle($this->privmsg('DENIEGA #otro no', '001BBBBBB'), $this->state);
-        self::assertStringContainsString('denegada', $this->irc->replies[0]);
+        self::assertStringContainsString('ha sido denegado', $this->irc->replies[0]);
     }
 
     #[Test]
@@ -125,7 +126,7 @@ final class CRegServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('ACEPTA #pedido', '001AAAAAA'), $this->state);
 
-        self::assertSame(['001AAAAAA: #pedido registrado.'], $this->irc->replies);
+        self::assertSame(['001AAAAAA: El canal #pedido ha sido registrado.'], $this->irc->replies);
     }
 
     #[Test]
@@ -149,7 +150,7 @@ final class CRegServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('DENIEGA #pedido no cumple', '001BBBBBB'), $this->state);
 
-        self::assertStringContainsString('denegada', $this->irc->replies[0]);
+        self::assertStringContainsString('ha sido denegado', $this->irc->replies[0]);
         self::assertSame('no cumple', $this->requests->find('#pedido')?->reason);
     }
 

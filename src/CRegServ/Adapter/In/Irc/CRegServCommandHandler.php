@@ -123,10 +123,9 @@ final readonly class CRegServCommandHandler
         $description = implode(' ', array_values($args));
 
         match (($this->request)($channel, $description, $account, $operatorInChannel)) {
-            RequestRegistrationResult::Requested => $this->reply->reply($uid, sprintf(
-                'Solicitud registrada para %s. El staff la revisará.',
-                $channel,
-            )),
+            // The original answers twice: accepted for registration, then that it
+            // waits for the network staff.
+            RequestRegistrationResult::Requested => $this->registered($uid, $channel),
             RequestRegistrationResult::NotIdentified => $this->reply->reply($uid, 'Debes estar identificado para solicitar un canal.'),
             RequestRegistrationResult::NotChannelOperator => $this->reply->reply($uid, sprintf('Debes tener @ en %s para pedir su registro.', $channel)),
             RequestRegistrationResult::InvalidChannel => $this->reply->reply($uid, 'Ese nombre de canal no es válido.'),
@@ -134,6 +133,12 @@ final readonly class CRegServCommandHandler
             RequestRegistrationResult::DuplicateRequest => $this->reply->reply($uid, sprintf('Ya hay una solicitud pendiente para %s.', $channel)),
             RequestRegistrationResult::PreviouslyDenied => $this->reply->reply($uid, sprintf('Una solicitud anterior para %s fue denegada.', $channel)),
         };
+    }
+
+    private function registered(string $uid, string $channel): void
+    {
+        $this->reply->reply($uid, sprintf('El canal %s ha sido aceptado para el registro.', $channel));
+        $this->reply->reply($uid, 'El canal está a la espera de aprobación del registro por la administración.');
     }
 
     /** @param list<string> $args */
@@ -199,7 +204,7 @@ final readonly class CRegServCommandHandler
         $staffNick = $state->nickOf($uid) ?? 'staff';
 
         match (($this->approve)($channel, $staffNick)) {
-            ApproveResult::Approved => $this->reply->reply($uid, sprintf('%s registrado.', $channel)),
+            ApproveResult::Approved => $this->reply->reply($uid, sprintf('El canal %s ha sido registrado.', $channel)),
             ApproveResult::NoPendingRequest => $this->reply->reply($uid, sprintf('No hay solicitud pendiente para %s.', $channel)),
             ApproveResult::AlreadyRegistered => $this->reply->reply($uid, sprintf('%s ya está registrado.', $channel)),
             ApproveResult::InvalidChannel => $this->reply->reply($uid, 'Ese nombre de canal no es válido.'),
@@ -225,7 +230,7 @@ final readonly class CRegServCommandHandler
         $reason = implode(' ', array_values($args));
 
         match (($this->deny)($channel, $staffNick, $reason)) {
-            DenyResult::Denied => $this->reply->reply($uid, sprintf('Solicitud de %s denegada.', $channel)),
+            DenyResult::Denied => $this->reply->reply($uid, sprintf('El canal %s ha sido denegado.', $channel)),
             DenyResult::NoPendingRequest => $this->reply->reply($uid, sprintf('No hay solicitud pendiente para %s.', $channel)),
             DenyResult::InvalidChannel => $this->reply->reply($uid, 'Ese nombre de canal no es válido.'),
         };
