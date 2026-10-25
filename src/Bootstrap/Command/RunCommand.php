@@ -14,7 +14,6 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
 
 use function max;
-use function min;
 use function sleep;
 use function sprintf;
 use function time;

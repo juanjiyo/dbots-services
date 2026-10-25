@@ -41,7 +41,6 @@ final class UdbAuthority
 
     private int $sequence = 0;
     private int $round = 0;
-    private bool $announced = false;
     private bool $inventoryOffered = false;
     private ?string $peerSid = null;
 
