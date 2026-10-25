@@ -100,7 +100,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `CONEXIONES LIST <min>`, `CONEXIONES VIEW <host>` | done | Requires CeNTeR `Administrador` |
 | `LIMPIA <#channel>`, `STATS`, `IRCOPS`, `ROOT`, `SETTIME`, `SPAM LIST\|ADD\|DEL` | done |
 | `INVITE <#channel>` | done | |
-| `SET` | todo |
+| `SET SUFIJO\|NICKSERV\|CHANSERV\|IPSERV\|PASSPROTECT\|PREFIJOS <valor>` | done | IRC-operator only; UDB S block |
 
 ## CReG
 

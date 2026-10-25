@@ -78,6 +78,7 @@ services:
 
     Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoRepository'
     Dbots\MemoServ\Application\Port\Out\MemoPreferencesRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoPreferencesRepository'
+    Dbots\Udb\Application\Port\Out\UdbSettingsRepositoryInterface: '@Dbots\Udb\Adapter\Out\Persistence\SqliteUdbSettingsRepository'
 
     Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository'
     Dbots\OperServ\Application\Port\Out\ElineRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteElineRepository'
@@ -101,6 +102,7 @@ services:
                 - '@Dbots\Udb\AccountBlockProvider'
                 - '@Dbots\Udb\ChannelBlockProvider'
                 - '@Dbots\Udb\SpamBlockProvider'
+                - '@Dbots\Udb\UdbSettingsBlockProvider'
 
     Dbots\Udb\AccountBlockProvider:
         arguments:

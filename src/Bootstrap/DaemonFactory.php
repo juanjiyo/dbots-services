@@ -64,10 +64,13 @@ use Dbots\OperServ\Application\Help\OperServHelp;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Udb\AccountBlockProvider;
+use Dbots\Udb\Application\Port\Out\UdbSettingsRepositoryInterface;
+use Dbots\Udb\Application\SetUdbSetting\SetUdbSettingHandler;
 use Dbots\Udb\BlockProviderInterface;
 use Dbots\Udb\UdbAccountProjection;
 use Dbots\Udb\UdbAuthority;
 use Dbots\Udb\UdbChannelProjection;
+use Dbots\Udb\UdbSettingsProjection;
 use Dbots\Udb\UdbSpamProjection;
 use PDO;
 
@@ -98,6 +101,7 @@ final readonly class DaemonFactory
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private MemoPreferencesRepositoryInterface $memoPreferences,
+        private UdbSettingsRepositoryInterface $udbSettings,
         private SpamRuleRepositoryInterface $spamRules,
         private BlockProviderInterface $blocks,
         private string $rootPassword = '',
@@ -260,6 +264,8 @@ final readonly class DaemonFactory
             $this->rootPassword,
         );
 
+        $udbSettingsProjection = new UdbSettingsProjection($this->udbSettings, $authority);
+
         $operServ = new OperServCommandHandler(
             $enforcement,
             $this->accounts,
@@ -274,6 +280,8 @@ final readonly class DaemonFactory
             OperServHelp::create(),
             rootPassword: $this->rootPassword,
             jailChannel: $this->jailChannel,
+            setUdbSetting: new SetUdbSettingHandler($this->udbSettings),
+            udbSettingsProjection: $udbSettingsProjection,
         );
 
         $clonesServUid = sprintf('%sA00009', $sid);

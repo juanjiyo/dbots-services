@@ -16,8 +16,10 @@ use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Application\Help\OperServHelp;
 use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Tests\Support\InMemoryStaffRankRepository;
+use Dbots\Tests\Support\InMemoryUdbSettingsRepository;
 use Dbots\Tests\Support\RecordingEnforcement;
 use Dbots\Tests\Support\RecordingIrc;
+use Dbots\Tests\Support\RecordingTransport;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -30,6 +32,8 @@ final class OperServCommandHandlerTest extends TestCase
     private \Dbots\Tests\Support\InMemoryAccountRepository $accounts;
     private \Dbots\Tests\Support\InMemoryChannelRepository $channels;
     private InMemoryStaffRankRepository $ranks;
+    private InMemoryUdbSettingsRepository $udbSettings;
+    private RecordingTransport $udbTransport;
     private StaffAuthority $staff;
 
     protected function setUp(): void
@@ -40,6 +44,8 @@ final class OperServCommandHandlerTest extends TestCase
         $this->channels = new \Dbots\Tests\Support\InMemoryChannelRepository();
         $this->ranks = new InMemoryStaffRankRepository();
         $this->staff = new StaffAuthority($this->ranks);
+        $this->udbSettings = new InMemoryUdbSettingsRepository();
+        $this->udbTransport = new RecordingTransport();
 
         $this->handler = new OperServCommandHandler(
             $this->enforcement,
@@ -57,6 +63,11 @@ final class OperServCommandHandlerTest extends TestCase
             elines: new \Dbots\Tests\Support\InMemoryElineRepository(),
             staff: $this->staff,
             resolver: new AccountResolver($this->accounts),
+            setUdbSetting: new \Dbots\Udb\Application\SetUdbSetting\SetUdbSettingHandler($this->udbSettings),
+            udbSettingsProjection: new \Dbots\Udb\UdbSettingsProjection(
+                $this->udbSettings,
+                new \Dbots\Udb\UdbAuthority('003', 'bots.test', new \Dbots\Udb\CompositeBlockProvider([]), $this->udbTransport, '0123456789abcdef'),
+            ),
         );
         $this->state = new NetworkState();
         $this->state->introduceUser('001AAAAAA', 'oper', null, 'o', 'staff.example');
@@ -147,6 +158,42 @@ final class OperServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('INVITE #canal', '001BBBBBB'), $this->state);
 
         self::assertSame([], $this->enforcement->invites);
+        self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anOperCanSetAUdbServiceMask(): void
+    {
+        $this->handler->handle($this->privmsg('SET NICKSERV NickServ!NickServ@bots.test'), $this->state);
+
+        self::assertSame('NickServ!NickServ@bots.test', $this->udbSettings->get('N'));
+        self::assertSame(['001AAAAAA: Setting N updated.'], $this->irc->replies);
+        self::assertNotEmpty($this->udbTransport->written);
+    }
+
+    #[Test]
+    public function setRejectsAnInvalidServiceMask(): void
+    {
+        $this->handler->handle($this->privmsg('SET NICKSERV badvalue'), $this->state);
+
+        self::assertNull($this->udbSettings->get('N'));
+        self::assertSame(['001AAAAAA: Syntax: nick!ident@host'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function setRejectsAnUnknownOption(): void
+    {
+        $this->handler->handle($this->privmsg('SET FOO bar'), $this->state);
+
+        self::assertSame(['001AAAAAA: Unknown option: FOO.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aNonOperCannotUseSet(): void
+    {
+        $this->handler->handle($this->privmsg('SET NICKSERV NickServ!NickServ@bots.test', '001BBBBBB'), $this->state);
+
+        self::assertNull($this->udbSettings->get('N'));
         self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
     }
 
@@ -336,6 +383,11 @@ final class OperServCommandHandlerTest extends TestCase
             'OPeR',
             '003A00004',
             OperServHelp::create(),
+            setUdbSetting: new \Dbots\Udb\Application\SetUdbSetting\SetUdbSettingHandler($this->udbSettings),
+            udbSettingsProjection: new \Dbots\Udb\UdbSettingsProjection(
+                $this->udbSettings,
+                new \Dbots\Udb\UdbAuthority('003', 'bots.test', new \Dbots\Udb\CompositeBlockProvider([]), $this->udbTransport, '0123456789abcdef'),
+            ),
         );
 
         $handler->handle($this->privmsg('JAIL victim'), $this->state);
@@ -527,6 +579,11 @@ final class OperServCommandHandlerTest extends TestCase
             '003A00004',
             OperServHelp::create(),
             rootPassword: $password,
+            setUdbSetting: new \Dbots\Udb\Application\SetUdbSetting\SetUdbSettingHandler($this->udbSettings),
+            udbSettingsProjection: new \Dbots\Udb\UdbSettingsProjection(
+                $this->udbSettings,
+                new \Dbots\Udb\UdbAuthority('003', 'bots.test', new \Dbots\Udb\CompositeBlockProvider([]), $this->udbTransport, '0123456789abcdef'),
+            ),
         );
     }
 

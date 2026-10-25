@@ -24,6 +24,9 @@ use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
 use Dbots\OperServ\Domain\Eline;
 use Dbots\Staff\Application\StaffAuthority;
+use Dbots\Udb\Application\SetUdbSetting\SetUdbSettingHandler;
+use Dbots\Udb\Application\SetUdbSetting\SetUdbSettingResult;
+use Dbots\Udb\UdbSettingsProjection;
 use Dbots\Udb\UdbSpamProjection;
 use InvalidArgumentException;
 
@@ -78,6 +81,8 @@ final class OperServCommandHandler
         private ?ElineRepositoryInterface $elines = null,
         private ?StaffAuthority $staff = null,
         private ?AccountResolver $resolver = null,
+        private ?SetUdbSettingHandler $setUdbSetting = null,
+        private ?UdbSettingsProjection $udbSettingsProjection = null,
     ) {
     }
 
@@ -133,6 +138,7 @@ final class OperServCommandHandler
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'INVITE' => $this->onInvite($sender, $parts, $state),
+            'SET' => $this->onSet($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -1062,6 +1068,50 @@ final class OperServCommandHandler
 
         $this->enforcement->invite($senderNick, $channel);
         $this->reply->reply($sender, sprintf('Invitation sent to %s.', $channel));
+    }
+
+    /** @param list<string> $args */
+    private function onSet(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        if (null === $this->setUdbSetting || null === $this->udbSettingsProjection) {
+            $this->reply->reply($sender, 'SET is not available.');
+
+            return;
+        }
+
+        $option = array_shift($args);
+        $value = implode(' ', $args);
+
+        if (null === $option || '' === $value) {
+            $this->reply->reply($sender, 'Syntax: SET SUFIJO|NICKSERV|CHANSERV|IPSERV|PASSPROTECT|PREFIJOS <value>');
+
+            return;
+        }
+
+        $result = ($this->setUdbSetting)($option, $value);
+
+        match ($result->status) {
+            SetUdbSettingResult::SET => $this->onSetPublished($sender, $result->key),
+            SetUdbSettingResult::UNKNOWN_OPTION => $this->reply->reply($sender, sprintf('Unknown option: %s.', $option)),
+            SetUdbSettingResult::INVALID_VALUE => $this->reply->reply($sender, sprintf('%s', $result->error)),
+            default => $this->reply->reply($sender, 'The setting could not be changed.'),
+        };
+    }
+
+    private function onSetPublished(string $sender, ?string $key): void
+    {
+        if (null === $key) {
+            $this->reply->reply($sender, 'The setting could not be published.');
+
+            return;
+        }
+
+        $this->udbSettingsProjection?->publish($key);
+        $this->reply->reply($sender, sprintf('Setting %s updated.', $key));
     }
 
     private function requireOper(string $sender, NetworkState $state): bool
