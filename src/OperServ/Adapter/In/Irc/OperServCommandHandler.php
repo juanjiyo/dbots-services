@@ -67,6 +67,7 @@ final class OperServCommandHandler
         private int $killClonesMinutes = 60,
         private int $blockMinutes = 300,
         private string $rootPassword = '',
+        private string $jailChannel = '',
     ) {
     }
 
@@ -110,6 +111,7 @@ final class OperServCommandHandler
             'LISTCLONES' => $this->onListClones($sender, $parts, $state),
             'KILLCLONES' => $this->onHostBan($sender, $parts, $state, 'killclones'),
             'BLOCK' => $this->onHostBan($sender, $parts, $state, 'block'),
+            'JAIL' => $this->onJail($sender, $parts, $state),
             'SETTIME' => $this->onSetTime($sender, $state),
             'ROOT' => $this->onRoot($sender, $parts),
             'LIMPIA' => $this->onClean($sender, $parts, $state),
@@ -497,6 +499,44 @@ final class OperServCommandHandler
         }
 
         return $state->hostOf($uid);
+    }
+
+    /** @param list<string> $args */
+    private function onJail(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, 'Syntax: JAIL <nick>');
+
+            return;
+        }
+
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return;
+        }
+
+        if ('' === $this->jailChannel) {
+            $this->reply->reply($sender, 'Jail channel is not configured.');
+
+            return;
+        }
+
+        foreach ($state->channelsOf($uid) as $channel) {
+            $this->enforcement->svsPart($uid, $channel);
+        }
+
+        $this->enforcement->userMode($uid, '+C');
+        $this->enforcement->svsJoin($uid, $this->jailChannel);
+        $this->reply->reply($sender, sprintf('%s has been jailed.', $nick));
     }
 
     private function onSetTime(string $sender, NetworkState $state): void

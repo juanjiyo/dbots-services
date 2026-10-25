@@ -12,6 +12,7 @@ parameters:
     env(DBOTS_ROOT_PASSWORD): ''
     env(DBOTS_RECONNECT_DELAY): '5'
     env(DBOTS_DEBUG_CHANNEL): ''
+    env(DBOTS_JAIL_CHANNEL): ''
 
 services:
     _defaults:
@@ -100,3 +101,4 @@ services:
         arguments:
             $rootPassword: '%env(DBOTS_ROOT_PASSWORD)%'
             $debugChannel: '%env(DBOTS_DEBUG_CHANNEL)%'
+            $jailChannel: '%env(DBOTS_JAIL_CHANNEL)%'

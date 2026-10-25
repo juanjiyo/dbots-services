@@ -93,6 +93,7 @@ final readonly class DaemonFactory
         private BlockProviderInterface $blocks,
         private string $rootPassword = '',
         private string $debugChannel = '',
+        private string $jailChannel = '',
         private int $syncTimeoutSeconds = 30,
     ) {
         // One epoch per process, not per connection: UDB reads it as this
@@ -252,6 +253,7 @@ final readonly class DaemonFactory
             $operServUid,
             OperServHelp::create(),
             rootPassword: $this->rootPassword,
+            jailChannel: $this->jailChannel,
         );
 
         $debug = new DebugRelay($this->transport, sprintf('%sA00005', $sid), $this->debugChannel);

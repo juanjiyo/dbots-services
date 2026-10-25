@@ -76,4 +76,19 @@ final readonly class S2sEnforcement implements EnforcementInterface
             ? sprintf(':%s SAMODE %s %s', $this->sid, $channel, $modes)
             : sprintf(':%s SAMODE %s %s %s', $this->sid, $channel, $modes, $target));
     }
+
+    public function svsJoin(string $uid, string $channel): void
+    {
+        $this->transport->writeLine(sprintf(':%s SVSJOIN %s %s', $this->sid, $uid, $channel));
+    }
+
+    public function svsPart(string $uid, string $channel): void
+    {
+        $this->transport->writeLine(sprintf(':%s SVSPART %s %s', $this->sid, $uid, $channel));
+    }
+
+    public function userMode(string $uid, string $modes): void
+    {
+        $this->transport->writeLine(sprintf(':%s SVSMODE %s %s', $this->sid, $uid, $modes));
+    }
 }

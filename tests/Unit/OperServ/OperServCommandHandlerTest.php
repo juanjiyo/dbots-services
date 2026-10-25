@@ -41,6 +41,7 @@ final class OperServCommandHandlerTest extends TestCase
             'OPeR',
             '003A00004',
             OperServHelp::create(),
+            jailChannel: '#jail',
         );
         $this->state = new NetworkState();
         $this->state->introduceUser('001AAAAAA', 'oper', null, 'o', 'staff.example');
@@ -265,6 +266,51 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanJailAUser(): void
+    {
+        $this->state->joinChannel('#chan', ['001BBBBBB']);
+        $this->state->joinChannel('#test', ['001BBBBBB']);
+
+        $this->handler->handle($this->privmsg('JAIL victim'), $this->state);
+
+        self::assertSame(['001BBBBBB<-#chan', '001BBBBBB<-#test'], $this->enforcement->svsParts);
+        self::assertSame(['001BBBBBB|+C'], $this->enforcement->userModes);
+        self::assertSame(['001BBBBBB->#jail'], $this->enforcement->svsJoins);
+        self::assertSame(['001AAAAAA: victim has been jailed.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function jailRequiresAConfiguredChannel(): void
+    {
+        $handler = new OperServCommandHandler(
+            $this->enforcement,
+            $this->accounts,
+            new \Dbots\Tests\Support\RecordingProjection(),
+            $this->channels,
+            new \Dbots\Tests\Support\RecordingChannelProjection(),
+            new \Dbots\Tests\Support\InMemorySpamRuleRepository(),
+            $this->spamProjection(),
+            $this->irc,
+            'OPeR',
+            '003A00004',
+            OperServHelp::create(),
+        );
+
+        $handler->handle($this->privmsg('JAIL victim'), $this->state);
+
+        self::assertSame(['001AAAAAA: Jail channel is not configured.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aNonOperCannotJail(): void
+    {
+        $this->handler->handle($this->privmsg('JAIL oper', '001BBBBBB'), $this->state);
+
+        self::assertSame([], $this->enforcement->svsJoins);
+        self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
     public function rootAuthenticationGatesRootCommands(): void
     {
         $handler = $this->rootedHandler('secreto');
@@ -369,6 +415,15 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<int> */
     public array $times = [];
 
+    /** @var list<string> */
+    public array $svsJoins = [];
+
+    /** @var list<string> */
+    public array $svsParts = [];
+
+    /** @var list<string> */
+    public array $userModes = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -402,5 +457,20 @@ final class RecordingEnforcement implements EnforcementInterface
     public function setTime(int $timestamp): void
     {
         $this->times[] = $timestamp;
+    }
+
+    public function svsJoin(string $uid, string $channel): void
+    {
+        $this->svsJoins[] = $uid . '->' . $channel;
+    }
+
+    public function svsPart(string $uid, string $channel): void
+    {
+        $this->svsParts[] = $uid . '<-' . $channel;
+    }
+
+    public function userMode(string $uid, string $modes): void
+    {
+        $this->userModes[] = $uid . '|' . $modes;
     }
 }

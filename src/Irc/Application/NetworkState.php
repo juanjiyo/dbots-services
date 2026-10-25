@@ -266,6 +266,20 @@ final class NetworkState
         return array_keys($this->bans[$channel] ?? []);
     }
 
+    /** @return list<string> every channel the user is in, as channel names */
+    public function channelsOf(string $uid): array
+    {
+        $channels = [];
+
+        foreach ($this->channels as $channel => $members) {
+            if (isset($members[$uid])) {
+                $channels[] = $channel;
+            }
+        }
+
+        return $channels;
+    }
+
     public function isInChannel(string $channel, string $uid): bool
     {
         return isset($this->channels[$channel][$uid]);

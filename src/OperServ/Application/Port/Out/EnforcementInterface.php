@@ -23,4 +23,13 @@ interface EnforcementInterface
 
     /** Sets the network time (UnrealIRCd TSCTL SVSTIME). */
     public function setTime(int $timestamp): void;
+
+    /** Forces a user to join a channel. */
+    public function svsJoin(string $uid, string $channel): void;
+
+    /** Forces a user to part a channel. */
+    public function svsPart(string $uid, string $channel): void;
+
+    /** Sets user modes on a connected user. */
+    public function userMode(string $uid, string $modes): void;
 }
