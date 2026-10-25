@@ -82,7 +82,11 @@ approval flow — you request, staff approve. The original *supports* stage
 
 | Bot | Command surface |
 |---|---|
-| **CReG** (`cr.mrc`) | **Implemented**: `REGISTRA`, `ESTADO`, `CANCELA`, `LISTA`, `INFO`, `ACEPTA`, `DENIEGA`, `LIBERA`, `ADMIN`, `OFICIAL`, `COMERCIAL`, `AYUDA` |
+| **CReG** (`cr.mrc`) | **Implemented**: `REGISTRA`, `ESTADO`, `CANCELA`, `LISTA`, `INFO`, `ACEPTA`, `DENIEGA`, `LIBERA`, `ADMIN`, `OFICIAL`, `COMERCIAL`, `AYUDA`
+
+`ACEPTA` and `DENIEGA` require **operator level (5)**, not admin: any IRCop can
+decide, and so can a CReG administrator without oper status. The original asked
+for level 6 here; the network decided level 5. |
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
 | **GlobalServ** (`gl.mrc`) | `GLOBAL`, network-wide announcements |
 | **HelpServ** (`he.mrc`) | `BOT`, `CANAL`, `CMODES`, `UMODES`, credits |

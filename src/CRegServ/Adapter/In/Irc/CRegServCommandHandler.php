@@ -38,6 +38,15 @@ use function strtoupper;
 
 final readonly class CRegServCommandHandler
 {
+    /**
+     * Accepting or denying a registration needs operator level, not admin.
+     *
+     * In the original that is `$s.n($emisor) >= 5` (5 = oper, 6 = admin, up to 8
+     * root); here the ladder collapses to user mode +o plus the CReG admin list,
+     * so an IRCop can decide and a CReG administrator can too.
+     */
+    private const int REQUIRED_LEVEL = 5;
+
     public function __construct(
         private RequestRegistrationHandler $request,
         private ApproveHandler $approve,
@@ -395,6 +404,7 @@ final readonly class CRegServCommandHandler
         return $state->isChannelOperator($channel, $uid);
     }
 
+    /** Operator (level 5) or a CReG administrator. */
     private function isStaff(string $sender, ?string $account, NetworkState $state): bool
     {
         if ($state->hasMode($sender, 'o')) {

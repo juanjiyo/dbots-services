@@ -98,6 +98,37 @@ final class CRegServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function aPlainOperCanDecideWithoutBeingACregAdmin(): void
+    {
+        $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
+        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->irc->replies = [];
+
+        // The staff user carries +o and is not in the CReG admin list: level 5.
+        $this->handler->handle($this->privmsg('ACEPTA #pedido', '001BBBBBB'), $this->state);
+        self::assertSame(['001BBBBBB: #pedido registrado.'], $this->irc->replies);
+
+        $this->state->joinChannel('#otro', ['001AAAAAA'], 'o');
+        $this->handler->handle($this->privmsg('REGISTRA #otro'), $this->state);
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('DENIEGA #otro no', '001BBBBBB'), $this->state);
+        self::assertStringContainsString('denegada', $this->irc->replies[0]);
+    }
+
+    #[Test]
+    public function aCregAdminWithoutOperStatusCanDecide(): void
+    {
+        $this->requests->addAdmin('alice');
+        $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
+        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('ACEPTA #pedido', '001AAAAAA'), $this->state);
+
+        self::assertSame(['001AAAAAA: #pedido registrado.'], $this->irc->replies);
+    }
+
+    #[Test]
     public function aNormalUserCannotApprove(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
