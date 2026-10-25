@@ -24,12 +24,12 @@ covered by CeNTeR or existing OPeR commands into `OPeR`.
 ## Tasks
 
 - **T1** (S1) — `JAIL` command in OPeR, including `EnforcementInterface` methods
-  for `svsJoin`, `svsPart`, and `userMode`.
-- **T2** (S2) — `UMODE` command in OPeR.
-- **T3** (S3) — `ELINE` repository, command, and TKL wire format.
-- **T4** (S4) — `SERVERMAP` command.
-- **T5** (S5) — `CONEXIONES` command.
-- **T6** — Update help text, docs, and tests for all of the above.
+  for `svsJoin`, `svsPart`, and `userMode`. ✅
+- **T2** (S2) — `UMODE` command in OPeR. ✅
+- **T3** (S3) — `ELINE` repository, command, and TKL wire format. ✅
+- **T4** (S4) — `SERVERMAP` command. ✅
+- **T5** (S5) — `CONEXIONES` command. ✅
+- **T6** — Update help text, docs, and tests for all of the above. ✅
 
 ## Log
 
