@@ -17,6 +17,7 @@ use Dbots\CRegServ\Application\Cancel\CancelHandler;
 use Dbots\CRegServ\Application\Deny\DenyHandler;
 use Dbots\CRegServ\Application\Help\CRegServHelp;
 use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
+use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
@@ -170,6 +171,25 @@ final readonly class DaemonFactory
             CRegServHelp::create(),
         );
 
+        $helpServUid = sprintf('%sA00007', $sid);
+
+        $helpServ = new HeLPServCommandHandler(
+            new IrcReplySender($this->transport, $helpServUid),
+            'HeLP',
+            $helpServUid,
+            'NiCK',
+            'CReG',
+            'CHaN',
+            [
+                'NiCK' => 'Registro y mantenimiento de nicks.',
+                'CHaN' => 'Servicios de canales: accesos, topic y contraseña de fundador.',
+                'MeMo' => 'Mensajes entre usuarios de la red.',
+                'OPeR' => 'Operaciones de la red.',
+                'CReG' => 'Registro de canales.',
+                'HeLP' => 'Ayuda global de la red.',
+            ],
+        );
+
         $operServ = new OperServCommandHandler(
             new S2sEnforcement($this->transport, $sid),
             $this->accounts,
@@ -197,6 +217,7 @@ final readonly class DaemonFactory
             $memoServ,
             $operServ,
             $cregServ,
+            $helpServ,
             new ServiceUidFormatter($sid),
             $sid,
             $host,

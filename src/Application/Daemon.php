@@ -15,6 +15,7 @@ use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
+use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
@@ -45,6 +46,7 @@ final readonly class Daemon
         private MemoServCommandHandler $memoServ,
         private OperServCommandHandler $operServ,
         private CRegServCommandHandler $cregServ,
+        private HeLPServCommandHandler $helpServ,
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
@@ -86,6 +88,7 @@ final readonly class Daemon
             ['MeMo', sprintf('%sA00003', $this->sid), 'Memo Services'],
             ['OPeR', sprintf('%sA00004', $this->sid), 'Network Operations Services'],
             ['CReG', sprintf('%sA00006', $this->sid), 'Channel Registration Requests'],
+            ['HeLP', sprintf('%sA00007', $this->sid), 'Network Help Services'],
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
@@ -202,7 +205,7 @@ final readonly class Daemon
             return;
         }
 
-        foreach (['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006'] as $suffix) {
+        foreach (['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007'] as $suffix) {
             $uid = sprintf('%s%s', $this->sid, $suffix);
 
             $this->transport->writeLine(sprintf(':%s JOIN %s', $uid, $this->debugChannel));
@@ -398,6 +401,7 @@ final readonly class Daemon
         $this->memoServ->handle($message, $this->state);
         $this->operServ->handle($message, $this->state);
         $this->cregServ->handle($message, $this->state);
+        $this->helpServ->handle($message, $this->state);
 
 
     }

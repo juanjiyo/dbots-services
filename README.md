@@ -8,8 +8,8 @@ The goal is to reproduce the dBoTs family (the mIRC bots the network has run for
 years) on a modern stack, with the vocabulary and behaviour users already know.
 
 The daemon links to the IRCd as a services server (S2S), takes ownership of the
-distributed user database (UDB 4) and answers commands from `NiCK`, `CHaN`, `MeMo`, `OPeR` and `CReG`. Because UDB
-owns the accounts, authentication is native:
+distributed user database (UDB 4) and answers commands from `NiCK`, `CHaN`, `MeMo`, `OPeR`, `CReG` and `HeLP`.
+Because UDB owns the accounts, authentication is native:
 
 ```text
 /NICK alice:password
@@ -26,10 +26,11 @@ dbots publishes and applies the account and `+r` itself.
 | UDB 4 authority (HEL/INF/RES/BEGIN/PUT/END) | Working, verified live |
 | Canonical block digests | Verified byte-for-byte against the module reference |
 | NiCK `REGISTER` / `IDENTIFY` / `INFO` / `SET PASSWORD` / `DROP` | Working |
-| CHaN `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
+| CHaN `INFO` / `DROP` / `ACCESS` / `TOPIC` / `IDENTIFY` | Working, verified live |
+| CReG `REGISTRA` / `ESTADO` / `CANCELA` / `ACEPTA` / `DENIEGA` / `LIBERA` / `ADMIN` / `OFICIAL` / `COMERCIAL` | Working, verified live |
+| HeLP `AYUDA` / `UMODES` / `CMODES` / `BOTS` / `NICK` / `CANAL` / `CREDITOS` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
-| MeMo `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
-| Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
+| MeMo `SEND` / `LIST` / `READ` / `READ LAST` / `DELETE`, unread notice on identify | Working, verified live |
 | OPeR `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
 | Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
 | OperServ `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |

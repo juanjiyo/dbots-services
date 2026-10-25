@@ -83,3 +83,8 @@ entrypoint and `debug:container`.
 The container owns the object graph. `Bootstrap\DaemonFactory` exists only for
 what cannot be autowired — the per-service nicknames and the UIDs derived from
 the server SID — and keeps that derivation in one place.
+
+Each service gets `<SID>A0000n` in the order it is introduced: `NiCK` (`01`),
+`CHaN` (`02`), `MeMo` (`03`), `OPeR` (`04`), `DeBuG` (`05`), `CReG` (`06`) and
+`HeLP` (`07`). A new service takes the next free suffix and joins the debug
+channel with the rest.

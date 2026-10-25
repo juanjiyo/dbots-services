@@ -51,7 +51,8 @@ approval flow — you request, staff approve. The original *supports* stage
 
 | Command | Status | Notes |
 |---|---|---|
-| `REGISTER` / `REGISTRA <#channel>` | partial | Works, but belongs in CReG with approval |
+| `REGISTER` | moved | Channel registration lives in CReG; CHaN answers with a redirect |
+| `IDENTIFY <#channel> <password>` | done | The channel password identifies its founder for the session, account or not |
 | `INFO <#channel>`, `DROP <#channel>` | done | Founder only for `DROP` |
 | `ACCESS LIST\|ADD\|DEL <#channel> [nick]` | done | UDB `C::<channel>::access::<nick>` |
 | `TOPIC <#channel> <text>` | done | UDB `C::<channel>::topic` |
@@ -78,18 +79,52 @@ approval flow — you request, staff approve. The original *supports* stage
 | `LIMPIA <#channel>`, `STATS`, `IRCOPS`, `ROOT`, `SETTIME`, `SPAM LIST\|ADD\|DEL` | done |
 | `invite`, `SET` | todo |
 
+## CReG
+
+Channel registration, ported from `cr.mrc`. A request needs the requester to be
+identified and to have `@` in the channel; staff then approve or deny it, and
+either answer leaves a memo for the founder.
+
+`REGISTRA` takes a **channel password**, as the original did. It is stored with
+the request, copied to the channel on approval, and lets the founder identify
+with `CHaN IDENTIFY <#channel> <password>` even without their account — that is
+how the original proved ownership.
+
+| Command | Status | Notes |
+|---|---|---|
+| `REGISTRA <#channel> <password> [description]` | done | `REGISTER` also accepted |
+| `ESTADO <#channel>` | done | Pending, accepted or denied |
+| `CANCELA <#channel>` | done | Withdraws your own pending request |
+| `LISTA [status]` | done | Operator only |
+| `INFO <#channel>` | done | Operator only |
+| `ACEPTA <#channel>` | done | Operator level 5 or a CReG administrator; registers the channel |
+| `DENIEGA <#channel> [reason]` | done | Same gate as `ACEPTA` |
+| `LIBERA <#channel>` | done | Frees a denied request so it can be asked again |
+| `ADMIN ADD\|DEL\|LIST [nick]` | done | Who may approve registrations |
+| `OFICIAL <#channel> [description]` | done | Registers a network channel |
+| `COMERCIAL <#channel> <founder> [description]` | done | Registers a channel on somebody else's behalf |
+
+## HeLP
+
+Global help, ported from `he.mrc`. `HeLP` serves prose pages rather than the
+per-command index the other services have, and it is what a newcomer is pointed
+at first.
+
+| Topic | Status | Notes |
+|---|---|---|
+| `AYUDA` / `HELP` | done | Index; `AYUDA <topic>` is the same as `<topic>` |
+| `UMODES`, `CMODES` | done | The user and channel modes the network documents |
+| `BOTS` | done | The services the daemon actually introduces, so it cannot drift |
+| `NICK`, `CANAL` | done | Registration walkthroughs, with the CReG password step |
+| `CREDITOS` | done | The dBoTs authors |
+| anything else | done | `Comando desconocido <cmd>`, as the original |
+
 ## Services that do not exist yet
 
 | Bot | Command surface |
 |---|---|
-| **CReG** (`cr.mrc`) | **Implemented**: `REGISTRA`, `ESTADO`, `CANCELA`, `LISTA`, `INFO`, `ACEPTA`, `DENIEGA`, `LIBERA`, `ADMIN`, `OFICIAL`, `COMERCIAL`, `AYUDA`
-
-`ACEPTA` and `DENIEGA` require **operator level (5)**, not admin: any IRCop can
-decide, and so can a CReG administrator without oper status. The original asked
-for level 6 here; the network decided level 5. |
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
 | **GlobalServ** (`gl.mrc`) | `GLOBAL`, network-wide announcements |
-| **HelpServ** (`he.mrc`) | `BOT`, `CANAL`, `CMODES`, `UMODES`, credits |
 | **NoServ** (`no.mrc`) | `MOTD`, `REPRESENTANTES`, `ALTA`/`BAJA` |
 | **PreOpServ** (`pr.mrc`) | `IGNORA`, `MSG`, `MODE` for pre-operators |
 
@@ -106,7 +141,7 @@ sees the whole stream, and keeps it narrower on purpose:
 DBOTS_DEBUG_CHANNEL=#DeBuG
 ```
 
-When set, every service — `NiCK`, `CHaN`, `MeMo`, `OPeR`, `CReG`
+When set, every service — `NiCK`, `CHaN`, `MeMo`, `OPeR`, `CReG`, `HeLP`
 and the `DeBuG` relay — joins that channel with operator status, the way the
 original services sat in the debug channel. `DeBuG` is the one that writes to it. The `<DeBuG>`
 you see is its nickname, and the timestamp is your client's: the message body
