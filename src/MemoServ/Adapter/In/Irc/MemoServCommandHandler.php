@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace Dbots\MemoServ\Adapter\In\Irc;
 
+use Dbots\Domain\Account\Nick;
+use Dbots\Domain\Memo\Memo;
+use Dbots\Domain\Memo\MemoNotifyMode;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\Help\IrcFormat;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
+use Dbots\MemoServ\Application\Port\Out\MemoPreferencesRepositoryInterface;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoResult;
+use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 
 use function array_filter;
@@ -40,7 +45,9 @@ final readonly class MemoServCommandHandler
         private ReadMemoHandler $read,
         private DeleteMemoHandler $delete,
         private MemoRepositoryInterface $memos,
-        private AccountResolver $accounts,
+        private MemoPreferencesRepositoryInterface $preferences,
+        private AccountRepositoryInterface $accounts,
+        private AccountResolver $resolver,
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
@@ -71,19 +78,21 @@ final readonly class MemoServCommandHandler
         $command = strtoupper(false === $space ? $text : substr($text, 0, $space));
         $rest = false === $space ? '' : substr($text, $space + 1);
         $parts = $this->tokenise($rest);
-        $account = $this->accounts->resolve($sender, $state);
+        $account = $this->resolver->resolve($sender, $state);
 
         match ($command) {
-            'SEND', 'ENVIA' => $this->onSend($sender, $account, $rest),
+            'SEND', 'ENVIA' => $this->onSend($sender, $account, $rest, $state),
             'LIST', 'LISTA' => $this->onList($sender, $account),
             'READ', 'LEE' => $this->onRead($sender, $account, $rest),
             'DELETE', 'DEL', 'BORRA' => $this->onDelete($sender, $account, $rest),
+            'NOMEMOS' => $this->onNoMemos($sender, $account, $parts),
+            'SET' => $this->onSet($sender, $account, $parts),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
     }
 
-    private function onSend(string $uid, ?string $account, string $rest): void
+    private function onSend(string $uid, ?string $account, string $rest, NetworkState $state): void
     {
         $parts = $this->tokenise($rest);
 
@@ -96,12 +105,41 @@ final readonly class MemoServCommandHandler
         $recipient = (string) array_shift($parts);
         $body = implode(' ', array_slice($parts, 0));
 
-        match (($this->send)($recipient, $body, $account)) {
-            SendMemoResult::Sent => $this->reply->reply($uid, sprintf('Memo sent to %s.', $recipient)),
-            SendMemoResult::UnknownRecipient => $this->reply->reply($uid, sprintf('%s is not a registered account.', $recipient)),
-            SendMemoResult::EmptyBody => $this->reply->reply($uid, 'The memo is empty.'),
-            SendMemoResult::NotIdentified => $this->reply->reply($uid, 'You must be identified to send memos.'),
+        $result = ($this->send)($recipient, $body, $account);
+
+        match ($result->status) {
+            SendMemoResult::SENT => $this->onSent($uid, $recipient, $result->memoId, $state),
+            SendMemoResult::UNKNOWN_RECIPIENT => $this->reply->reply($uid, sprintf('%s is not a registered account.', $recipient)),
+            SendMemoResult::EMPTY_BODY => $this->reply->reply($uid, 'The memo is empty.'),
+            SendMemoResult::NOT_IDENTIFIED => $this->reply->reply($uid, 'You must be identified to send memos.'),
+            SendMemoResult::BLOCKED => $this->reply->reply($uid, sprintf('%s has you on their no-memo list.', $recipient)),
+            default => $this->reply->reply($uid, 'The memo could not be sent.'),
         };
+    }
+
+    private function onSent(string $senderUid, string $recipient, ?int $memoId, NetworkState $state): void
+    {
+        $this->reply->reply($senderUid, sprintf('Memo sent to %s.', $recipient));
+
+        if (null === $memoId) {
+            return;
+        }
+
+        $mode = $this->preferences->getNotifyMode($recipient);
+
+        if (!$mode->announcesOnNewMemo()) {
+            return;
+        }
+
+        $memo = $this->memos->find($memoId, $recipient);
+
+        if (null === $memo) {
+            return;
+        }
+
+        foreach ($this->onlineUidsFor($recipient, $state) as $uid) {
+            $this->notifySingleMemo($uid, $memo);
+        }
     }
 
     private function onList(string $uid, ?string $account): void
@@ -173,16 +211,27 @@ final readonly class MemoServCommandHandler
     /** Announces unread memos when someone identifies, as the original does. */
     public function notifyPending(string $uid, string $account): void
     {
+        $mode = $this->preferences->getNotifyMode($account);
+
+        if (!$mode->announcesAtLogin()) {
+            return;
+        }
+
         $unread = $this->memos->unreadFor($account);
 
         foreach ($unread as $memo) {
-            $this->reply->reply($uid, sprintf(
-                'Tienes un mensaje nuevo de %s. Mensaje número %s. Escribe %s para leerlo.',
-                IrcFormat::paint(IrcFormat::COMMAND, $memo->sender),
-                IrcFormat::paint(IrcFormat::COMMAND, (string) $memo->id),
-                IrcFormat::paint(IrcFormat::COMMAND, '/msg MeMo READ LAST'),
-            ));
+            $this->notifySingleMemo($uid, $memo);
         }
+    }
+
+    private function notifySingleMemo(string $uid, Memo $memo): void
+    {
+        $this->reply->reply($uid, sprintf(
+            'Tienes un mensaje nuevo de %s. Mensaje número %s. Escribe %s para leerlo.',
+            IrcFormat::paint(IrcFormat::COMMAND, $memo->sender),
+            IrcFormat::paint(IrcFormat::COMMAND, (string) $memo->id),
+            IrcFormat::paint(IrcFormat::COMMAND, '/msg MeMo READ LAST'),
+        ));
     }
 
     private function onDelete(string $uid, ?string $account, string $rest): void
@@ -198,6 +247,114 @@ final readonly class MemoServCommandHandler
         $this->reply->reply($uid, ($this->delete)($id, $account)
             ? sprintf('Memo #%d deleted.', $id)
             : sprintf('You have no memo #%d.', $id));
+    }
+
+    /** @param list<string> $args */
+    private function onNoMemos(string $uid, ?string $account, array $args): void
+    {
+        if (null === $account) {
+            $this->reply->reply($uid, 'You must be identified to manage your no-memo list.');
+
+            return;
+        }
+
+        $sub = strtoupper($args[0] ?? '');
+
+        match ($sub) {
+            'ADD' => $this->onNoMemosAdd($uid, $account, $args),
+            'DEL', 'DELETE' => $this->onNoMemosDel($uid, $account, $args),
+            'LIST' => $this->onNoMemosList($uid, $account),
+            default => $this->reply->reply($uid, 'Syntax: NOMEMOS ADD|DEL|LIST <nick>'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onNoMemosAdd(string $uid, string $account, array $args): void
+    {
+        $target = $args[1] ?? '';
+
+        if ('' === $target) {
+            $this->reply->reply($uid, 'Syntax: NOMEMOS ADD <nick>');
+
+            return;
+        }
+
+        $targetAccount = $this->findAccount($target);
+
+        if (null === $targetAccount) {
+            $this->reply->reply($uid, sprintf('%s is not a registered account.', $target));
+
+            return;
+        }
+
+        $targetName = $targetAccount->nick->value;
+
+        if (0 === strcasecmp($targetName, $account)) {
+            $this->reply->reply($uid, 'You cannot add yourself to your own no-memo list.');
+
+            return;
+        }
+
+        $this->preferences->addToBlacklist($account, $targetName);
+        $this->reply->reply($uid, sprintf('%s has been added to your no-memo list.', $targetName));
+    }
+
+    /** @param list<string> $args */
+    private function onNoMemosDel(string $uid, string $account, array $args): void
+    {
+        $target = $args[1] ?? '';
+
+        if ('' === $target) {
+            $this->reply->reply($uid, 'Syntax: NOMEMOS DEL <nick>');
+
+            return;
+        }
+
+        $removed = $this->preferences->removeFromBlacklist($account, $target);
+
+        $this->reply->reply($uid, $removed
+            ? sprintf('%s has been removed from your no-memo list.', $target)
+            : sprintf('%s is not on your no-memo list.', $target));
+    }
+
+    private function onNoMemosList(string $uid, string $account): void
+    {
+        $blocked = $this->preferences->listBlacklist($account);
+
+        if ([] === $blocked) {
+            $this->reply->reply($uid, 'Your no-memo list is empty.');
+
+            return;
+        }
+
+        $this->reply->reply($uid, sprintf('No-memo list: %s.', implode(', ', $blocked)));
+    }
+
+    /** @param list<string> $args */
+    private function onSet(string $uid, ?string $account, array $args): void
+    {
+        if (null === $account) {
+            $this->reply->reply($uid, 'You must be identified to change your memo settings.');
+
+            return;
+        }
+
+        if (count($args) < 2 || 0 !== strcasecmp($args[0], 'NOTIFY')) {
+            $this->reply->reply($uid, 'Syntax: SET NOTIFY ON|LOGON|NEW|OFF');
+
+            return;
+        }
+
+        $mode = MemoNotifyMode::fromString($args[1]);
+
+        if (null === $mode) {
+            $this->reply->reply($uid, 'Valid notify modes are: ON, LOGON, NEW, OFF.');
+
+            return;
+        }
+
+        $this->preferences->setNotifyMode($account, $mode);
+        $this->reply->reply($uid, sprintf('Notify mode set to %s.', $mode->value));
     }
 
     /** @param list<string> $args */
@@ -229,5 +386,28 @@ final readonly class MemoServCommandHandler
             explode(' ', $text),
             static fn (string $token): bool => '' !== $token,
         ));
+    }
+
+    private function findAccount(string $nick): ?\Dbots\Domain\Account\Account
+    {
+        try {
+            return $this->accounts->findByNick(new Nick($nick));
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    /** @return list<string> */
+    private function onlineUidsFor(string $account, NetworkState $state): array
+    {
+        $uids = [];
+
+        foreach ($state->users() as $uid => $nick) {
+            if ($state->accountOf($uid) === $account) {
+                $uids[] = $uid;
+            }
+        }
+
+        return $uids;
     }
 }

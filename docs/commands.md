@@ -81,7 +81,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | Command | Status | Notes |
 |---|---|---|
 | `SEND <nick> <text>`, `LIST`, `READ <n>`, `DEL <n>` | done | Memos belong to the account, not the session |
-| `NOMEMOS`, `SET` / `SET NOTIFY` | todo | |
+| `NOMEMOS ADD\|DEL\|LIST <nick>` | done | Blacklist of accounts that cannot send you memos |
+| `SET NOTIFY ON\|LOGON\|NEW\|OFF` | done | When to announce unread memos |
 | `OPERS` / `ADMINS` / `COADMINS` / `PREOPERS` / `USERS` | todo | Memos to a group |
 
 ## OPeR

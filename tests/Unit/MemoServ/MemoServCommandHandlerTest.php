@@ -7,6 +7,7 @@ namespace Dbots\Tests\Unit\MemoServ;
 use DateTimeImmutable;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
+use Dbots\Domain\Memo\MemoNotifyMode;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\NetworkState;
@@ -16,6 +17,7 @@ use Dbots\MemoServ\Application\Help\MemoServHelp;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
+use Dbots\Tests\Support\InMemoryMemoPreferencesRepository;
 use Dbots\Tests\Support\InMemoryMemoRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,24 +26,30 @@ use PHPUnit\Framework\TestCase;
 final class MemoServCommandHandlerTest extends TestCase
 {
     private InMemoryMemoRepository $memos;
+    private InMemoryMemoPreferencesRepository $preferences;
+    private InMemoryAccountRepository $accounts;
     private RecordingIrc $irc;
     private MemoServCommandHandler $handler;
     private NetworkState $state;
 
     protected function setUp(): void
     {
-        $accounts = new InMemoryAccountRepository();
-        $accounts->save(new Account(new Nick('alice'), 'hash', null, new DateTimeImmutable()));
-        $accounts->save(new Account(new Nick('bob'), 'hash', null, new DateTimeImmutable()));
+        $this->accounts = new InMemoryAccountRepository();
+        $this->accounts->save(new Account(new Nick('alice'), 'hash', null, new DateTimeImmutable()));
+        $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new DateTimeImmutable()));
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new DateTimeImmutable()));
 
         $this->memos = new InMemoryMemoRepository();
+        $this->preferences = new InMemoryMemoPreferencesRepository();
         $this->irc = new RecordingIrc();
         $this->handler = new MemoServCommandHandler(
-            new SendMemoHandler($this->memos, $accounts),
+            new SendMemoHandler($this->memos, $this->accounts, $this->preferences),
             new ReadMemoHandler($this->memos),
             new DeleteMemoHandler($this->memos),
             $this->memos,
-            new AccountResolver($accounts),
+            $this->preferences,
+            $this->accounts,
+            new AccountResolver($this->accounts),
             $this->irc,
             'MeMo',
             '003A00003',
@@ -49,8 +57,9 @@ final class MemoServCommandHandlerTest extends TestCase
         );
 
         $this->state = new NetworkState();
-        $this->state->introduceUser('001AAAAAA', 'alice', null, 'r');
-        $this->state->introduceUser('001BBBBBB', 'bob', null, 'r');
+        $this->state->introduceUser('001AAAAAA', 'alice', 'alice', 'r');
+        $this->state->introduceUser('001BBBBBB', 'bob', 'bob', 'r');
+        $this->state->introduceUser('001CCCCCC', 'carol', null, 'iwx');
     }
 
     #[Test]
@@ -58,8 +67,54 @@ final class MemoServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('send bob hello there'), $this->state);
 
-        self::assertSame(['001AAAAAA: Memo sent to bob.'], $this->irc->replies);
+        self::assertSame(['001AAAAAA: Memo sent to bob.'], array_slice($this->irc->replies, 0, 1));
         self::assertSame(1, $this->memos->countUnread('bob'));
+    }
+
+    #[Test]
+    public function itNotifiesAnOnlineRecipientImmediatelyInOnMode(): void
+    {
+        $this->handler->handle($this->privmsg('send bob hello there'), $this->state);
+
+        self::assertCount(2, $this->irc->replies);
+        self::assertStringContainsString('Memo sent to bob.', $this->irc->replies[0]);
+
+        $plain = \Dbots\Irc\Application\Help\IrcFormat::strip($this->irc->replies[1]);
+        self::assertStringContainsString('Tienes un mensaje nuevo de alice', $plain);
+        self::assertStringContainsString('Mensaje número 1', $plain);
+    }
+
+    #[Test]
+    public function itNotifiesAnOnlineRecipientImmediatelyInNewMode(): void
+    {
+        $this->preferences->setNotifyMode('bob', MemoNotifyMode::New);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('send bob hello there'), $this->state);
+
+        self::assertCount(2, $this->irc->replies);
+    }
+
+    #[Test]
+    public function itDoesNotNotifyWhenTheRecipientSetsLogonMode(): void
+    {
+        $this->preferences->setNotifyMode('bob', MemoNotifyMode::Logon);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('send bob hello there'), $this->state);
+
+        self::assertCount(1, $this->irc->replies);
+    }
+
+    #[Test]
+    public function itDoesNotNotifyWhenTheRecipientSetsOffMode(): void
+    {
+        $this->preferences->setNotifyMode('bob', MemoNotifyMode::Off);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('send bob hello there'), $this->state);
+
+        self::assertCount(1, $this->irc->replies);
     }
 
     #[Test]
@@ -74,12 +129,20 @@ final class MemoServCommandHandlerTest extends TestCase
     #[Test]
     public function itRefusesToSendWhenNotIdentified(): void
     {
-        $anonymous = new NetworkState();
-        $anonymous->introduceUser('001CCCCCC', 'carol', null, 'iwx');
-
-        $this->handler->handle($this->privmsg('send bob hi', '001CCCCCC'), $anonymous);
+        $this->handler->handle($this->privmsg('send bob hi', '001CCCCCC'), $this->state);
 
         self::assertSame(['001CCCCCC: You must be identified to send memos.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRefusesToSendWhenBlacklisted(): void
+    {
+        $this->preferences->addToBlacklist('bob', 'alice');
+
+        $this->handler->handle($this->privmsg('send bob hi'), $this->state);
+
+        self::assertSame(['001AAAAAA: bob has you on their no-memo list.'], $this->irc->replies);
+        self::assertSame(0, $this->memos->countUnread('bob'));
     }
 
     #[Test]
@@ -151,6 +214,133 @@ final class MemoServCommandHandlerTest extends TestCase
     public function itIgnoresMessagesForAnotherService(): void
     {
         $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['CHaN'], 'list'), $this->state);
+
+        self::assertSame([], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itAddsAndListsBlacklistEntries(): void
+    {
+        $this->handler->handle($this->privmsg('nomemos add alice', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: alice has been added to your no-memo list.'], $this->irc->replies);
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('nomemos list', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: No-memo list: alice.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRejectsAddingAnUnknownNickToTheBlacklist(): void
+    {
+        $this->handler->handle($this->privmsg('nomemos add nobody', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: nobody is not a registered account.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRejectsAddingYourselfToTheBlacklist(): void
+    {
+        $this->handler->handle($this->privmsg('nomemos add bob', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: You cannot add yourself to your own no-memo list.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRemovesABlacklistEntry(): void
+    {
+        $this->preferences->addToBlacklist('bob', 'alice');
+
+        $this->handler->handle($this->privmsg('nomemos del alice', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: alice has been removed from your no-memo list.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itReportsRemovingANonExistentBlacklistEntry(): void
+    {
+        $this->handler->handle($this->privmsg('nomemos del alice', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: alice is not on your no-memo list.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRequiresIdentificationForNoMemos(): void
+    {
+        $this->handler->handle($this->privmsg('nomemos list', '001CCCCCC'), $this->state);
+
+        self::assertSame(['001CCCCCC: You must be identified to manage your no-memo list.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itSetsTheNotifyMode(): void
+    {
+        $this->handler->handle($this->privmsg('set notify logon', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: Notify mode set to LOGON.'], $this->irc->replies);
+        self::assertSame(MemoNotifyMode::Logon, $this->preferences->getNotifyMode('bob'));
+    }
+
+    #[Test]
+    public function itRejectsAnInvalidNotifyMode(): void
+    {
+        $this->handler->handle($this->privmsg('set notify sometimes', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: Valid notify modes are: ON, LOGON, NEW, OFF.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRequiresIdentificationForSetNotify(): void
+    {
+        $this->handler->handle($this->privmsg('set notify off', '001CCCCCC'), $this->state);
+
+        self::assertSame(['001CCCCCC: You must be identified to change your memo settings.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itAnnouncesPendingMemosAtLoginWhenModeIsOn(): void
+    {
+        $this->handler->handle($this->privmsg('send bob hello'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->notifyPending('001BBBBBB', 'bob');
+
+        self::assertCount(1, $this->irc->replies);
+    }
+
+    #[Test]
+    public function itAnnouncesPendingMemosAtLoginWhenModeIsLogon(): void
+    {
+        $this->preferences->setNotifyMode('bob', MemoNotifyMode::Logon);
+        $this->handler->handle($this->privmsg('send bob hello'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->notifyPending('001BBBBBB', 'bob');
+
+        self::assertCount(1, $this->irc->replies);
+    }
+
+    #[Test]
+    public function itSkipsLoginAnnouncementWhenModeIsNew(): void
+    {
+        $this->preferences->setNotifyMode('bob', MemoNotifyMode::New);
+        $this->handler->handle($this->privmsg('send bob hello'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->notifyPending('001BBBBBB', 'bob');
+
+        self::assertSame([], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itSkipsLoginAnnouncementWhenModeIsOff(): void
+    {
+        $this->preferences->setNotifyMode('bob', MemoNotifyMode::Off);
+        $this->handler->handle($this->privmsg('send bob hello'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->notifyPending('001BBBBBB', 'bob');
 
         self::assertSame([], $this->irc->replies);
     }

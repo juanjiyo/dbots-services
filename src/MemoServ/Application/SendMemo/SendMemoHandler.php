@@ -7,6 +7,7 @@ namespace Dbots\MemoServ\Application\SendMemo;
 use DateTimeImmutable;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Memo\Memo;
+use Dbots\MemoServ\Application\Port\Out\MemoPreferencesRepositoryInterface;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use InvalidArgumentException;
@@ -18,39 +19,46 @@ final readonly class SendMemoHandler
     public function __construct(
         private MemoRepositoryInterface $memos,
         private AccountRepositoryInterface $accounts,
+        private MemoPreferencesRepositoryInterface $preferences,
     ) {
     }
 
     public function __invoke(string $recipient, string $body, ?string $sender): SendMemoResult
     {
         if (null === $sender) {
-            return SendMemoResult::NotIdentified;
+            return SendMemoResult::notIdentified();
         }
 
         $body = trim($body);
 
         if ('' === $body) {
-            return SendMemoResult::EmptyBody;
+            return SendMemoResult::emptyBody();
         }
 
         try {
             $recipientAccount = $this->accounts->findByNick(new Nick($recipient));
         } catch (InvalidArgumentException) {
-            return SendMemoResult::UnknownRecipient;
+            return SendMemoResult::unknownRecipient();
         }
 
         if (null === $recipientAccount) {
-            return SendMemoResult::UnknownRecipient;
+            return SendMemoResult::unknownRecipient();
         }
 
-        $this->memos->save(new Memo(
+        $recipientAccountName = $recipientAccount->nick->value;
+
+        if ($this->preferences->isBlacklisted($recipientAccountName, $sender)) {
+            return SendMemoResult::blocked();
+        }
+
+        $id = $this->memos->save(new Memo(
             null,
-            $recipientAccount->nick->value,
+            $recipientAccountName,
             $sender,
             $body,
             new DateTimeImmutable(),
         ));
 
-        return SendMemoResult::Sent;
+        return SendMemoResult::sent($id);
     }
 }

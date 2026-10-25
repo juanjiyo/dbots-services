@@ -77,6 +77,7 @@ services:
     Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface: '@Dbots\Udb\UdbChannelProjection'
 
     Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoRepository'
+    Dbots\MemoServ\Application\Port\Out\MemoPreferencesRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoPreferencesRepository'
 
     Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository'
     Dbots\OperServ\Application\Port\Out\ElineRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteElineRepository'

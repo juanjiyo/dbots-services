@@ -42,6 +42,7 @@ use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\MemoServ\Application\DeleteMemo\DeleteMemoHandler;
 use Dbots\MemoServ\Application\Help\MemoServHelp;
+use Dbots\MemoServ\Application\Port\Out\MemoPreferencesRepositoryInterface;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
@@ -95,6 +96,7 @@ final readonly class DaemonFactory
         private \Dbots\Staff\Application\Port\Out\StaffRankRepositoryInterface $staffRanks,
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
+        private MemoPreferencesRepositoryInterface $memoPreferences,
         private SpamRuleRepositoryInterface $spamRules,
         private BlockProviderInterface $blocks,
         private string $rootPassword = '',
@@ -180,10 +182,12 @@ final readonly class DaemonFactory
         );
 
         $memoServ = new MemoServCommandHandler(
-            new SendMemoHandler($this->memos, $this->accounts),
+            new SendMemoHandler($this->memos, $this->accounts, $this->memoPreferences),
             new ReadMemoHandler($this->memos),
             new DeleteMemoHandler($this->memos),
             $this->memos,
+            $this->memoPreferences,
+            $this->accounts,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $memoServUid),
             'MemoServ',
