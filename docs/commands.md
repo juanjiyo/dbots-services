@@ -72,7 +72,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `DELACCESS`, `SECUREOPS`… | todo | The rest of the rank model |
 | `SUSPEND <#channel> <reason>`, `UNSUSPEND <#channel>`, `LISTSUSPEND` | done | Oper only; publishes `C::<channel>::suspend`, so the IRCd enforces it |
 | `FORBID <#channel> <reason>`, `UNFORBID`, `LISTFORBID` | done | Oper only; drops the profile and publishes `C::<channel>::forbid` |
-| `LIST <pattern>`, `GETPASS <#channel>`, `BFOUNDER <#channel>` | done | Oper only; `GETPASS` reports the hash instead of the secret |
+| `LIST <pattern>`, `GETPASS <#channel>` | done | Oper only; `GETPASS` reports the hash instead of the secret |
 | `ESPECIAL` | dropped | It drives a pool of eleven entry bots that this daemon does not run |
 | `SET FOUNDER\|SUCCESSOR` | todo | Changing the founder needs a policy decision |
 

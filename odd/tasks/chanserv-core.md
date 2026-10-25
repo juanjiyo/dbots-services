@@ -154,10 +154,12 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   because it is hashed: it answers `La contraseña de <channel> está cifrada y no
   se puede recuperar. Usa SET PASSWORD para cambiarla.` This is a deliberate,
   approved deviation from `ch.mrc`, which prints the password in clear.
-- **S48** — `BFOUNDER <#channel>` is the repair tool: it removes the founder
-  record. Our profile is the source, so it removes the profile (channel, access,
-  akicks, levels) and publishes the record deletion, answering
-  `Borrada la entrada FOUNDER del canal <channel> en el UDB.`
+- **S48** — `BFOUNDER` is **removed**. `ch.mrc` used it to delete only the `F`
+  record, repairing a disagreement between the bot's database and the UDB. We have
+  one source of truth, so a divergence is repaired by reconciliation, and the only
+  thing a faithful port could do is delete a record that the next snapshot would
+  restore. As implemented it had become a founder check bypass — in practice a
+  `DROP` — which is not what the command meant.
 - **S49** — `ESPECIAL` is out of scope: it manages numbered entry bots.
 - **S42** — `FORBID <#channel> <reason>` is oper-only, requires a reason and a `#`
   name, refuses a duplicate, and answers `El canal <channel> ha sido prohibido.`
@@ -221,7 +223,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   `C::<channel>::suspend` record.
 - **T15b** (S42-S45) — **done**. `FORBID`/`UNFORBID`/`LISTFORBID` with the
   `C::<channel>::forbid` record.
-- **T15c** (S46-S49) — **done**. `LIST`, `GETPASS`, `BFOUNDER`.
+- **T15c** (S46, S47, S49) — **done**. `LIST`, `GETPASS`. `BFOUNDER` was
+  implemented and then removed: see S48.
 - **T15d** — `ESPECIAL` is **dropped, not pending**: it manages a pool of
   numbered entry bots (`1..11`) that join a channel on demand, and this daemon
   runs no such bots. Porting the command would mean inventing a registry for
@@ -272,6 +275,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   now exists while empty, so the next visitor's join is a join into an existing
   channel and does send `SJOIN`. Verified live: `JOIN #clavedemo2` now answers with
   the entry message even when nobody was inside.
+- **L27** — `BFOUNDER` came out after the operator noticed it had turned into a
+  `DROP`: the original touched one record and left the rest, while ours removed
+  the whole profile. With one source of truth there is nothing for it to repair.
+  A forced founder removal, if ever needed, belongs in `SET FOUNDER`.
 - **L21** — `ESPECIAL` is the first ch.mrc command we drop on purpose rather than
   defer. It is not a permission or a storage feature: it exists to drive a pool of
   eleven extra client bots that join channels on request, and this daemon has no

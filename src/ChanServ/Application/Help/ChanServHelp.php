@@ -20,7 +20,6 @@ final class ChanServHelp
             new HelpEntry('TOPIC', 'TOPIC <#canal> <texto>', 'Fija el tema que el IRCd mantiene en el canal.', '/msg CHaN TOPIC #miCanal Bienvenidos'),
             new HelpEntry('LIST', 'LIST <patrón>', 'Busca canales registrados por patrón. Solo operadores.', '/msg CHaN LIST #siti*'),
             new HelpEntry('GETPASS', 'GETPASS <#canal>', 'La contraseña está cifrada: el comando lo dice y remite a SET PASSWORD. Solo operadores.', '/msg CHaN GETPASS #miCanal'),
-            new HelpEntry('BFOUNDER', 'BFOUNDER <#canal>', 'Reparación: borra el registro del fundador. Solo operadores.', '/msg CHaN BFOUNDER #miCanal'),
             new HelpEntry('FORBID', 'FORBID <#canal> <motivo>', 'Prohíbe el canal y borra su registro: nadie podrá registrarlo. Solo operadores.', '/msg CHaN FORBID #miCanal spam'),
             new HelpEntry('UNFORBID', 'UNFORBID <#canal>', 'Levanta la prohibición de un canal. Solo operadores.', '/msg CHaN UNFORBID #miCanal'),
             new HelpEntry('LISTFORBID', 'LISTFORBID', 'Lista los canales prohibidos con su motivo. Solo operadores.', '/msg CHaN LISTFORBID'),

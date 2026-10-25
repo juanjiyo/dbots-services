@@ -594,34 +594,15 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
-    public function bfounderRemovesTheProfileAndTheRecord(): void
-    {
-        $this->channels->seed('#Test', 'alice');
-        $state = new NetworkState();
-        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
-
-        $this->handler->handle($this->privmsg('bfounder #test', '001OOOOOO'), $state);
-        $this->handler->handle($this->privmsg('bfounder #fantasma', '001OOOOOO'), $state);
-
-        self::assertSame([
-            '001OOOOOO: Borrada la entrada FOUNDER del canal #test en el UDB.',
-            '001OOOOOO: No hay founder para el canal #fantasma en el UDB.',
-        ], $this->irc->replies);
-        self::assertNull($this->channels->find(new ChannelName('#test')));
-        self::assertSame(['#test'], $this->projection->founderRemoved);
-    }
-
-    #[Test]
     public function theOperOnlyReadsRefuseAFounder(): void
     {
         $this->channels->seed('#Test', 'alice');
 
         $this->handler->handle($this->privmsg('list #te*'), $this->state);
         $this->handler->handle($this->privmsg('getpass #test'), $this->state);
-        $this->handler->handle($this->privmsg('bfounder #test'), $this->state);
 
         self::assertSame(
-            ['001AAAAAA: Permiso denegado.', '001AAAAAA: Permiso denegado.', '001AAAAAA: Permiso denegado.'],
+            ['001AAAAAA: Permiso denegado.', '001AAAAAA: Permiso denegado.'],
             $this->irc->replies,
         );
     }

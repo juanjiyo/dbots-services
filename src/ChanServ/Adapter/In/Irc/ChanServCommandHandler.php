@@ -123,7 +123,6 @@ final class ChanServCommandHandler
             'LISTFORBID' => $this->onListForbid($sender, $account, $state),
             'LIST' => $this->onList($sender, $account, $parts, $state),
             'GETPASS' => $this->onGetpass($sender, $account, $parts, $state),
-            'BFOUNDER' => $this->onBfounder($sender, $account, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -1095,45 +1094,6 @@ final class ChanServCommandHandler
             'La contraseña de %s está cifrada y no se puede recuperar. Usa SET PASSWORD para cambiarla.',
             $registered->name->value,
         ));
-    }
-
-    /** @param list<string> $args */
-    private function onBfounder(string $uid, ?string $account, array $args, NetworkState $state): void
-    {
-        $channel = (string) ($args[0] ?? '');
-
-        if ('' === $channel) {
-            $this->reply->reply($uid, 'Error de Sintaxis: BFOUNDER <canal>');
-
-            return;
-        }
-
-        if (!$this->isOper($uid, $account, $state)) {
-            $this->reply->reply($uid, 'Permiso denegado.');
-
-            return;
-        }
-
-        try {
-            $registered = $this->channels->find(new ChannelName($channel));
-        } catch (InvalidArgumentException) {
-            $registered = null;
-        }
-
-        if (null === $registered) {
-            $this->reply->reply($uid, sprintf('No hay founder para el canal %s en el UDB.', $channel));
-
-            return;
-        }
-
-        // Our profile is the source, so removing the founder means removing it.
-        $this->channels->delete($registered->name);
-        $this->access->removeAll($registered->name->value);
-        $this->akicks->removeAll($registered->name->value);
-        $this->levels->forget($registered->name);
-        $this->projection->publishFounderRemoved($registered->name->value);
-
-        $this->reply->reply($uid, sprintf('Borrada la entrada FOUNDER del canal %s en el UDB.', $registered->name->value));
     }
 
     /** `SET <#channel> <OPTION> ON|OFF`, the switches the reactor will honour. */

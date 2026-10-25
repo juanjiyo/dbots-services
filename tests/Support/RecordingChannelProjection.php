@@ -23,9 +23,6 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     /** @var list<string> */
     public array $forbids = [];
 
-    /** @var list<string> */
-    public array $founderRemoved = [];
-
     public function publishRegistered(string $channel): void
     {
         $this->registered[] = $channel;
@@ -51,8 +48,4 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
         $this->forbids[] = null === $reason ? $channel.' off' : $channel.' on';
     }
 
-    public function publishFounderRemoved(string $channel): void
-    {
-        $this->founderRemoved[] = $channel;
-    }
 }

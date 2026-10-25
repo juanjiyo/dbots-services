@@ -9,7 +9,7 @@ All notable changes to this project are documented here. The format follows
 ### Added
 
 - CHaN: `LEVELS`, `SET`, `ACCESS` with levels, rank commands, `CLEAR`, `AKICK`,
-  `SUSPEND`, `FORBID`, `LIST`, `GETPASS` and `BFOUNDER`.
+  `SUSPEND`, `FORBID`, `LIST` and `GETPASS`.
 - CHaN: the join reactor — entry message, akick ban and kick, `NOJOIN` threshold
   and the rank the level table grants.
 - HeLP: the global help service, with `AYUDA`, `UMODES`, `CMODES`, `BOTS`, `NICK`,
