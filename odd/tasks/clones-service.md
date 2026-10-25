@@ -27,15 +27,15 @@ with a built-in dbots service named `CLoNeS`, introduced like `CHaN` or `OPeR`.
 
 ## Tasks
 
-- **T1** (S1, S2) — Introduce `CLoNeS` as a service and wire it into the daemon,
+- [x] **T1** (S1, S2) — Introduce `CLoNeS` as a service and wire it into the daemon,
   factory, and help catalog.
-- **T2** (S10) — `ClonesExceptionRepositoryInterface` and SQLite implementation.
-- **T3** (S3-S9) — `ClonesServCommandHandler` with command parsing and replies in
+- [x] **T2** (S10) — `ClonesExceptionRepositoryInterface` and SQLite implementation.
+- [x] **T3** (S3-S9) — `ClonesServCommandHandler` with command parsing and replies in
   Spanish, matching the Python bot wording.
-- **T4** (S10) — `InspircdClonesWriter` that renders `<connect>` blocks and
+- [x] **T4** (S10) — `InspircdClonesWriter` that renders `<connect>` blocks and
   triggers `SIGHUP`/REHASH.
-- **T5** (S11) — Periodic cleanup of expired exceptions.
-- **T6** — Unit tests and live verification against InspIRCd.
+- [x] **T5** (S11) — Periodic cleanup of expired exceptions.
+- [x] **T6** — Unit tests and live verification against InspIRCd.
 
 ## Log
 

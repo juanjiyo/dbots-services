@@ -158,6 +158,21 @@ Root, since nobody holds a rank on a fresh install.
 | `KILL`, `GLINE`, `CLONES` | not here | They live in OPeR; two doors to one action is a bug factory |
 | `RAW`, `RESTART`, `MODULO` (mIRC side), `TABLA`, `BOT`, `UPDATE`, `OPTIMIZA`… | dropped | They drove the mIRC script loader, the bot's ini database or its process |
 
+## CLoNeS
+
+Clone exception manager. Requires a CeNTeR rank of **Administrador** because
+every mutation rewrites the InspIRCd `<connect>` include and signals the IRCd.
+
+| Command | Status | Notes |
+|---|---|---|
+| `PERM <IP\|host> <N>` | done | Permanent `<connect>` exception with `localmax="N" globalmax="N"` |
+| `ADD <IP\|host> <N> <duration>` | done | Temporary exception; duration is `30d`, `6m` or `1y` |
+| `RENEW <IP\|host> <duration>` | done | Updates expiration, keeps `N` |
+| `EDIT <IP\|host> <N> <duration>` | done | Changes `N` and expiration |
+| `DEL <IP\|host>` | done | Removes the exception |
+| `INFO [IP\|host]` | done | Without argument, shows the host linked to the caller's nick |
+| `LIST` | done | Lists active permanent and temporary exceptions |
+
 ## Modules
 
 A bot that is not a network service lives in `modules/<Name>/` with a
