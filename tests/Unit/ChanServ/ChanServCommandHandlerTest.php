@@ -56,17 +56,16 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
-    public function itRegistersAChannelForAnIdentifiedUser(): void
+    public function registrationIsRequestedThroughCRegNotChanServ(): void
     {
         $this->handler->handle($this->privmsg('register #SitioChat'), $this->state);
 
-        self::assertNotNull($this->channels->find(new \Dbots\Domain\Channel\ChannelName('#sitiochat')));
-        self::assertSame(['#SitioChat'], $this->projection->registered);
-        self::assertSame(['001AAAAAA: #SitioChat is now registered to you.'], $this->irc->replies);
+        self::assertNull($this->channels->find(new \Dbots\Domain\Channel\ChannelName('#sitiochat')));
+        self::assertStringContainsString('CReG', $this->irc->replies[0]);
     }
 
     #[Test]
-    public function itRefusesWhenTheSenderIsNotIdentified(): void
+    public function anAnonymousSenderIsSentToCRegToo(): void
     {
         $state = new NetworkState();
         $state->introduceUser('001BBBBBB', 'bob');
@@ -74,27 +73,21 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('register #Test', '001BBBBBB'), $state);
 
         self::assertSame([], $this->channels->all());
-        self::assertSame(['001BBBBBB: You must be identified to register a channel.'], $this->irc->replies);
+        self::assertStringContainsString('CReG', $this->irc->replies[0]);
     }
 
     #[Test]
-    public function itRejectsADuplicateChannel(): void
+    public function registeringTwiceStillPointsAtCReg(): void
     {
         $this->channels->seed('#Test', 'alice');
 
         $this->handler->handle($this->privmsg('register #test'), $this->state);
 
-        self::assertSame(['001AAAAAA: #test is already registered.'], $this->irc->replies);
+        self::assertStringContainsString('CReG', $this->irc->replies[0]);
         self::assertSame([], $this->projection->registered);
     }
 
-    #[Test]
-    public function itRejectsAnInvalidChannelName(): void
-    {
-        $this->handler->handle($this->privmsg('register notachannel'), $this->state);
 
-        self::assertSame(['001AAAAAA: That channel name cannot be registered.'], $this->irc->replies);
-    }
 
     #[Test]
     public function theFounderCanDropTheirChannel(): void

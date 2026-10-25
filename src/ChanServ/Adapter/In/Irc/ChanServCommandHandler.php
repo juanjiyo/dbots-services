@@ -75,7 +75,7 @@ final readonly class ChanServCommandHandler
         $account = $this->accounts->resolve($sender, $state);
 
         match ($command) {
-            'REGISTER', 'REGISTRA' => $this->onRegister($sender, $account, $parts),
+            'REGISTER', 'REGISTRA' => $this->reply->reply($sender, 'El registro de canales se solicita a CReG: /msg CReG REGISTRA <#canal>'),
             'DROP' => $this->onDrop($sender, $account, $parts),
             'INFO' => $this->onInfo($sender, $parts),
             'ACCESS' => $this->onAccess($sender, $account, $parts),

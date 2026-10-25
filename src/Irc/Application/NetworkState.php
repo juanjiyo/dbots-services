@@ -31,6 +31,9 @@ final class NetworkState
     /** @var array<string, string> sid => server name */
     private array $servers = [];
 
+    /** @var array<string, array<string, string>> channel => uid => member modes */
+    private array $channels = [];
+
     public function introduceUser(string $uid, string $nick, ?string $account = null, string $modes = '', ?string $host = null): void
     {
         $this->nicks[$uid] = $nick;
@@ -148,6 +151,37 @@ final class NetworkState
         return $this->servers[$sid] ?? null;
     }
 
+    /** @param list<string> $uids members to add with the given prefix modes */
+    public function joinChannel(string $channel, array $uids, string $modes = ''): void
+    {
+        foreach ($uids as $uid) {
+            $this->channels[$channel][$uid] = $modes;
+        }
+    }
+
+    public function partChannel(string $channel, string $uid): void
+    {
+        unset($this->channels[$channel][$uid]);
+    }
+
+    /** True when the user is in the channel with operator status (+o or higher). */
+    public function isChannelOperator(string $channel, string $uid): bool
+    {
+        $modes = $this->channels[$channel][$uid] ?? null;
+
+        if (null === $modes) {
+            return false;
+        }
+
+        foreach (['q', 'a', 'o'] as $rank) {
+            if (str_contains($modes, $rank)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isServer(string $id): bool
     {
         return isset($this->servers[$id]);
@@ -194,6 +228,7 @@ final class NetworkState
         $this->modes = [];
         $this->hosts = [];
         $this->servers = [];
+        $this->channels = [];
     }
 
     /** Unused today; kept so callers can normalise account names once they exist. */

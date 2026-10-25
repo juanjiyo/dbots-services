@@ -13,6 +13,7 @@ use Dbots\Irc\Application\DebugEvents;
 use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
+use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
@@ -23,6 +24,7 @@ use function strpos;
 use function strtoupper;
 use function substr;
 use function preg_match;
+use function explode;
 use function sprintf;
 use function str_contains;
 
@@ -41,6 +43,7 @@ final readonly class Daemon
         private ChanServCommandHandler $chanServ,
         private MemoServCommandHandler $memoServ,
         private OperServCommandHandler $operServ,
+        private CRegServCommandHandler $cregServ,
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
@@ -79,6 +82,7 @@ final readonly class Daemon
             ['ChanServ', sprintf('%sA00002', $this->sid), 'Channel Registration Services'],
             ['MemoServ', sprintf('%sA00003', $this->sid), 'Memo Services'],
             ['OperServ', sprintf('%sA00004', $this->sid), 'Network Operations Services'],
+            ['CReG', sprintf('%sA00006', $this->sid), 'Channel Registration Requests'],
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
@@ -103,6 +107,73 @@ final readonly class Daemon
 
         if (null !== $handshake->remoteSid() && null !== $handshake->remoteName()) {
             $this->state->registerServer($handshake->remoteSid(), $handshake->remoteName());
+        }
+    }
+
+    /** Bulk join during the burst: `:SID SJOIN <ts> <channel> <modes> :<members>`. */
+    private function onSjoin(IrcMessage $message): void
+    {
+        $channel = $message->params[1] ?? null;
+
+        if (null === $channel) {
+            return;
+        }
+
+        $members = [];
+        $modes = '';
+
+        foreach (explode(' ', (string) ($message->trailing ?? '')) as $token) {
+            if ('' === $token) {
+                continue;
+            }
+
+            $rank = '';
+
+            while ('' !== $token && str_contains('+%@&~', $token[0])) {
+                $rank .= match ($token[0]) {
+                    '~' => 'q',
+                    '&' => 'a',
+                    '@' => 'o',
+                    '%' => 'h',
+                    '+' => 'v',
+                    default => '',
+                };
+                $token = substr($token, 1);
+            }
+
+            $members[] = $token;
+            $modes = $rank;
+            $this->state->joinChannel($channel, [$token], $rank);
+        }
+    }
+
+    private function onJoin(IrcMessage $message): void
+    {
+        $channel = $message->params[0] ?? null;
+        $uid = $message->source();
+
+        if (null !== $channel && null !== $uid) {
+            $this->state->joinChannel($channel, [$uid]);
+        }
+    }
+
+    private function onPart(IrcMessage $message): void
+    {
+        $channel = $message->params[0] ?? null;
+        $uid = $message->source();
+
+        if (null !== $channel && null !== $uid) {
+            $this->state->partChannel($channel, $uid);
+        }
+    }
+
+    private function onKick(IrcMessage $message): void
+    {
+        $channel = $message->params[0] ?? null;
+        $victim = $message->params[1] ?? null;
+
+        if (null !== $channel && null !== $victim) {
+            $this->state->partChannel($channel, $victim);
         }
     }
 
@@ -157,6 +228,10 @@ final readonly class Daemon
             'UMODE2' => $this->state->applyModeChange($this->resolveUid($message->source()), $message->params[0] ?? ''),
             'MODE' => $this->onMode($message),
             'SERVER' => $this->onServer($message),
+            'SJOIN' => $this->onSjoin($message),
+            'JOIN' => $this->onJoin($message),
+            'PART' => $this->onPart($message),
+            'KICK' => $this->onKick($message),
             default => null,
         };
 
@@ -286,6 +361,7 @@ final readonly class Daemon
         $this->chanServ->handle($message, $this->state);
         $this->memoServ->handle($message, $this->state);
         $this->operServ->handle($message, $this->state);
+        $this->cregServ->handle($message, $this->state);
 
 
     }

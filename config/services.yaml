@@ -65,6 +65,8 @@ services:
 
     Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository'
 
+    Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface: '@Dbots\CRegServ\Adapter\Out\Persistence\SqliteChannelRequestRepository'
+
     # --- UDB ------------------------------------------------------------------
 
     # One six-block view assembled from the services that own each block.

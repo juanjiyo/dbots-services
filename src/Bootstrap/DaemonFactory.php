@@ -10,9 +10,16 @@ use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\Help\ChanServHelp;
+use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
+use Dbots\CRegServ\Application\Approve\ApproveHandler;
+use Dbots\CRegServ\Application\Cancel\CancelHandler;
+use Dbots\CRegServ\Application\Deny\DenyHandler;
+use Dbots\CRegServ\Application\Help\CRegServHelp;
+use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
+use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\Domain\Link\ServerLink;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
@@ -66,6 +73,7 @@ final readonly class DaemonFactory
         private AccountRepositoryInterface $accounts,
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $channelAccess,
+        private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private SpamRuleRepositoryInterface $spamRules,
         private BlockProviderInterface $blocks,
@@ -146,6 +154,21 @@ final readonly class DaemonFactory
             MemoServHelp::create(),
         );
 
+        $cregServ = new CRegServCommandHandler(
+            new RequestRegistrationHandler($this->channelRequests, $this->channels),
+            new ApproveHandler($this->channelRequests, $this->channels, $channelProjection),
+            new DenyHandler($this->channelRequests),
+            new CancelHandler($this->channelRequests),
+            $this->channelRequests,
+            $this->channels,
+            $channelProjection,
+            new AccountResolver($this->accounts),
+            new IrcReplySender($this->transport, sprintf('%sA00006', $sid)),
+            'CReG',
+            sprintf('%sA00006', $sid),
+            CRegServHelp::create(),
+        );
+
         $operServ = new OperServCommandHandler(
             new S2sEnforcement($this->transport, $sid),
             $this->accounts,
@@ -172,6 +195,7 @@ final readonly class DaemonFactory
             $chanServ,
             $memoServ,
             $operServ,
+            $cregServ,
             new ServiceUidFormatter($sid),
             $sid,
             $host,

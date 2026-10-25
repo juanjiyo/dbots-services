@@ -43,9 +43,11 @@ the original; **todo** is not implemented.
 
 ## ChanServ
 
-Note: in the original, **channel registration belongs to CReG, not ChanServ**.
-`ch.mrc` has no `REGISTRA`; `cr.mrc` does. dbots currently registers channels
-through ChanServ, which is a known deviation to correct when CReG is ported.
+Channel registration belongs to **CReG**, not ChanServ: `ch.mrc` has no
+`REGISTRA`, `cr.mrc` does. ChanServ points at CReG instead, and CReG keeps the
+approval flow — you request, staff approve. The original *supports* stage
+(`APOYA`/`APOYOS`) was dropped by request, so a request goes straight from
+`REGISTRA` to `PENDIENTE`.
 
 | Command | Status | Notes |
 |---|---|---|
@@ -80,7 +82,7 @@ through ChanServ, which is a known deviation to correct when CReG is ported.
 
 | Bot | Command surface |
 |---|---|
-| **CReG** (`cr.mrc`) | `REGISTRA`, `ACEPTA`, `DENIEGA`, `CANCELA`, `LIBERA`, `LISTA`, `INFO`, `ESTADO`, `RESET`, `MARCA`, `OFICIAL`, `COMERCIAL`, `ADMIN`, `OP` — channel registration with operator approval |
+| **CReG** (`cr.mrc`) | **Implemented**: `REGISTRA`, `ESTADO`, `CANCELA`, `LISTA`, `INFO`, `ACEPTA`, `DENIEGA`, `LIBERA`, `MARCA`, `ADMIN`, `OFICIAL`, `COMERCIAL`, `AYUDA` |
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
 | **GlobalServ** (`gl.mrc`) | `GLOBAL`, network-wide announcements |
 | **HelpServ** (`he.mrc`) | `BOT`, `CANAL`, `CMODES`, `UMODES`, credits |
