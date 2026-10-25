@@ -118,4 +118,14 @@ final readonly class S2sEnforcement implements EnforcementInterface
             $this->sid,
         ));
     }
+
+    public function reserveNick(string $nick, string $reason): void
+    {
+        $this->transport->writeLine(sprintf(
+            ':%s SQLINE %s :%s',
+            $this->sid,
+            $nick,
+            $reason,
+        ));
+    }
 }

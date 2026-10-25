@@ -229,10 +229,13 @@ final readonly class DaemonFactory
 
         $centerServUid = sprintf('%sA00008', $sid);
 
+        $enforcement = new S2sEnforcement($this->transport, $sid);
+
         $moduleRuntime = new ModuleRuntime(
             $this->modules,
             $this->transport,
             new ServiceUidFormatter($sid),
+            $enforcement,
             $sid,
             $host,
             $this->debugChannel,
@@ -252,7 +255,7 @@ final readonly class DaemonFactory
         );
 
         $operServ = new OperServCommandHandler(
-            new S2sEnforcement($this->transport, $sid),
+            $enforcement,
             $this->accounts,
             $accountProjection,
             $this->channels,
@@ -295,6 +298,7 @@ final readonly class DaemonFactory
             $centerServ,
             $clonesServ,
             new ServiceUidFormatter($sid),
+            $enforcement,
             $sid,
             $host,
             $moduleRuntime,

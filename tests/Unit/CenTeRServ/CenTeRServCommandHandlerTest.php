@@ -20,6 +20,7 @@ use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryModuleStateRepository;
 use Dbots\Tests\Support\InMemoryStaffRankRepository;
+use Dbots\Tests\Support\RecordingEnforcement;
 use Dbots\Tests\Support\RecordingIrc;
 use Dbots\Tests\Support\RecordingTransport;
 use PHPUnit\Framework\Attributes\Test;
@@ -32,6 +33,7 @@ final class CenTeRServCommandHandlerTest extends TestCase
     private InMemoryModuleStateRepository $moduleState;
     private RecordingIrc $irc;
     private RecordingTransport $transport;
+    private RecordingEnforcement $enforcement;
     private CenTeRServCommandHandler $handler;
     private NetworkState $state;
 
@@ -46,12 +48,14 @@ final class CenTeRServCommandHandlerTest extends TestCase
         $this->moduleState = new InMemoryModuleStateRepository();
         $this->irc = new RecordingIrc();
         $this->transport = new RecordingTransport();
+        $this->enforcement = new RecordingEnforcement();
 
         $registry = new ModuleRegistry($this->moduleState, __DIR__.'/../../../modules');
         $modules = new ModuleRuntime(
             $registry,
             $this->transport,
             new ServiceUidFormatter('003'),
+            $this->enforcement,
             '003',
             'bots.sitiochat.es',
             '#debug',

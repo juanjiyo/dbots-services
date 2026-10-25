@@ -23,6 +23,7 @@ use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
+use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\Udb\UdbAuthority;
 use Throwable;
 
@@ -57,6 +58,7 @@ final readonly class Daemon
         private CenTeRServCommandHandler $centerServ,
         private ClonesServCommandHandler $clonesServ,
         private ServiceUidFormatter $uidFormatter,
+        private EnforcementInterface $enforcement,
         private string $sid,
         private string $serviceHost,
         private ModuleRuntime $modules,
@@ -126,6 +128,8 @@ final readonly class Daemon
                 ident: $nick,
                 host: $this->serviceHost,
             ));
+
+            $this->enforcement->reserveNick($nick, 'Reservado para Servicios');
         }
 
         $this->modules->introduceAll();

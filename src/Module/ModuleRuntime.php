@@ -6,6 +6,7 @@ namespace Dbots\Module;
 
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
+use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use RuntimeException;
 use Throwable;
 
@@ -24,6 +25,8 @@ use function sprintf;
  */
 final class ModuleRuntime
 {
+    private const RESERVATION_REASON = 'Reservado para Servicios';
+
     /** @var array<string, array{module: ModuleInterface, uid: string}> */
     private array $loaded = [];
 
@@ -33,6 +36,7 @@ final class ModuleRuntime
         private ModuleRegistry $registry,
         private LinkTransportInterface $transport,
         private ServiceUidFormatter $uidFormatter,
+        private EnforcementInterface $enforcement,
         private string $sid,
         private string $serviceHost,
         private string $debugChannel,
@@ -187,6 +191,8 @@ final class ModuleRuntime
             $entry['module']->nick(),
             $this->serviceHost,
         ));
+
+        $this->enforcement->reserveNick($entry['module']->nick(), self::RESERVATION_REASON);
     }
 
     /** @param array{module: ModuleInterface, uid: string} $entry */

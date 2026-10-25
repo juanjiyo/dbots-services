@@ -13,6 +13,7 @@ use Dbots\Module\ModuleLifecycleInterface;
 use Dbots\Module\ModuleRegistry;
 use Dbots\Module\ModuleRuntime;
 use Dbots\Tests\Support\InMemoryModuleStateRepository;
+use Dbots\Tests\Support\RecordingEnforcement;
 use Dbots\Tests\Support\RecordingTransport;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -78,6 +79,7 @@ final class ModuleRuntimeTest extends TestCase
     private string $directory;
     private InMemoryModuleStateRepository $state;
     private RecordingTransport $transport;
+    private RecordingEnforcement $enforcement;
     private ModuleRuntime $runtime;
 
     protected function setUp(): void
@@ -100,12 +102,14 @@ final class ModuleRuntimeTest extends TestCase
 
         $this->state = new InMemoryModuleStateRepository();
         $this->transport = new RecordingTransport();
+        $this->enforcement = new RecordingEnforcement();
 
         $registry = new ModuleRegistry($this->state, $this->directory);
         $this->runtime = new ModuleRuntime(
             $registry,
             $this->transport,
             new ServiceUidFormatter('003'),
+            $this->enforcement,
             '003',
             'bots.sitiochat.es',
             '#debug',
@@ -130,6 +134,7 @@ final class ModuleRuntimeTest extends TestCase
         self::assertStringContainsString('UID Fake 0 ', implode("\n", $this->transport->written));
         self::assertStringContainsString('UID Life 0 ', implode("\n", $this->transport->written));
         self::assertStringContainsString('JOIN #debug', implode("\n", $this->transport->written));
+        self::assertSame(['Fake|Reservado para Servicios', 'Life|Reservado para Servicios'], $this->enforcement->reservedNicks);
     }
 
     #[Test]

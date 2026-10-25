@@ -43,4 +43,11 @@ interface EnforcementInterface
 
     /** Removes an E-Line exception. */
     public function uneline(string $userMask, string $hostMask): void;
+
+    /**
+     * Reserves a nickname at the IRCd level so regular users cannot use it.
+     *
+     * UnrealIRCd: `:<sid> SQLINE <nick> :<reason>`.
+     */
+    public function reserveNick(string $nick, string $reason): void;
 }
