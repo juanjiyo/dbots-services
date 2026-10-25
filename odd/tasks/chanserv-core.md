@@ -70,6 +70,21 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 - **S15** — Settings live in SQLite only. UDB 4 has no record for them: a channel
   key is native `+k` inside `C::<channel>::modes`, so nothing is published for
   these fields.
+- **S16** — The level table is the SitioChat reference table decided on
+  2026-10-25: the ChatHispano values, plus `AUTOHALFOP 200` and
+  `HALFOPDEHALFOP 200`, and no `KICK`.
+- **S17** — Thresholds run from -1 (never) to 500 (founder or IRCop). There is no
+  `DIS` sentinel: the reference expresses "disabled" as 500.
+- **S18** — `LEVELS <#channel> LIST` prints every key with its current value.
+- **S19** — `LEVELS <#channel> SET <key> <level>` changes one threshold;
+  `RESET` returns every key to its reference default. An unknown key answers
+  `Opción <key> desconocida.`, a value outside -1..500 answers
+  `El Nivel debe de estar entre -1 y 500.`
+- **S20** — Only a founder-level user changes the table: the reference sets the
+  `SET` key itself to 500, and the handler answers
+  `Solo el fundador puede hacer eso.` otherwise.
+- **S21** — `KICK` is dropped from the equation, by explicit decision: the
+  reference has no `KICK` key and the network kicks with native `+o`.
 
 ## Tasks (this stage)
 
@@ -79,9 +94,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 
 ## Remaining ch.mrc work (specs not written yet)
 
-- **T11** — `LEVELS` and the per-command level table (`acc`, `akick`, `autoop`,
-  `autodeop`, `autohalfop`, `autovoice`, `clear`, `halfopdehalfop`, `invite`,
-  `kick`, `memo`, `nojoin`, `opdeop`, `set`, `unban`, `voicedevoice`).
+- **T11** (S16-S21) — **done**. `ChannelLevel` enum with the reference defaults,
+  `SqliteChannelLevelRepository`, `LEVELS LIST|SET|RESET`.
 - **T12** — `ACCESS` with levels, `DELACCESS`.
 - **T13** — `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`, `KICK`, `INVITE`,
   `UNBAN`, `CLEAR`.
@@ -108,6 +122,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L13** — Adopted the reference table as option B minus `KICK`: ChatHispano's
+  values plus `AUTOHALFOP` and `HALFOPDEHALFOP`, because SitioChat's PREFIX has
+  `h` and a halfop with no level would be ungoverned. `KICK` is gone from both
+  the table and the command surface.
 - **L12** — The entry message now greets on join, replacing `<nick>` as
   `chanserv.c.r` does. Two bugs surfaced on the way. `onJoin`/`onPart` read
   `params[0]`, but `JOIN :#channel` carries the channel in the trailing part, so

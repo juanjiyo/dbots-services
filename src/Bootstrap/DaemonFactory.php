@@ -19,6 +19,7 @@ use Dbots\CRegServ\Application\Help\CRegServHelp;
 use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
 use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
@@ -74,6 +75,7 @@ final readonly class DaemonFactory
         private AccountRepositoryInterface $accounts,
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $channelAccess,
+        private ChannelLevelRepositoryInterface $channelLevels,
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private SpamRuleRepositoryInterface $spamRules,
@@ -134,6 +136,7 @@ final readonly class DaemonFactory
             new DropChannelHandler($this->channels, $this->channelAccess),
             $this->channels,
             $this->channelAccess,
+            $this->channelLevels,
             $channelProjection,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $chanServUid),

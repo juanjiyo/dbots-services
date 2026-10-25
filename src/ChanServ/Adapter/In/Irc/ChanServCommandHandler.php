@@ -7,11 +7,13 @@ namespace Dbots\ChanServ\Adapter\In\Irc;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelResult;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
 use Dbots\Domain\Channel\Channel;
+use Dbots\Domain\Channel\ChannelLevel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Channel\ChannelSetting;
 use Dbots\Irc\Adapter\In\IrcMessage;
@@ -27,6 +29,8 @@ use function array_values;
 use function explode;
 use function array_slice;
 use function implode;
+use function in_array;
+use function preg_match;
 use function sprintf;
 use function strcasecmp;
 use function str_replace;
@@ -41,6 +45,7 @@ final class ChanServCommandHandler
         private DropChannelHandler $drop,
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $access,
+        private ChannelLevelRepositoryInterface $levels,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
         private ReplyInterface $reply,
@@ -85,6 +90,7 @@ final class ChanServCommandHandler
             'ACCESS' => $this->onAccess($sender, $account, $parts),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
             'SET' => $this->onSet($sender, $account, $parts),
+            'LEVELS' => $this->onLevels($sender, $account, $parts),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -307,6 +313,90 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, $removed
             ? sprintf('%s no longer has access to %s.', $nick, $channel->name->value)
             : sprintf('%s is not on the access list of %s.', $nick, $channel->name->value));
+    }
+
+    /**
+     * `LEVELS <#channel> LIST|SET|RESET`, the per-channel threshold table.
+     *
+     * @param list<string> $args
+     */
+    private function onLevels(string $uid, ?string $account, array $args): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $action = strtoupper((string) ($args[1] ?? ''));
+
+        if ('' === $channel || !in_array($action, ['LIST', 'SET', 'RESET'], true)) {
+            $this->reply->reply($uid, 'Error de Sintaxis: LEVELS <canal> {LIST|SET|RESET} <clave> <nivel>');
+
+            return;
+        }
+
+        $registered = $this->ownedChannel($uid, $account, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        match ($action) {
+            'LIST' => $this->listLevels($uid, $registered->name),
+            'SET' => $this->setLevel(
+                $uid,
+                $registered->name,
+                strtoupper((string) ($args[2] ?? '')),
+                (string) ($args[3] ?? ''),
+            ),
+            'RESET' => $this->resetLevels($uid, $registered->name),
+        };
+    }
+
+    private function listLevels(string $uid, ChannelName $channel): void
+    {
+        $this->reply->reply($uid, sprintf('Configuración de niveles de acceso para el canal %s:', $channel->value));
+
+        foreach ($this->levels->levelsFor($channel) as $name => $threshold) {
+            $this->reply->reply($uid, sprintf('    %-18s %d', $name, $threshold));
+        }
+
+        $this->reply->reply($uid, 'Fin de la configuración.');
+    }
+
+    private function setLevel(string $uid, ChannelName $channel, string $name, string $value): void
+    {
+        $level = ChannelLevel::fromName($name);
+
+        if (null === $level) {
+            $this->reply->reply($uid, sprintf('Opción %s desconocida.', $name));
+
+            return;
+        }
+
+        if (1 !== preg_match('/^-?\d+$/', $value)) {
+            $this->reply->reply($uid, 'Error de Sintaxis: LEVELS <canal> SET <clave> <nivel>');
+
+            return;
+        }
+
+        $threshold = (int) $value;
+
+        if ($threshold < -1 || $threshold > 500) {
+            $this->reply->reply($uid, 'El Nivel debe de estar entre -1 y 500.');
+
+            return;
+        }
+
+        $this->levels->set($channel, $level, $threshold);
+        $this->reply->reply($uid, sprintf(
+            'El nivel para %s en canal %s cambiado a %d.',
+            $level->value,
+            $channel->value,
+            $threshold,
+        ));
+    }
+
+    private function resetLevels(string $uid, ChannelName $channel): void
+    {
+        $this->levels->reset($channel);
+        $this->reply->reply($uid, sprintf('Niveles de acceso de %s configurados a niveles originales.', $channel->value));
     }
 
     /**

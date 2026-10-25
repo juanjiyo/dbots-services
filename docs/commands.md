@@ -56,6 +56,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `INFO <#channel>`, `DROP <#channel>` | done | Founder only for `DROP` |
 | `ACCESS LIST\|ADD\|DEL <#channel> [nick]` | done | UDB `C::<channel>::access::<nick>` |
 | `TOPIC <#channel> <text>` | done | UDB `C::<channel>::topic` |
+| `LEVELS <#channel> LIST\|SET\|RESET [key] [level]` | done | Thresholds -1..500 per command; 500 is founder or IRCop. Only a founder-level user changes it |
 | `SET <#channel> DESC\|URL\|EMAIL\|ENTRYMSG [value]` | done | Services-only settings; the entry message greets on join with `<nick>` replaced |
 | `SET <#channel> PASSWORD <password>` | done | Hashed; `IDENTIFY` accepts only the new one |
 | `OP` / `DEOP` / `HALFOP` / `DEHALFOP` / `VOICE` / `DEVOICE`, `KICK`, `INVITE`, `UNBAN`, `CLEAR` | todo | Channel-level actions for the founder |

@@ -17,6 +17,7 @@ use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
 use Dbots\Tests\Support\RecordingChannelProjection;
+use Dbots\Tests\Support\InMemoryChannelLevelRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use Dbots\ChanServ\Application\Help\ChanServHelp;
@@ -44,6 +45,7 @@ final class ChanServCommandHandlerTest extends TestCase
             new DropChannelHandler($this->channels, new InMemoryChannelAccessRepository()),
             $this->channels,
             new InMemoryChannelAccessRepository(),
+            new InMemoryChannelLevelRepository(),
             $this->projection,
             new AccountResolver($this->accounts),
             $this->irc,
@@ -280,6 +282,76 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->handler->announceEntry('001AAAAAA', '#sinRegistrar', $this->state);
 
         self::assertSame([], $this->irc->replies);
+    }
+
+    #[Test]
+    public function levelsListStartsFromTheReferenceTable(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('levels #test list'), $this->state);
+
+        self::assertSame('001AAAAAA: Configuración de niveles de acceso para el canal #test:', $this->irc->replies[0]);
+        self::assertContains('001AAAAAA:     OPDEOP             100', $this->irc->replies);
+        self::assertContains('001AAAAAA:     SET                500', $this->irc->replies);
+        self::assertContains('001AAAAAA:     AUTODEVOICE        -1', $this->irc->replies);
+        self::assertSame('001AAAAAA: Fin de la configuración.', $this->irc->replies[array_key_last($this->irc->replies)]);
+    }
+
+    #[Test]
+    public function levelsSetChangesOneThreshold(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('levels #test set autoop 250'), $this->state);
+
+        self::assertSame(
+            ['001AAAAAA: El nivel para AUTOOP en canal #test cambiado a 250.'],
+            $this->irc->replies,
+        );
+    }
+
+    #[Test]
+    public function levelsResetRestoresTheDefaults(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('levels #test set autoop 250'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('levels #test reset'), $this->state);
+        $this->handler->handle($this->privmsg('levels #test list'), $this->state);
+
+        self::assertSame('001AAAAAA: Niveles de acceso de #test configurados a niveles originales.', $this->irc->replies[0]);
+        self::assertContains('001AAAAAA:     AUTOOP             300', $this->irc->replies);
+    }
+
+    #[Test]
+    public function levelsRejectsUnknownKeysAndOutOfRangeValues(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('levels #test set kick 400'), $this->state);
+        $this->handler->handle($this->privmsg('levels #test set autoop 501'), $this->state);
+        $this->handler->handle($this->privmsg('levels #test set autoop mucho'), $this->state);
+
+        self::assertSame([
+            '001AAAAAA: Opción KICK desconocida.',
+            '001AAAAAA: El Nivel debe de estar entre -1 y 500.',
+            '001AAAAAA: Error de Sintaxis: LEVELS <canal> SET <clave> <nivel>',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aStrangerCannotReadOrChangeTheLevels(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, 'r');
+
+        $this->handler->handle($this->privmsg('levels #test list', '001BBBBBB'), $state);
+        $this->handler->handle($this->privmsg('levels #test set autoop 1', '001BBBBBB'), $state);
+
+        self::assertSame(['001BBBBBB: Solo el fundador puede hacer eso.', '001BBBBBB: Solo el fundador puede hacer eso.'], $this->irc->replies);
     }
 
     #[Test]
