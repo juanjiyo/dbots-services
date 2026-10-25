@@ -287,6 +287,46 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function topiclockPutsTheStoredTopicBack(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('topic #test Bienvenidos'), $this->state);
+        $this->handler->handle($this->privmsg('set #test topiclock on'), $this->state);
+        $this->actions->topics = [];
+
+        $this->handler->onTopicChanged('001BBBBBB', '#test', 'topic intruso', $this->state);
+
+        self::assertSame(['#test: Bienvenidos'], $this->actions->topics);
+    }
+
+    #[Test]
+    public function keeptopicRemembersWhatAUserSet(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->joinAs('001BBBBBB', 'bob');
+        $this->handler->handle($this->privmsg('set #test keeptopic on'), $this->state);
+
+        $this->handler->onTopicChanged('001BBBBBB', '#test', 'nuevo tema', $this->state);
+
+        self::assertSame('nuevo tema', $this->channels->find(new ChannelName('#test'))?->topic);
+        self::assertSame(['#test'], $this->projection->topics);
+    }
+
+    #[Test]
+    public function theTopicReactorIgnoresServerSourcesAndItsOwnChanges(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test keeptopic on'), $this->state);
+        $this->projection->topics = [];
+
+        $this->handler->onTopicChanged('irc.example.org', '#test', 'restaurado por el server', $this->state);
+        $this->handler->onTopicChanged('003A00002', '#test', 'lo puse yo', $this->state);
+
+        self::assertSame([], $this->projection->topics);
+        self::assertNull($this->channels->find(new ChannelName('#test'))?->topic);
+    }
+
+    #[Test]
     public function secureOpsTakesBackOpFromSomebodyBelowTheTable(): void
     {
         $this->channels->seed('#Test', 'alice');

@@ -1322,6 +1322,60 @@ final class ChanServCommandHandler
         }
     }
 
+    /**
+     * The topic reactor: `TOPICLOCK` puts the stored topic back, and `KEEPTOPIC`
+     * remembers the new one when somebody changes it.
+     */
+    public function onTopicChanged(string $source, string $channel, string $topic, NetworkState $state): void
+    {
+        if ($source === $this->serviceUid) {
+            return;
+        }
+
+        try {
+            $registered = $this->channels->find(new ChannelName($channel));
+        } catch (InvalidArgumentException) {
+            return;
+        }
+
+        if (null === $registered || $registered->isSuspended()) {
+            return;
+        }
+
+        $name = $registered->name->value;
+
+        if ($this->options->isEnabled($registered->name, ChannelOption::TopicLock)) {
+            $this->actions->setTopic($name, $registered->topic ?? '');
+
+            return;
+        }
+
+        if (!$this->options->isEnabled($registered->name, ChannelOption::KeepTopic)) {
+            return;
+        }
+
+        // The IRCd also announces its own restores; only a known user counts.
+        if (null === $state->nickOf($source)) {
+            return;
+        }
+
+        $this->channels->updateTopic(new Channel(
+            $registered->name,
+            $registered->founder,
+            $registered->createdAt,
+            '' === $topic ? null : $topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+            $registered->suspendReason,
+            $registered->suspendedBy,
+            $registered->suspendedAt,
+        ));
+        $this->projection->publishTopic($name);
+    }
+
     /** The channel exists, or the sender is told it does not. */
     private function registeredChannel(string $uid, string $channel): ?Channel
     {

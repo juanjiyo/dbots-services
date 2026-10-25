@@ -110,6 +110,12 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S62** — With `TOPICLOCK` on, any topic change by somebody else is reverted to
+  the stored topic.
+- **S63** — With `KEEPTOPIC` on, a topic set by a user is stored and published.
+- **S64** — Topic events whose source is not a known user (the IRCd restoring a
+  topic, or ChanServ itself) are ignored, or the reactor would answer its own
+  restore forever.
 - **S58** — Every channel mode change is checked: `+q` is taken back unless the
   holder is the founder, and `+o`/`+h` are taken back when `SECUREOPS` or
   `SECUREHALFOPS` is on and the holder does not reach `AUTOOP`/`AUTOHALFOP`.
@@ -226,7 +232,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   `NOJOIN` and the rank the table grants.
 - **T17b** (S58-S61) — **done in code**. The mode reactor: `MLOCK` re-application,
   `SECUREOPS`, `SECUREHALFOPS` and `+q` reserved for the founder.
-- **T17c** — The topic reactor: `TOPICLOCK` restores, `KEEPTOPIC` remembers.
+- **T17c** (S62-S64) — **done**. The topic reactor: `TOPICLOCK` restores,
+  `KEEPTOPIC` remembers.
 
 ## Log
 
@@ -241,6 +248,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L26** — `TOPIC` was not dispatched at all by the daemon; it only appeared in
+  the raw debug dump. The reactor needed a new branch in the dispatch table.
 - **L25** — The mode reactor is unit-tested but not live-verified: from 09:33 the
   IRCd stopped accepting new local clients with `451 You have not registered` and
   logged no `LOCAL_CLIENT_CONNECT` at all, almost certainly my probe flood

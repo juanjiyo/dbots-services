@@ -177,6 +177,23 @@ final readonly class Daemon
         }
     }
 
+    /** `:<source> TOPIC <#channel> [setter ts] :<topic>`, from the IRCd. */
+    private function onTopic(IrcMessage $message): void
+    {
+        $channel = $message->params[0] ?? null;
+
+        if (null === $channel) {
+            return;
+        }
+
+        $this->chanServ->onTopicChanged(
+            (string) $message->source(),
+            $channel,
+            $message->text(),
+            $this->state,
+        );
+    }
+
     private function onPart(IrcMessage $message): void
     {
         $channel = $message->firstParameter();
@@ -259,6 +276,7 @@ final readonly class Daemon
             'SERVER' => $this->onServer($message),
             'SJOIN' => $this->onSjoin($message),
             'JOIN' => $this->onJoin($message),
+            'TOPIC' => $this->onTopic($message),
             'PART' => $this->onPart($message),
             'KICK' => $this->onKick($message),
             default => null,
