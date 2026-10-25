@@ -51,6 +51,7 @@ final class CRegServCommandHandlerTest extends TestCase
             $this->channels,
             new RecordingChannelProjection(),
             new AccountResolver($accounts),
+            new \Dbots\Staff\Application\StaffAuthority(new \Dbots\Tests\Support\InMemoryStaffRankRepository()),
             $this->irc,
             'CReG',
             '003A00006',

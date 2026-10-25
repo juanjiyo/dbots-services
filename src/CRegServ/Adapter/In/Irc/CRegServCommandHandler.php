@@ -25,6 +25,7 @@ use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
+use Dbots\Staff\Application\StaffAuthority;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -56,6 +57,7 @@ final readonly class CRegServCommandHandler
         private ChannelRepositoryInterface $channels,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
+        private StaffAuthority $staff,
         private ReplyInterface $reply,
         private string $serviceNick,
         private string $serviceUid,
@@ -414,7 +416,7 @@ final readonly class CRegServCommandHandler
     /** Operator (level 5) or a CReG administrator. */
     private function isStaff(string $sender, ?string $account, NetworkState $state): bool
     {
-        if ($state->hasMode($sender, 'o')) {
+        if ($state->hasMode($sender, 'o') || $this->staff->isOperator($account)) {
             return true;
         }
 

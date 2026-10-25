@@ -56,6 +56,7 @@ final class ChanServCommandHandlerTest extends TestCase
             new InMemoryChannelForbidRepository(),
             new InMemoryChannelOptionRepository(),
             $this->accounts,
+            new \Dbots\Staff\Application\StaffAuthority(new \Dbots\Tests\Support\InMemoryStaffRankRepository()),
             $this->projection,
             new AccountResolver($this->accounts),
             $this->irc,
@@ -674,6 +675,39 @@ final class ChanServCommandHandlerTest extends TestCase
         self::assertContains('001OOOOOO: El canal #test ha sido liberado.', $this->irc->replies);
         self::assertSame('001OOOOOO: El canal #otro no está en la lista de forbid.', $this->irc->replies[array_key_last($this->irc->replies)]);
         self::assertSame(['#test on', '#test off'], $this->projection->forbids);
+    }
+
+    #[Test]
+    public function aRepresentativeCountsAsAnOperWithoutIrcModes(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $ranks = new \Dbots\Tests\Support\InMemoryStaffRankRepository();
+        $ranks->assign('alice', \Dbots\Domain\Staff\StaffRank::Operador);
+
+        // Rebuild the handler with a ladder that knows alice, then suspend: an
+        // oper-only command that does not depend on IRC user modes.
+        $this->handler = new ChanServCommandHandler(
+            new DropChannelHandler($this->channels, new InMemoryChannelAccessRepository()),
+            $this->channels,
+            new InMemoryChannelAccessRepository(),
+            new InMemoryChannelLevelRepository(),
+            $this->actions,
+            new InMemoryChannelAkickRepository(),
+            new InMemoryChannelForbidRepository(),
+            new InMemoryChannelOptionRepository(),
+            $this->accounts,
+            new \Dbots\Staff\Application\StaffAuthority($ranks),
+            $this->projection,
+            new AccountResolver($this->accounts),
+            $this->irc,
+            'CHaN',
+            '003A00002',
+            ChanServHelp::create(),
+        );
+
+        $this->handler->handle($this->privmsg('suspend #test incumple normas'), $this->state);
+
+        self::assertSame(['001AAAAAA: El canal #test ha sido suspendido.'], $this->irc->replies);
     }
 
     #[Test]

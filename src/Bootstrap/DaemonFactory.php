@@ -52,6 +52,7 @@ use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\OperServ\Application\Help\OperServHelp;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
+use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Udb\AccountBlockProvider;
 use Dbots\Udb\BlockProviderInterface;
 use Dbots\Udb\UdbAccountProjection;
@@ -81,6 +82,7 @@ final readonly class DaemonFactory
         private ChannelForbidRepositoryInterface $channelForbids,
         private ChannelOptionRepositoryInterface $channelOptions,
         private ModuleRegistry $modules,
+        private StaffAuthority $staff,
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private SpamRuleRepositoryInterface $spamRules,
@@ -147,6 +149,7 @@ final readonly class DaemonFactory
             $this->channelForbids,
             $this->channelOptions,
             $this->accounts,
+            $this->staff,
             $channelProjection,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $chanServUid),
@@ -176,6 +179,7 @@ final readonly class DaemonFactory
             $this->channels,
             $channelProjection,
             new AccountResolver($this->accounts),
+            $this->staff,
             new IrcReplySender($this->transport, sprintf('%sA00006', $sid)),
             'CReG',
             sprintf('%sA00006', $sid),

@@ -29,6 +29,7 @@ use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
+use Dbots\Staff\Application\StaffAuthority;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -63,6 +64,7 @@ final class ChanServCommandHandler
         private ChannelForbidRepositoryInterface $forbids,
         private ChannelOptionRepositoryInterface $options,
         private AccountRepositoryInterface $accountStore,
+        private StaffAuthority $staff,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
         private ReplyInterface $reply,
@@ -113,15 +115,15 @@ final class ChanServCommandHandler
             'UNBAN' => $this->onUnban($sender, $account, $parts, $state),
             'CLEAR' => $this->onClear($sender, $account, $parts, $state),
             'AKICK' => $this->onAkick($sender, $account, $parts, $state),
-            'SUSPEND' => $this->onSuspend($sender, $parts, $state),
-            'UNSUSPEND' => $this->onUnsuspend($sender, $parts, $state),
-            'LISTSUSPEND' => $this->onListSuspend($sender, $state),
-            'FORBID' => $this->onForbid($sender, $parts, $state),
-            'UNFORBID' => $this->onUnforbid($sender, $parts, $state),
-            'LISTFORBID' => $this->onListForbid($sender, $state),
-            'LIST' => $this->onList($sender, $parts, $state),
-            'GETPASS' => $this->onGetpass($sender, $parts, $state),
-            'BFOUNDER' => $this->onBfounder($sender, $parts, $state),
+            'SUSPEND' => $this->onSuspend($sender, $account, $parts, $state),
+            'UNSUSPEND' => $this->onUnsuspend($sender, $account, $parts, $state),
+            'LISTSUSPEND' => $this->onListSuspend($sender, $account, $state),
+            'FORBID' => $this->onForbid($sender, $account, $parts, $state),
+            'UNFORBID' => $this->onUnforbid($sender, $account, $parts, $state),
+            'LISTFORBID' => $this->onListForbid($sender, $account, $state),
+            'LIST' => $this->onList($sender, $account, $parts, $state),
+            'GETPASS' => $this->onGetpass($sender, $account, $parts, $state),
+            'BFOUNDER' => $this->onBfounder($sender, $account, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -796,7 +798,7 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onSuspend(string $uid, array $args, NetworkState $state): void
+    private function onSuspend(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
         $reason = implode(' ', array_slice($args, 1));
@@ -807,7 +809,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -845,7 +847,7 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onUnsuspend(string $uid, array $args, NetworkState $state): void
+    private function onUnsuspend(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
 
@@ -855,7 +857,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -889,9 +891,9 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, sprintf('El canal %s ha sido liberado.', $registered->name->value));
     }
 
-    private function onListSuspend(string $uid, NetworkState $state): void
+    private function onListSuspend(string $uid, ?string $account, NetworkState $state): void
     {
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -915,13 +917,14 @@ final class ChanServCommandHandler
         }
     }
 
-    private function isOper(string $uid, NetworkState $state): bool
+    /** An IRCd oper, or an account that reached Operador on the staff ladder. */
+    private function isOper(string $uid, ?string $account, NetworkState $state): bool
     {
-        return $state->hasMode($uid, 'o');
+        return $state->hasMode($uid, 'o') || $this->staff->isOperator($account);
     }
 
     /** @param list<string> $args */
-    private function onForbid(string $uid, array $args, NetworkState $state): void
+    private function onForbid(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
         $reason = implode(' ', array_slice($args, 1));
@@ -932,7 +935,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -974,7 +977,7 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onUnforbid(string $uid, array $args, NetworkState $state): void
+    private function onUnforbid(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
 
@@ -984,7 +987,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -1000,9 +1003,9 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, sprintf('El canal %s ha sido liberado.', $channel));
     }
 
-    private function onListForbid(string $uid, NetworkState $state): void
+    private function onListForbid(string $uid, ?string $account, NetworkState $state): void
     {
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -1026,7 +1029,7 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onList(string $uid, array $args, NetworkState $state): void
+    private function onList(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $pattern = (string) ($args[0] ?? '');
 
@@ -1036,7 +1039,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -1064,7 +1067,7 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onGetpass(string $uid, array $args, NetworkState $state): void
+    private function onGetpass(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
 
@@ -1074,7 +1077,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -1095,7 +1098,7 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onBfounder(string $uid, array $args, NetworkState $state): void
+    private function onBfounder(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
 
@@ -1105,7 +1108,7 @@ final class ChanServCommandHandler
             return;
         }
 
-        if (!$this->isOper($uid, $state)) {
+        if (!$this->isOper($uid, $account, $state)) {
             $this->reply->reply($uid, 'Permiso denegado.');
 
             return;
@@ -1401,7 +1404,7 @@ final class ChanServCommandHandler
      */
     private function authority(string $uid, ?string $account, Channel $channel, NetworkState $state): int
     {
-        if ($state->hasMode($uid, 'o')) {
+        if ($state->hasMode($uid, 'o') || $this->staff->isOperator($account)) {
             return 500;
         }
 
