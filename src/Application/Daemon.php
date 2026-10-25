@@ -8,6 +8,7 @@ use Dbots\Application\Link\LinkRunner;
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\CenTeRServ\Adapter\In\Irc\CenTeRServCommandHandler;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
+use Dbots\ClonesServ\Adapter\In\Irc\ClonesServCommandHandler;
 use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
 use Dbots\Domain\Link\LinkState;
 use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
@@ -54,6 +55,7 @@ final readonly class Daemon
         private CRegServCommandHandler $cregServ,
         private HeLPServCommandHandler $helpServ,
         private CenTeRServCommandHandler $centerServ,
+        private ClonesServCommandHandler $clonesServ,
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
@@ -80,7 +82,18 @@ final readonly class Daemon
         $this->introduceServices();
         $this->joinDebugChannel();
 
-        $this->runner->pump($seconds, fn (string $line): null => $this->onLine($line));
+        $lastCleanup = 0;
+        $clonesHandler = $this->clonesServ;
+        $tick = static function () use (&$lastCleanup, $clonesHandler): void {
+            $now = time();
+
+            if ($now - $lastCleanup >= 3600) {
+                $lastCleanup = $now;
+                $clonesHandler->cleanup();
+            }
+        };
+
+        $this->runner->pump($seconds, fn (string $line): null => $this->onLine($line), $tick);
     }
 
     public function stop(): void
@@ -98,6 +111,7 @@ final readonly class Daemon
             ['CReG', sprintf('%sA00006', $this->sid), 'Channel Registration Requests'],
             ['HeLP', sprintf('%sA00007', $this->sid), 'Network Help Services'],
             ['CeNTeR', sprintf('%sA00008', $this->sid), 'Network Control Services'],
+            ['CLoNeS', sprintf('%sA00009', $this->sid), 'Clone exceptions manager'],
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
@@ -255,7 +269,7 @@ final readonly class Daemon
             return;
         }
 
-        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008'];
+        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008', 'A00009'];
 
         foreach ($suffixes as $suffix) {
             $uid = sprintf('%s%s', $this->sid, $suffix);
@@ -424,6 +438,7 @@ final readonly class Daemon
             sprintf('%sA00002', $this->sid) => 'CHaN',
             sprintf('%sA00003', $this->sid) => 'MeMo',
             sprintf('%sA00004', $this->sid) => 'OPeR',
+            sprintf('%sA00009', $this->sid) => 'CLoNeS',
         ];
 
         return $known[$target] ?? (in_array($target, $known, true) ? $target : null);
@@ -499,6 +514,7 @@ final readonly class Daemon
         $this->cregServ->handle($message, $this->state);
         $this->helpServ->handle($message, $this->state);
         $this->centerServ->handle($message, $this->state);
+        $this->clonesServ->handle($message, $this->state);
 
         foreach ($this->modules->loaded() as $module) {
             try {

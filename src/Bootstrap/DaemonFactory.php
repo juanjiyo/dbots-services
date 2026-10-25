@@ -20,6 +20,11 @@ use Dbots\ChanServ\Application\Port\Out\ChannelForbidRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
+use Dbots\ClonesServ\Adapter\In\Irc\ClonesServCommandHandler;
+use Dbots\ClonesServ\Adapter\Out\Config\InspircdClonesWriter;
+use Dbots\ClonesServ\Adapter\Out\Persistence\SqliteClonesExceptionRepository;
+use Dbots\ClonesServ\Application\Port\Out\ClonesExceptionRepositoryInterface;
+use Dbots\ClonesServ\Application\Port\Out\ClonesWriterInterface;
 use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
 use Dbots\CRegServ\Application\Approve\ApproveHandler;
 use Dbots\CRegServ\Application\Cancel\CancelHandler;
@@ -62,6 +67,7 @@ use Dbots\Udb\UdbAccountProjection;
 use Dbots\Udb\UdbAuthority;
 use Dbots\Udb\UdbChannelProjection;
 use Dbots\Udb\UdbSpamProjection;
+use PDO;
 
 use function sprintf;
 
@@ -95,6 +101,10 @@ final readonly class DaemonFactory
         private string $debugChannel = '',
         private string $jailChannel = '',
         private int $syncTimeoutSeconds = 30,
+        private ?ClonesExceptionRepositoryInterface $clonesExceptions = null,
+        private ?ClonesWriterInterface $clonesWriter = null,
+        private string $clonesConfigPath = '/home/irc/inspircd/conf/clones.conf',
+        private string $clonesPidFilePath = '/home/irc/inspircd/data/inspircd.pid',
     ) {
         // One epoch per process, not per connection: UDB reads it as this
         // authority's identity, so a new value on every reconnect looks like a
@@ -213,6 +223,7 @@ final readonly class DaemonFactory
                 'OPeR' => 'Operaciones de la red.',
                 'CReG' => 'Registro de canales.',
                 'HeLP' => 'Ayuda global de la red.',
+                'CLoNeS' => 'Gestión de excepciones de clones.',
             ],
         );
 
@@ -256,6 +267,18 @@ final readonly class DaemonFactory
             jailChannel: $this->jailChannel,
         );
 
+        $clonesServUid = sprintf('%sA00009', $sid);
+
+        $clonesServ = new ClonesServCommandHandler(
+            $this->clonesExceptions ?? new SqliteClonesExceptionRepository(new PDO('sqlite::memory:')),
+            $this->clonesWriter ?? new InspircdClonesWriter($this->clonesConfigPath, $this->clonesPidFilePath),
+            $this->staff,
+            new AccountResolver($this->accounts),
+            new IrcReplySender($this->transport, $clonesServUid),
+            'CLoNeS',
+            $clonesServUid,
+        );
+
         $debug = new DebugRelay($this->transport, sprintf('%sA00005', $sid), $this->debugChannel);
 
         return new Daemon(
@@ -270,6 +293,7 @@ final readonly class DaemonFactory
             $cregServ,
             $helpServ,
             $centerServ,
+            $clonesServ,
             new ServiceUidFormatter($sid),
             $sid,
             $host,

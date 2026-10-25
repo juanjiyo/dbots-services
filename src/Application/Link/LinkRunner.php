@@ -72,24 +72,30 @@ final class LinkRunner
      * The optional handler sees every line after the handshake has processed
      * it, which is where the network state and command routing live.
      *
+     * The optional tick is called once per loop iteration; it is the hook the
+     * daemon uses for periodic work such as expiring temporary clone entries.
+     *
      * @param (callable(string): void)|null $onLine
+     * @param (callable(): void)|null $tick
      */
-    public function pump(?int $seconds, ?callable $onLine = null): void
+    public function pump(?int $seconds, ?callable $onLine = null, ?callable $tick = null): void
     {
         $deadline = null === $seconds ? null : time() + $seconds;
 
         while ((null === $deadline || time() <= $deadline) && $this->transport->isOpen()) {
             $line = $this->transport->readLine();
 
-            if (null === $line) {
-                continue;
+            if (null !== $line) {
+                $this->handshake->consume($line);
+                $this->dispatch($this->handshake->flush());
+
+                if (null !== $onLine) {
+                    $onLine($line);
+                }
             }
 
-            $this->handshake->consume($line);
-            $this->dispatch($this->handshake->flush());
-
-            if (null !== $onLine) {
-                $onLine($line);
+            if (null !== $tick) {
+                $tick();
             }
         }
     }

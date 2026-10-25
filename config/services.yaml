@@ -13,6 +13,8 @@ parameters:
     env(DBOTS_RECONNECT_DELAY): '5'
     env(DBOTS_DEBUG_CHANNEL): ''
     env(DBOTS_JAIL_CHANNEL): ''
+    env(DBOTS_CLONES_CONF): '/home/irc/inspircd/conf/clones.conf'
+    env(DBOTS_INSPIRCD_PID_FILE): '/home/irc/inspircd/data/inspircd.pid'
 
 services:
     _defaults:
@@ -79,6 +81,13 @@ services:
     Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository'
     Dbots\OperServ\Application\Port\Out\ElineRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteElineRepository'
 
+    Dbots\ClonesServ\Application\Port\Out\ClonesExceptionRepositoryInterface: '@Dbots\ClonesServ\Adapter\Out\Persistence\SqliteClonesExceptionRepository'
+    Dbots\ClonesServ\Application\Port\Out\ClonesWriterInterface:
+        class: Dbots\ClonesServ\Adapter\Out\Config\InspircdClonesWriter
+        arguments:
+            $configPath: '%env(DBOTS_CLONES_CONF)%'
+            $pidFilePath: '%env(DBOTS_INSPIRCD_PID_FILE)%'
+
     Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface: '@Dbots\CRegServ\Adapter\Out\Persistence\SqliteChannelRequestRepository'
 
     # --- UDB ------------------------------------------------------------------
@@ -103,3 +112,5 @@ services:
             $rootPassword: '%env(DBOTS_ROOT_PASSWORD)%'
             $debugChannel: '%env(DBOTS_DEBUG_CHANNEL)%'
             $jailChannel: '%env(DBOTS_JAIL_CHANNEL)%'
+            $clonesConfigPath: '%env(DBOTS_CLONES_CONF)%'
+            $clonesPidFilePath: '%env(DBOTS_INSPIRCD_PID_FILE)%'
