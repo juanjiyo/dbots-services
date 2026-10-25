@@ -11,14 +11,17 @@ use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Staff\StaffRank;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Module\ModuleRegistry;
+use Dbots\Module\ModuleRuntime;
 use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryModuleStateRepository;
 use Dbots\Tests\Support\InMemoryStaffRankRepository;
 use Dbots\Tests\Support\RecordingIrc;
+use Dbots\Tests\Support\RecordingTransport;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -28,6 +31,7 @@ final class CenTeRServCommandHandlerTest extends TestCase
     private InMemoryStaffRankRepository $ranks;
     private InMemoryModuleStateRepository $moduleState;
     private RecordingIrc $irc;
+    private RecordingTransport $transport;
     private CenTeRServCommandHandler $handler;
     private NetworkState $state;
 
@@ -41,13 +45,24 @@ final class CenTeRServCommandHandlerTest extends TestCase
         $this->ranks = new InMemoryStaffRankRepository();
         $this->moduleState = new InMemoryModuleStateRepository();
         $this->irc = new RecordingIrc();
+        $this->transport = new RecordingTransport();
+
+        $registry = new ModuleRegistry($this->moduleState, __DIR__.'/../../../modules');
+        $modules = new ModuleRuntime(
+            $registry,
+            $this->transport,
+            new ServiceUidFormatter('003'),
+            '003',
+            'bots.sitiochat.es',
+            '#debug',
+        );
 
         $this->handler = new CenTeRServCommandHandler(
             $this->irc,
             new StaffAuthority($this->ranks),
             $this->ranks,
             $this->accounts,
-            new ModuleRegistry($this->moduleState, __DIR__.'/../../../modules'),
+            $modules,
             new AccountResolver($this->accounts),
             'CeNTeR',
             '003A00008',
@@ -161,9 +176,38 @@ final class CenTeRServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('MODULO LOAD NoExiste'), $this->state);
 
         self::assertStringContainsString('Ping: cargado', implode("\n", $this->irc->replies));
-        self::assertContains('001AAAAAA: Módulo Ping descargado. El cambio se aplica al reiniciar el servicio.', $this->irc->replies);
+        self::assertContains('001AAAAAA: Módulo Ping descargado.', $this->irc->replies);
         self::assertContains('001AAAAAA: El módulo NoExiste no existe.', $this->irc->replies);
         self::assertFalse($this->moduleState->isEnabled('Ping', true));
+    }
+
+    #[Test]
+    public function moduleLoadAppliesImmediately(): void
+    {
+        $this->moduleState->setEnabled('Ping', false);
+        $this->as('ana', StaffRank::Root);
+
+        $this->handler->handle($this->privmsg('MODULO LOAD Ping'), $this->state);
+
+        self::assertTrue($this->moduleState->isEnabled('Ping', false));
+        self::assertContains('001AAAAAA: Módulo Ping cargado.', $this->irc->replies);
+        self::assertStringContainsString('UID PiNG 0 ', implode("\n", $this->transport->written));
+        self::assertStringContainsString('JOIN #debug', implode("\n", $this->transport->written));
+    }
+
+    #[Test]
+    public function moduleUnloadQuitsThePseudoClient(): void
+    {
+        $this->as('ana', StaffRank::Root);
+
+        $this->handler->handle($this->privmsg('MODULO LOAD Ping'), $this->state);
+        $this->irc->replies = [];
+        $this->transport->written = [];
+
+        $this->handler->handle($this->privmsg('MODULO UNLOAD Ping'), $this->state);
+
+        self::assertContains('001AAAAAA: Módulo Ping descargado.', $this->irc->replies);
+        self::assertStringContainsString('QUIT :Módulo descargado', implode("\n", $this->transport->written));
     }
 
     #[Test]

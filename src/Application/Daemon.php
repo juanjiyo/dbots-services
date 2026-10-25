@@ -19,14 +19,12 @@ use Dbots\Irc\Application\DebugEvents;
 use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
-use Dbots\Module\ModuleContext;
-use Dbots\Module\ModuleInterface;
+use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 use Throwable;
 
-use function array_keys;
 use function array_map;
 use function array_slice;
 use function explode;
@@ -34,7 +32,6 @@ use function in_array;
 use function preg_match;
 use function sprintf;
 use function str_contains;
-use function strlen;
 use function strpos;
 use function strtoupper;
 use function substr;
@@ -60,13 +57,12 @@ final readonly class Daemon
         private ServiceUidFormatter $uidFormatter,
         private string $sid,
         private string $serviceHost,
+        private ModuleRuntime $modules,
         private ?UdbAuthority $udb = null,
         private ?DebugRelay $debug = null,
         private string $debugChannel = '',
         private ?AccountResolver $accounts = null,
         private ?MemoAnnouncer $memoAnnouncer = null,
-        /** @var list<ModuleInterface> */
-        private array $modules = [],
     ) {
     }
 
@@ -92,12 +88,6 @@ final readonly class Daemon
         $this->runner->close();
     }
 
-    /** Module pseudo-clients live above the built-in service range. */
-    private function moduleUid(int $index): string
-    {
-        return sprintf('%sA001%02d', $this->sid, $index);
-    }
-
     private function introduceServices(): void
     {
         $services = [
@@ -114,10 +104,6 @@ final readonly class Daemon
             $services[] = ['DeBuG', sprintf('%sA00005', $this->sid), 'Network Debug Relay'];
         }
 
-        foreach ($this->modules as $index => $module) {
-            $services[] = [$module->nick(), $this->moduleUid($index), $module->description()];
-        }
-
         foreach ($services as [$nick, $uid, $realname]) {
             $this->transport->writeLine($this->uidFormatter->format(
                 nick: $nick,
@@ -127,6 +113,8 @@ final readonly class Daemon
                 host: $this->serviceHost,
             ));
         }
+
+        $this->modules->introduceAll();
     }
 
     /** We already know who we linked to from the handshake; record it for display. */
@@ -258,10 +246,6 @@ final readonly class Daemon
 
         $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008'];
 
-        foreach (array_keys($this->modules) as $index) {
-            $suffixes[] = substr($this->moduleUid($index), strlen($this->sid));
-        }
-
         foreach ($suffixes as $suffix) {
             $uid = sprintf('%s%s', $this->sid, $suffix);
 
@@ -270,6 +254,8 @@ final readonly class Daemon
             // the channel's clock.
             $this->transport->writeLine(sprintf(':%s SAMODE %s +o %s', $this->sid, $this->debugChannel, $uid));
         }
+
+        $this->modules->joinDebugChannel();
     }
 
     private function onLine(string $line): null
@@ -333,7 +319,11 @@ final readonly class Daemon
     /** Keep the S2S link alive; the IRCd drops silent servers. */
     private function onPing(IrcMessage $message): void
     {
-        $target = $message->text() ?? ($message->params[0] ?? '');
+        $target = $message->text();
+
+        if ('' === $target) {
+            $target = $message->params[0] ?? '';
+        }
 
         if ('' === $target) {
             return;
@@ -498,13 +488,9 @@ final readonly class Daemon
         $this->helpServ->handle($message, $this->state);
         $this->centerServ->handle($message, $this->state);
 
-        foreach ($this->modules as $index => $module) {
+        foreach ($this->modules->loaded() as $module) {
             try {
-                $module->handle($message, $this->state, new ModuleContext(
-                    $this->moduleUid($index),
-                    $this->sid,
-                    $this->transport,
-                ));
+                $module->handle($message, $this->state, $this->modules->contextFor($module));
             } catch (Throwable $error) {
                 // A broken module must not take the link down.
                 fwrite(STDERR, sprintf("module %s failed: %s\n", $module->nick(), $error->getMessage()));

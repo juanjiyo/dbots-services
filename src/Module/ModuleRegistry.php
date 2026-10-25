@@ -76,6 +76,17 @@ final readonly class ModuleRegistry
         return $modules;
     }
 
+    public function create(string $name): ModuleInterface
+    {
+        $manifests = $this->manifests();
+
+        if (!isset($manifests[$name])) {
+            throw new RuntimeException(sprintf('Module %s does not exist.', $name));
+        }
+
+        return $this->instantiate($manifests[$name]);
+    }
+
     private function instantiate(ModuleManifest $manifest): ModuleInterface
     {
         if (!class_exists($manifest->class)) {

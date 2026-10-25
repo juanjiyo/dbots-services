@@ -10,7 +10,7 @@ use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
-use Dbots\Module\ModuleRegistry;
+use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\Staff\Application\Port\Out\StaffRankRepositoryInterface;
@@ -48,7 +48,7 @@ final class CenTeRServCommandHandler
         private readonly StaffAuthority $staff,
         private readonly StaffRankRepositoryInterface $ranks,
         private readonly AccountRepositoryInterface $accounts,
-        private readonly ModuleRegistry $modules,
+        private readonly ModuleRuntime $modules,
         private readonly AccountResolver $resolver,
         private readonly string $serviceNick,
         private readonly string $serviceUid,
@@ -235,7 +235,7 @@ final class CenTeRServCommandHandler
 
         $action = strtoupper((string) ($args[0] ?? 'LIST'));
         $name = (string) ($args[1] ?? '');
-        $manifests = $this->modules->manifests();
+        $manifests = $this->modules->registry()->manifests();
 
         if ('LIST' === $action) {
             if ([] === $manifests) {
@@ -247,7 +247,7 @@ final class CenTeRServCommandHandler
             $this->reply->reply($uid, 'Lista de módulos cargados y descargados:');
 
             foreach ($manifests as $moduleName => $manifest) {
-                $enabled = $this->modules->state()->isEnabled($moduleName, $manifest->enabledByDefault);
+                $enabled = $this->modules->registry()->state()->isEnabled($moduleName, $manifest->enabledByDefault);
                 $this->reply->reply($uid, sprintf(
                     '%s: %s — %s',
                     $moduleName,
@@ -273,9 +273,18 @@ final class CenTeRServCommandHandler
             return;
         }
 
-        $this->modules->state()->setEnabled($name, 'LOAD' === $action);
+        $this->modules->registry()->state()->setEnabled($name, 'LOAD' === $action);
+
+        try {
+            $this->modules->refresh();
+        } catch (\Throwable $error) {
+            $this->reply->reply($uid, sprintf('Error al aplicar el cambio: %s', $error->getMessage()));
+
+            return;
+        }
+
         $this->reply->reply($uid, sprintf(
-            'Módulo %s %s. El cambio se aplica al reiniciar el servicio.',
+            'Módulo %s %s.',
             $name,
             'LOAD' === $action ? 'cargado' : 'descargado',
         ));

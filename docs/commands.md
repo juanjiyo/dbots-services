@@ -150,7 +150,7 @@ Root, since nobody holds a rank on a fresh install.
 | `ADMIN ADD\|DEL <nick>` | done | Root |
 | `REMOPER <nick>` | done | Root; strips whatever rank was there |
 | `ROOT <password>`, `ROOT ADD\|DEL <nick>` | done | Session gate and Root rank |
-| `MODULO LIST\|LOAD\|UNLOAD [name]` | done | Root; a change applies on restart |
+| `MODULO LIST\|LOAD\|UNLOAD [name]` | done | Root; applied immediately |
 | `KILL`, `GLINE`, `CLONES` | not here | They live in OPeR; two doors to one action is a bug factory |
 | `RAW`, `RESTART`, `MODULO` (mIRC side), `TABLA`, `BOT`, `UPDATE`, `OPTIMIZA`… | dropped | They drove the mIRC script loader, the bot's ini database or its process |
 
@@ -162,8 +162,8 @@ implementing `Dbots\Module\ModuleInterface`. The daemon introduces its nick as a
 pseudo-client and hands it every parsed message, so a contributor can add a bot in
 PHP instead of running another daemon.
 
-`CeNTeR MODULO LIST|LOAD|UNLOAD` will manage them; until then the state lives in
-the `modules` table and a change applies on the next restart.
+`CeNTeR MODULO LIST|LOAD|UNLOAD` manages them; the change is applied immediately
+and the module pseudo-client is introduced or quit without restarting the daemon.
 
 **A module is trusted code, not a sandbox.** It runs inside the services process
 with its privileges.

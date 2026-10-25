@@ -33,7 +33,7 @@ were loaded and unloaded in the mIRC generation (`sistema/modulos/<name>`).
 
 - **T1** (S1, S2) — **done**. `ModuleInterface`, `ModuleContext`, manifest.
 - **T2** (S3, S4, S5) — **done**. Registry, SQLite state, introduction and routing.
-- **T3** (S6) — `CeNTeR MODULO LIST|LOAD|UNLOAD`. Pending.
+- **T3** (S6) — **done**. `CeNTeR MODULO LIST|LOAD|UNLOAD`; hot loading applies the change immediately.
 - **T4** (S7, S8) — **done for isolation**. A module that throws is caught and
   logged; the trust warning still has to land in the installation docs.
 - **T5** — **done**. `modules/Ping` answers `PING` and proves the path live.
@@ -54,3 +54,7 @@ were loaded and unloaded in the mIRC generation (`sistema/modulos/<name>`).
   nothing because the IRCd addresses a service by UID, not by nick; the fix is
   `ModuleContext::isAddressedTo()`, so no module author has to learn that the hard
   way.
+- **L4** — Hot loading is handled by `ModuleRuntime`: the registry still owns the
+  on-disk list and persisted state, but the runtime owns the live set, allocates
+  stable UIDs, and sends UID/JOIN or QUIT when `refresh()` is called from
+  `CenTeRServCommandHandler`.

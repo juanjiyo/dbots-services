@@ -40,7 +40,7 @@ module system; nothing else from `ce.mrc` survived the classification below.
 
 - **T1** (S1-S7) — **done**. Service, dispatch, ladder commands.
 - **T2** (S8) — **done**. `MODULO LIST|LOAD|UNLOAD`, Root-gated.
-- **T3** — Hot module loading (apply without restart).
+- **T3** — **done**. Hot module loading: `MODULO LOAD/UNLOAD` introduces or quits the module pseudo-client immediately.
 - **T4** — `RAW`, if it is ever wanted, behind Root with an audit trail.
 
 ## Log
@@ -54,3 +54,7 @@ module system; nothing else from `ce.mrc` survived the classification below.
 - **L3** — Verified live: `CeNTeR` is on the network next to the other services,
   `HELP` renders, and both `OPER ADD` without a rank and a wrong `ROOT` password
   are refused.
+- **L4** — Implemented hot module loading via `ModuleRuntime`: `MODULO LOAD/UNLOAD`
+  persists state, refreshes the running module set, and sends the corresponding
+  UID/JOIN or QUIT lines. Added lifecycle hooks (`ModuleLifecycleInterface`) and
+  unit tests; `composer check` passes.

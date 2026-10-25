@@ -41,6 +41,7 @@ use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\Module\ModuleRegistry;
+use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
@@ -216,12 +217,21 @@ final readonly class DaemonFactory
 
         $centerServUid = sprintf('%sA00008', $sid);
 
+        $moduleRuntime = new ModuleRuntime(
+            $this->modules,
+            $this->transport,
+            new ServiceUidFormatter($sid),
+            $sid,
+            $host,
+            $this->debugChannel,
+        );
+
         $centerServ = new CenTeRServCommandHandler(
             new IrcReplySender($this->transport, $centerServUid),
             $this->staff,
             $this->staffRanks,
             $this->accounts,
-            $this->modules,
+            $moduleRuntime,
             new AccountResolver($this->accounts),
             'CeNTeR',
             $centerServUid,
@@ -261,12 +271,12 @@ final readonly class DaemonFactory
             new ServiceUidFormatter($sid),
             $sid,
             $host,
+            $moduleRuntime,
             $authority,
             $debug,
             $this->debugChannel,
             new AccountResolver($this->accounts),
             new MemoAnnouncer($memoServ),
-            $this->modules->enabled(),
         );
     }
 }
