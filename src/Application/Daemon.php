@@ -22,6 +22,8 @@ use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\Udb\UdbAuthority;
 
+use function array_map;
+use function array_slice;
 use function in_array;
 use function strpos;
 use function strtoupper;
@@ -307,6 +309,12 @@ final readonly class Daemon
         $this->memoAnnouncer?->announce($uid, $account);
     }
 
+    /** A mode target arrives as a nick; the membership map is keyed by UID. */
+    private function resolveMember(string $id): string
+    {
+        return $this->state->uidOf($id) ?? $id;
+    }
+
     /** UID to nickname, SID to server name, anything else untouched. */
     private function displayName(string $id): ?string
     {
@@ -399,7 +407,18 @@ final readonly class Daemon
     {
         $target = $message->params[0] ?? null;
 
-        if (null === $target || str_starts_with($target, '#')) {
+        if (null === $target) {
+            return;
+        }
+
+        if (str_starts_with($target, '#')) {
+            // Channel modes name their targets by nick; the state is keyed by UID.
+            $this->state->applyChannelModeChange(
+                $target,
+                (string) ($message->params[1] ?? ''),
+                array_map($this->resolveMember(...), array_slice($message->params, 2)),
+            );
+
             return;
         }
 

@@ -31,6 +31,43 @@ final class IrcWireTest extends TestCase
     }
 
     #[Test]
+    public function aChannelModeTellsUsWhoIsInTheChannel(): void
+    {
+        $state = new NetworkState();
+
+        // A channel created from a UDB profile sends no SJOIN, only modes.
+        $state->applyChannelModeChange('#sala', '-o', ['001AAAAAA']);
+
+        self::assertTrue($state->isInChannel('#sala', '001AAAAAA'));
+        self::assertFalse($state->isChannelOperator('#sala', '001AAAAAA'));
+    }
+
+    #[Test]
+    public function rankModesAddAndRemoveTheRank(): void
+    {
+        $state = new NetworkState();
+
+        $state->applyChannelModeChange('#sala', '+qo', ['001AAAAAA', '001BBBBBB']);
+        self::assertTrue($state->isChannelOperator('#sala', '001AAAAAA'));
+        self::assertTrue($state->isChannelOperator('#sala', '001BBBBBB'));
+
+        $state->applyChannelModeChange('#sala', '-o', ['001BBBBBB']);
+        self::assertFalse($state->isChannelOperator('#sala', '001BBBBBB'));
+        self::assertTrue($state->isInChannel('#sala', '001BBBBBB'));
+    }
+
+    #[Test]
+    public function aBanMaskIsNotMistakenForAMember(): void
+    {
+        $state = new NetworkState();
+
+        $state->applyChannelModeChange('#sala', '+bo', ['*!*@spam.example', '001AAAAAA']);
+
+        self::assertFalse($state->isInChannel('#sala', '*!*@spam.example'));
+        self::assertTrue($state->isChannelOperator('#sala', '001AAAAAA'));
+    }
+
+    #[Test]
     public function aJoinKeepsTheChannelInTheTrailingPart(): void
     {
         $message = $this->parser->parse(':001AAAAAA!db@host JOIN :#clavedemo2');

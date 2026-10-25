@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Dbots\ChanServ\Application\Port\Out;
+
+/**
+ * Channel actions ChanServ performs as a channel member: setting a rank on
+ * somebody, inviting, or talking in the channel.
+ */
+interface ChannelActionsInterface
+{
+    public function mode(string $channel, string $modes, string $target): void;
+
+    public function invite(string $channel, string $uid): void;
+
+    public function notice(string $channel, string $text): void;
+}

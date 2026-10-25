@@ -7,6 +7,7 @@ namespace Dbots\ChanServ\Adapter\In\Irc;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelResult;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelActionsInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
@@ -46,6 +47,7 @@ final class ChanServCommandHandler
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $access,
         private ChannelLevelRepositoryInterface $levels,
+        private ChannelActionsInterface $actions,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
         private ReplyInterface $reply,
@@ -91,6 +93,9 @@ final class ChanServCommandHandler
             'TOPIC' => $this->onTopic($sender, $account, $parts),
             'SET' => $this->onSet($sender, $account, $parts),
             'LEVELS' => $this->onLevels($sender, $account, $parts),
+            'OP', 'DEOP', 'HALFOP', 'DEHALFOP', 'VOICE', 'DEVOICE' => $this->onRank($command, $sender, $account, $parts, $state),
+            'INVITE' => $this->onInvite($sender, $account, $parts, $state),
+            'UNBAN' => $this->onUnban($sender, $account, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -366,6 +371,139 @@ final class ChanServCommandHandler
 
         $this->projection->removeAccess($channel->name->value, $nick);
         $this->reply->reply($uid, sprintf('%s borrado de la lista de acceso de %s.', $nick, $channel->name->value));
+    }
+
+    /**
+     * `OP|DEOP|HALFOP|DEHALFOP|VOICE|DEVOICE <#channel> <nick>`, from
+     * `chanserv.ohv`. Removing a rank also requires standing above its holder.
+     *
+     * @param list<string> $args
+     */
+    private function onRank(
+        string $command,
+        string $uid,
+        ?string $account,
+        array $args,
+        NetworkState $state,
+    ): void {
+        $channel = (string) ($args[0] ?? '');
+        $nick = (string) ($args[1] ?? '');
+
+        if ('' === $channel || '' === $nick) {
+            $this->reply->reply($uid, sprintf('Error de Sintaxis: %s <canal> <nick>', $command));
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        $target = $state->uidOf($nick);
+
+        // A nick we have never seen cannot be a mode target. Whether they are in
+        // the channel is left to the IRCd: when it creates a channel from a UDB
+        // profile it sends no join at all, so our membership view can be blind.
+        if (null === $target) {
+            $this->reply->reply($uid, sprintf('El usuario %s no está en el canal.', $nick));
+
+            return;
+        }
+
+        [$modes, $level, $removes] = match ($command) {
+            'OP' => ['+o', ChannelLevel::OpDeOp, false],
+            'DEOP' => ['-o', ChannelLevel::OpDeOp, true],
+            'HALFOP' => ['+h', ChannelLevel::HalfOpDeHalfOp, false],
+            'DEHALFOP' => ['-h', ChannelLevel::HalfOpDeHalfOp, true],
+            'VOICE' => ['+v', ChannelLevel::VoiceDeVoice, false],
+            'DEVOICE' => ['-v', ChannelLevel::VoiceDeVoice, true],
+            default => ['', ChannelLevel::OpDeOp, false],
+        };
+
+        $authority = $this->authority($uid, $account, $registered, $state);
+
+        if (!$this->requireLevel($uid, $registered, $level, $authority)) {
+            return;
+        }
+
+        // You cannot take a rank away from somebody who stands above you.
+        if ($removes && $authority < $this->authority($target, $state->accountOf($target), $registered, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $this->actions->mode($registered->name->value, $modes, $target);
+        $this->actions->notice($registered->name->value, sprintf(
+            '%s hace %s a %s.',
+            $state->nickOf($uid) ?? '',
+            $command,
+            $nick,
+        ));
+    }
+
+    /** `INVITE <#channel>` invites the sender, the way the original does. */
+    private function onInvite(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: INVITE <canal>');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        if (!$this->requireLevel($uid, $registered, ChannelLevel::Invite, $this->authority($uid, $account, $registered, $state))) {
+            return;
+        }
+
+        if ($state->isInChannel($registered->name->value, $uid)) {
+            $this->reply->reply($uid, 'Ya estás dentro del canal.');
+
+            return;
+        }
+
+        $this->actions->invite($registered->name->value, $uid);
+        $this->actions->notice($registered->name->value, sprintf('%s se invita al canal.', $state->nickOf($uid) ?? ''));
+    }
+
+    /**
+     * `UNBAN <#channel>` lifts the sender's own ban. The original sends
+     * `MODE #channel -b <nick>`, which only matches a ban written as the bare
+     * nick; a ban with a full mask needs the ban list, which we do not track yet.
+     */
+    private function onUnban(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: UNBAN <canal>');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        if (!$this->requireLevel($uid, $registered, ChannelLevel::Unban, $this->authority($uid, $account, $registered, $state))) {
+            return;
+        }
+
+        $nick = $state->nickOf($uid) ?? '';
+
+        $this->actions->mode($registered->name->value, '-b', $nick);
+        $this->reply->reply($uid, sprintf('Has sido desbaneado de %s.', $registered->name->value));
     }
 
     /** The channel exists, or the sender is told it does not. */

@@ -59,7 +59,10 @@ approval flow — you request, staff approve. The original *supports* stage
 | `LEVELS <#channel> LIST\|SET\|RESET [key] [level]` | done | Thresholds -1..500 per command; 500 is founder or IRCop. Only a founder-level user changes it |
 | `SET <#channel> DESC\|URL\|EMAIL\|ENTRYMSG [value]` | done | Services-only settings; the entry message greets on join with `<nick>` replaced |
 | `SET <#channel> PASSWORD <password>` | done | Hashed; `IDENTIFY` accepts only the new one |
-| `OP` / `DEOP` / `HALFOP` / `DEHALFOP` / `VOICE` / `DEVOICE`, `KICK`, `INVITE`, `UNBAN`, `CLEAR` | todo | Channel-level actions for the founder |
+| `OP` / `DEOP` / `HALFOP` / `DEHALFOP` / `VOICE` / `DEVOICE <#channel> <nick>` | done | Threshold per rank from the table; removing also needs standing above the holder |
+| `INVITE <#channel>`, `UNBAN <#channel>` | done | `UNBAN` sends `-b <nick>`, so it only lifts a ban written as the bare nick |
+| `CLEAR <#channel> <option>` | todo | `MODES`, `BANS`, `OPS`, `HALFOPS`, `VOICES`, `USERS`, `TOPIC` |
+| `KICK` | dropped | By decision: channels kick with native `+o` |
 | `AKICK`, `LEVELS`, `DELACCESS`, `SECUREOPS`… | todo | The rank model |
 | `SET *` (founder, successor, entrymsg, mlock, topiclock…), `SUSPEND`, `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
 

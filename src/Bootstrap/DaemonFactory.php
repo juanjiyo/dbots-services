@@ -18,6 +18,7 @@ use Dbots\CRegServ\Application\Deny\DenyHandler;
 use Dbots\CRegServ\Application\Help\CRegServHelp;
 use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
 use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
+use Dbots\ChanServ\Adapter\Out\Irc\IrcChannelActions;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
@@ -137,6 +138,7 @@ final readonly class DaemonFactory
             $this->channels,
             $this->channelAccess,
             $this->channelLevels,
+            new IrcChannelActions($this->transport, $chanServUid),
             $channelProjection,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $chanServUid),

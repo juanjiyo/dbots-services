@@ -16,6 +16,7 @@ use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
+use Dbots\Tests\Support\RecordingChannelActions;
 use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\InMemoryChannelLevelRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
@@ -30,6 +31,7 @@ final class ChanServCommandHandlerTest extends TestCase
     private InMemoryAccountRepository $accounts;
     private RecordingIrc $irc;
     private RecordingChannelProjection $projection;
+    private RecordingChannelActions $actions;
     private ChanServCommandHandler $handler;
     private NetworkState $state;
 
@@ -41,11 +43,13 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
         $this->irc = new RecordingIrc();
         $this->projection = new RecordingChannelProjection();
+        $this->actions = new RecordingChannelActions();
         $this->handler = new ChanServCommandHandler(
             new DropChannelHandler($this->channels, new InMemoryChannelAccessRepository()),
             $this->channels,
             new InMemoryChannelAccessRepository(),
             new InMemoryChannelLevelRepository(),
+            $this->actions,
             $this->projection,
             new AccountResolver($this->accounts),
             $this->irc,
@@ -291,6 +295,73 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function theFounderCanOpSomebodyInTheChannel(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->joinAs('001BBBBBB', 'bob');
+
+        $this->handler->handle($this->privmsg('op #test bob'), $this->state);
+
+        self::assertSame(['#test +o 001BBBBBB'], $this->actions->modes);
+        self::assertSame(['#test: alice hace OP a bob.'], $this->actions->notices);
+    }
+
+    #[Test]
+    public function anAccessUserCanOpWhenTheTableAllowsIt(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 100'), $this->state);
+        $this->joinAs('001CCCCCC', 'carol', 'carol');
+        $this->joinAs('001BBBBBB', 'bob');
+
+        $this->handler->handle($this->privmsg('op #test bob', '001CCCCCC'), $this->state);
+
+        self::assertSame(['#test +o 001BBBBBB'], $this->actions->modes);
+    }
+
+    #[Test]
+    public function itWillNotDeopSomebodyWhoStandsAboveTheSender(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 100'), $this->state);
+        $this->joinAs('001CCCCCC', 'carol', 'carol');
+        $this->joinAs('001AAAAAA', 'alice');
+        $this->state->applyModeChange('001AAAAAA', '+o');
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('deop #test alice', '001CCCCCC'), $this->state);
+
+        self::assertSame([], $this->actions->modes);
+        self::assertSame(['001CCCCCC: Permiso denegado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aRankOnANickWeNeverSawIsRefused(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('op #test fantasma'), $this->state);
+
+        self::assertSame([], $this->actions->modes);
+        self::assertSame(['001AAAAAA: El usuario fantasma no está en el canal.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function inviteAndUnbanActOnTheChannel(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('invite #test'), $this->state);
+        $this->handler->handle($this->privmsg('unban #test'), $this->state);
+
+        self::assertSame(['#test 001AAAAAA'], $this->actions->invites);
+        self::assertContains('#test -b alice', $this->actions->modes);
+        self::assertContains('001AAAAAA: Has sido desbaneado de #test.', $this->irc->replies);
+    }
+
+    #[Test]
     public function accessLevelsFollowTheTable(): void
     {
         $this->channels->seed('#Test', 'alice');
@@ -418,6 +489,15 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->handler->handle($message, $this->state);
 
         self::assertSame([], $this->irc->replies);
+    }
+
+    private function joinAs(string $uid, string $nick, ?string $account = null): void
+    {
+        if (!$this->state->hasNick($nick)) {
+            $this->state->introduceUser($uid, $nick, $account, null === $account ? '' : 'r');
+        }
+
+        $this->state->joinChannel('#test', [$uid]);
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage

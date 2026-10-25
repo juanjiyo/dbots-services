@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Dbots\Irc\Application;
 
+use function in_array;
+use function str_replace;
+use function str_split;
 use function strtolower;
 use function strtoupper;
 
@@ -162,6 +165,64 @@ final class NetworkState
     public function partChannel(string $channel, string $uid): void
     {
         unset($this->channels[$channel][$uid]);
+    }
+
+    /**
+     * A channel MODE names its targets, and a target is always a member, so the
+     * mode stream is a second source of membership. It matters: when the IRCd
+     * creates a channel from a UDB profile it sends no SJOIN, only modes.
+     *
+     * @param list<string> $params
+     */
+    public function applyChannelModeChange(string $channel, string $changes, array $params): void
+    {
+        $adding = true;
+        $index = 0;
+
+        foreach (str_split($changes) as $mode) {
+            if ('+' === $mode) {
+                $adding = true;
+
+                continue;
+            }
+
+            if ('-' === $mode) {
+                $adding = false;
+
+                continue;
+            }
+
+            if (!in_array($mode, ['q', 'a', 'o', 'h', 'v'], true)) {
+                // Not a rank: it may still consume a parameter, but we do not track it.
+                if (in_array($mode, ['b', 'e', 'I', 'k'], true)) {
+                    ++$index;
+                }
+
+                continue;
+            }
+
+            $uid = $params[$index] ?? null;
+            ++$index;
+
+            if (null === $uid) {
+                continue;
+            }
+
+            if ($adding) {
+                $this->channels[$channel][$uid] = (($this->channels[$channel][$uid] ?? '').$mode);
+
+                continue;
+            }
+
+            // Removing a rank still proves membership, which is how we learn
+            // about the first joiner of a channel created from a UDB profile.
+            $this->channels[$channel][$uid] = str_replace($mode, '', $this->channels[$channel][$uid] ?? '');
+        }
+    }
+
+    public function isInChannel(string $channel, string $uid): bool
+    {
+        return isset($this->channels[$channel][$uid]);
     }
 
     /** True when the user is in the channel with operator status (+o or higher). */

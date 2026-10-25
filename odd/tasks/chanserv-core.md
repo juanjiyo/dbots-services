@@ -96,6 +96,23 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 - **S25** — The level is a services-only value: UDB records the access entry as
   `C::<channel>::access::<nick>` with no level field.
 
+- **S26** — A rank command takes `<<#channel>> <nick>`, requires the target to be
+  in the channel, and reads its threshold from the table: `OPDEOP` for
+  `OP`/`DEOP`, `HALFOPDEHALFOP` for the halfop pair, `VOICEDEVOICE` for the voice
+  pair.
+- **S27** — Removing a rank also needs the sender to stand above the holder; an
+  IRCop counts as 500, so nobody deops an oper.
+- **S28** — After a rank change or an invite, ChanServ says it in the channel:
+  `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S30** — Membership comes from three places, because the protocol offers
+  three: `SJOIN` (a live join, or the burst), the channel `MODE` stream (a mode
+  target is always a member, which is how the founder of an empty registered
+  channel becomes visible), and nothing else. A plain user joining a channel the
+  IRCd has just created from a UDB profile produces **no event at all**, so a
+  rank command only refuses a nick it has never seen; the IRCd decides the rest.
+- **S29** — `UNBAN <#channel>` sends `MODE <#channel> -b <nick>`, as the original
+  does. That only matches a ban written as the bare nick: a mask needs the ban
+  list, which we do not track yet. The limitation is documented, not hidden.
 ## Tasks (this stage)
 
 - **T9** (S8, S9, S10, S11, S12, S14, S15) — channel settings fields, migration,
@@ -108,8 +125,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   `SqliteChannelLevelRepository`, `LEVELS LIST|SET|RESET`.
 - **T12** (S22-S25) — **done**. Levels on access entries, table-driven gates, and
   the `authority()` calculation later commands reuse.
-- **T13** — `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`, `KICK`, `INVITE`,
-  `UNBAN`, `CLEAR`.
+- **T13** (S26-S29) — **done**. `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`,
+  `INVITE`, `UNBAN`.
+- **T13b** — `CLEAR MODES|BANS|OPS|HALFOPS|VOICES|USERS|TOPIC`. `OPS`, `HALFOPS`,
+  `VOICES` and `USERS` walk every member, so they need their own slice.
 - **T14** — `AKICK`.
 - **T15** — `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND`, `FORBID`/`UNFORBID`/`LISTFORBID`,
   `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
@@ -133,6 +152,17 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L16** — The first join of a registered channel is invisible. The IRCd creates
+  the channel from the profile, asks us for the records (`DB ... PUT C::#x::...`)
+  and sends the joiner `-o`/`+q`, but no `JOIN` and no `SJOIN`. The `MODE` stream
+  rescues the ranked cases, which is why the founder can now be opeed, and a rank
+  command no longer refuses a user it knows. A plain user in that situation is
+  still invisible: entry messages and future `NOJOIN`/`AUTOOP` cannot reach them
+  until we have a second source of membership.
+- **L15** — Ranks are applied by ChanServ as a channel member, not as the server:
+  `:<chanServUid> MODE #channel +o <uid>`. The server form (`SAMODE`) would work
+  too, but then the channel timestamp and the mode ownership belong to us, and
+  the original changes modes as a user.
 - **L14** — `ACCESS` now scores against the table, so the levels bite. The gate
   moved from "are you the founder" to "is your level enough", which is the whole
   point: a channel can hand `ACC-CHANGE` to a 499 user without making them founder.
