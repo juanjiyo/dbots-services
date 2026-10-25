@@ -67,13 +67,13 @@ final class AccountBlockProviderTest extends TestCase
     }
 
     #[Test]
-    public function itPublishesTheNickServServiceMaskInTheSettingsBlock(): void
+    public function itPublishesTheNickServiceMaskInTheSettingsBlock(): void
     {
         $records = $this->provider->records('S');
 
-        self::assertSame(['nickserv' => 'NickServ!NickServ@bots.example.org'], $records);
+        self::assertSame(['nickserv' => 'NiCK!NiCK@bots.example.org'], $records);
         self::assertSame(
-            'b766a1aad442c7a048bb80bee28f976750c1a69b83889a8053c42981f99fa97d',
+            '19a4d9b82e3079e7074d8244e99866b6601be0472b0a78d9a8d50e9410c01bf6',
             NativeDigest::logicalDigest('S', $records),
         );
     }

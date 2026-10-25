@@ -38,7 +38,7 @@ final class OperServCommandHandlerTest extends TestCase
             new \Dbots\Tests\Support\InMemorySpamRuleRepository(),
             $this->spamProjection(),
             $this->irc,
-            'OperServ',
+            'OPeR',
             '003A00004',
             OperServHelp::create(),
         );
@@ -62,7 +62,7 @@ final class OperServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('kill victim'), $this->state);
 
-        self::assertSame(['001BBBBBB|Killed by OperServ'], $this->enforcement->kills);
+        self::assertSame(['001BBBBBB|Expulsado por OPeR'], $this->enforcement->kills);
     }
 
     #[Test]
@@ -146,7 +146,7 @@ final class OperServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('GLINE bad@host 30'), $this->state);
 
-        self::assertSame(['bad@host|1800|G-Lined by OperServ'], $this->enforcement->glines);
+        self::assertSame(['bad@host|1800|G-Line puesta por OPeR'], $this->enforcement->glines);
     }
 
     #[Test]
@@ -171,7 +171,7 @@ final class OperServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('GLINE justanick 30'), $this->state);
 
-        self::assertSame(['*@justanick|1800|G-Lined by OperServ'], $this->enforcement->glines);
+        self::assertSame(['*@justanick|1800|G-Line puesta por OPeR'], $this->enforcement->glines);
     }
 
     #[Test]
@@ -303,7 +303,7 @@ final class OperServCommandHandlerTest extends TestCase
     #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
-        $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['ChanServ'], 'KILL victim'), $this->state);
+        $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['CHaN'], 'KILL victim'), $this->state);
 
         self::assertSame([], $this->enforcement->kills);
     }
@@ -319,7 +319,7 @@ final class OperServCommandHandlerTest extends TestCase
             new \Dbots\Tests\Support\InMemorySpamRuleRepository(),
             $this->spamProjection(),
             $this->irc,
-            'OperServ',
+            'OPeR',
             '003A00004',
             OperServHelp::create(),
             rootPassword: $password,
@@ -342,7 +342,7 @@ final class OperServCommandHandlerTest extends TestCase
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
-        return new IrcMessage($uid, 'PRIVMSG', ['OperServ'], $text);
+        return new IrcMessage($uid, 'PRIVMSG', ['OPeR'], $text);
     }
 }
 

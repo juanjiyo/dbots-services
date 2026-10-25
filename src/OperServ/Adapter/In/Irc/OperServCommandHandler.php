@@ -144,7 +144,7 @@ final class OperServCommandHandler
             return;
         }
 
-        $reason = [] === $args ? 'Killed by OperServ' : implode(' ', array_values($args));
+        $reason = [] === $args ? 'Expulsado por OPeR' : implode(' ', array_values($args));
 
         $this->enforcement->kill($uid, $reason);
         $this->reply->reply($sender, sprintf('%s has been killed.', $nick));
@@ -176,7 +176,7 @@ final class OperServCommandHandler
 
         $reason = implode(' ', array_values(array_slice($args, 2)));
 
-        $this->enforcement->kick($channel, $uid, '' === $reason ? 'Kicked by OperServ' : $reason);
+        $this->enforcement->kick($channel, $uid, '' === $reason ? 'Expulsado por OPeR' : $reason);
         $this->reply->reply($sender, sprintf('%s has been kicked from %s.', $nick, $channel));
     }
 
@@ -252,7 +252,7 @@ final class OperServCommandHandler
             return;
         }
 
-        $reason = [] === $args ? 'G-Lined by OperServ' : implode(' ', array_values($args));
+        $reason = [] === $args ? 'G-Line puesta por OPeR' : implode(' ', array_values($args));
 
         $this->enforcement->gline($user, $host, $duration, $reason);
         $this->reply->reply($sender, sprintf(
@@ -463,7 +463,7 @@ final class OperServCommandHandler
 
         $minutes = 'killclones' === $command ? $this->killClonesMinutes : $this->blockMinutes;
         $reason = [] === $args
-            ? ('killclones' === $command ? 'Clones of ' . $nick : 'Blocked by OperServ')
+            ? ('killclones' === $command ? 'Clones of ' . $nick : 'Bloqueado por OPeR')
             : implode(' ', array_values($args));
 
         $this->enforcement->gline('*', $host, $minutes * 60, $reason);

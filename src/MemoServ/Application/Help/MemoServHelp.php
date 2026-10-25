@@ -11,11 +11,11 @@ final class MemoServHelp
 {
     public static function create(): HelpCatalog
     {
-        return new HelpCatalog('MemoServ', [
-            new HelpEntry('SEND', 'SEND <nick> <mensaje>', 'Deja un memo a otra cuenta.', '/msg MemoServ SEND JuanJo nos vemos el sábado', ['ENVIA']),
-            new HelpEntry('LIST', 'LIST', 'Lista tus memos, con número y si están leídos.', '/msg MemoServ LIST', ['LISTA']),
-            new HelpEntry('READ', 'READ <número>', 'Lee un memo y lo marca como leído.', '/msg MemoServ READ 3', ['LEE']),
-            new HelpEntry('DEL', 'DEL <número>', 'Borra un memo de tu lista.', '/msg MemoServ DEL 3', ['DELETE', 'BORRA']),
+        return new HelpCatalog('MeMo', [
+            new HelpEntry('SEND', 'SEND <nick> <mensaje>', 'Deja un memo a otra cuenta.', '/msg MeMo SEND JuanJo nos vemos el sábado', ['ENVIA']),
+            new HelpEntry('LIST', 'LIST', 'Lista tus memos, con número y si están leídos.', '/msg MeMo LIST', ['LISTA']),
+            new HelpEntry('READ', 'READ <número>', 'Lee un memo y lo marca como leído.', '/msg MeMo READ 3', ['LEE']),
+            new HelpEntry('DEL', 'DEL <número>', 'Borra un memo de tu lista.', '/msg MeMo DEL 3', ['DELETE', 'BORRA']),
         ]);
     }
 }

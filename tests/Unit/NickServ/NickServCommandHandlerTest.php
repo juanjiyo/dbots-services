@@ -51,7 +51,7 @@ final class NickServCommandHandlerTest extends TestCase
             new AccountResolver($accounts),
             new AccountInfoHandler($accounts, new NoChannels(), new \Dbots\Tests\Support\InMemoryMemoRepository()),
             $accounts,
-            'NickServ',
+            'NiCK',
             '003A00001',
             NickServHelp::create(),
         );
@@ -128,7 +128,7 @@ final class NickServCommandHandlerTest extends TestCase
     #[Test]
     public function itIgnoresUnknownSenders(): void
     {
-        $message = new IrcMessage('001ZZZZZZ', 'PRIVMSG', ['NickServ'], 'register hunter2');
+        $message = new IrcMessage('001ZZZZZZ', 'PRIVMSG', ['NiCK'], 'register hunter2');
 
         $this->handler->handle($message, $this->state);
 
@@ -230,7 +230,7 @@ final class NickServCommandHandlerTest extends TestCase
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $channels, new \Dbots\Tests\Support\InMemoryMemoRepository()),
             $this->accounts,
-            'NickServ',
+            'NiCK',
             '003A00001',
             NickServHelp::create(),
         );
@@ -288,7 +288,7 @@ final class NickServCommandHandlerTest extends TestCase
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
-        return new IrcMessage('001AAAAAA', 'PRIVMSG', ['NickServ'], $text);
+        return new IrcMessage('001AAAAAA', 'PRIVMSG', ['NiCK'], $text);
     }
 }
 

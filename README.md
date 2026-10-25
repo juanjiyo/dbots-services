@@ -8,7 +8,7 @@ The goal is to reproduce the dBoTs family (the mIRC bots the network has run for
 years) on a modern stack, with the vocabulary and behaviour users already know.
 
 The daemon links to the IRCd as a services server (S2S), takes ownership of the
-distributed user database (UDB 4) and answers `NickServ` commands. Because UDB
+distributed user database (UDB 4) and answers commands from `NiCK`, `CHaN`, `MeMo`, `OPeR` and `CReG`. Because UDB
 owns the accounts, authentication is native:
 
 ```text
@@ -25,12 +25,12 @@ dbots publishes and applies the account and `+r` itself.
 | S2S link (HEL 4, EOS, sync) | Working, verified live |
 | UDB 4 authority (HEL/INF/RES/BEGIN/PUT/END) | Working, verified live |
 | Canonical block digests | Verified byte-for-byte against the module reference |
-| NickServ `REGISTER` / `IDENTIFY` / `INFO` / `SET PASSWORD` / `DROP` | Working |
-| ChanServ `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
+| NiCK `REGISTER` / `IDENTIFY` / `INFO` / `SET PASSWORD` / `DROP` | Working |
+| CHaN `REGISTER` / `INFO` / `DROP` / `ACCESS` / `TOPIC` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |
-| MemoServ `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
+| MeMo `SEND` / `LIST` / `READ` / `DELETE` | Working, verified live |
 | Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
-| OperServ `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
+| OPeR `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
 | Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
 | OperServ `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |
 
@@ -97,7 +97,7 @@ clients with `UDB initialization pending`. Keep the unit enabled before pointing
 grep UDB_HEL_CONFIRMED /opt/unrealircd/logs/ircd.log | tail -1
 
 # 2. a fresh account, from an IRC client
-/msg NickServ REGISTER <password>
+/msg NiCK REGISTER <password>
 
 # 3. native login from a new connection
 /NICK <nick>:<password>
@@ -160,22 +160,22 @@ without sockets. Only `TlsStreamTransport` knows about sockets, and only
 ## Operator commands
 
 ```text
-/msg OperServ KILL <nick> [reason]
-/msg OperServ KICK <#channel> <nick> [reason]
-/msg OperServ STATS
-/msg OperServ IRCOPS
-/msg OperServ OP|DEOP <#channel> <nick>
-/msg OperServ MODE <#channel> <modes> [arg]
-/msg OperServ GLINE <user@host> <duration> [reason]
-/msg OperServ UNGLINE <user@host>
-/msg OperServ RENAME <nick> [newnick]
-/msg OperServ DROPNDB <nick>
-/msg OperServ APODERA <#channel> [nick]
-/msg OperServ LISTCLONES <nick>
-/msg OperServ KILLCLONES <nick> [reason]   (G-Lines the host for 60m)
-/msg OperServ BLOCK <nick> [reason]        (G-Lines the host for 300m)
-/msg OperServ LIMPIA <#channel>
-/msg OperServ ROOT <password>              (grants SETTIME)
+/msg OPeR KILL <nick> [reason]
+/msg OPeR KICK <#channel> <nick> [reason]
+/msg OPeR STATS
+/msg OPeR IRCOPS
+/msg OPeR OP|DEOP <#channel> <nick>
+/msg OPeR MODE <#channel> <modes> [arg]
+/msg OPeR GLINE <user@host> <duration> [reason]
+/msg OPeR UNGLINE <user@host>
+/msg OPeR RENAME <nick> [newnick]
+/msg OPeR DROPNDB <nick>
+/msg OPeR APODERA <#channel> [nick]
+/msg OPeR LISTCLONES <nick>
+/msg OPeR KILLCLONES <nick> [reason]   (G-Lines the host for 60m)
+/msg OPeR BLOCK <nick> [reason]        (G-Lines the host for 300m)
+/msg OPeR LIMPIA <#channel>
+/msg OPeR ROOT <password>              (grants SETTIME)
 ```
 
 `SPAM` keeps rules in SQLite and exports them as `K::F` profiles with the
@@ -196,10 +196,10 @@ from the connection itself, never inferred from a nickname or an account.
 ## Memos
 
 ```text
-/msg MemoServ SEND <nick> <message>
-/msg MemoServ LIST
-/msg MemoServ READ <number>
-/msg MemoServ DELETE <number>
+/msg MeMo SEND <nick> <message>
+/msg MeMo LIST
+/msg MeMo READ <number>
+/msg MeMo DELETE <number>
 ```
 
 Memos belong to the account, not the session, and have no UDB projection: there
@@ -208,11 +208,11 @@ is no memo block, so they never enter the replicated database.
 ## Channel registration
 
 ```text
-/msg ChanServ REGISTER #channel     (you must be identified)
-/msg ChanServ INFO #channel
-/msg ChanServ DROP #channel         (founder only)
-/msg ChanServ ACCESS LIST|ADD|DEL <#channel> [nick]
-/msg ChanServ TOPIC <#channel> <text>
+/msg CHaN REGISTER #channel     (you must be identified)
+/msg CHaN INFO #channel
+/msg CHaN DROP #channel         (founder only)
+/msg CHaN ACCESS LIST|ADD|DEL <#channel> [nick]
+/msg CHaN TOPIC <#channel> <text>
 ```
 
 Access entries are exported to the C block as `#channel::access::nick`; UDB's JOIN

@@ -3,8 +3,8 @@
 Every command below answers `HELP` and `AYUDA`:
 
 ```text
-/msg NickServ HELP            index of commands you may use
-/msg NickServ HELP REGISTER   one page: syntax, aliases and an example
+/msg NiCK HELP            index of commands you may use
+/msg NiCK HELP REGISTER   one page: syntax, aliases and an example
 ```
 
 The index is permission-filtered: operator-only commands simply do not appear
@@ -22,7 +22,7 @@ network, so both are accepted wherever the original had both.
 Status: **done** works and is verified; **partial** exists but covers less than
 the original; **todo** is not implemented.
 
-## NickServ
+## NiCK
 
 | Command | Status | Notes |
 |---|---|---|
@@ -41,7 +41,7 @@ the original; **todo** is not implemented.
 | `VHOST`, `DROPVHOST`, `VIEWIP` | todo | |
 | `MARCA` / `MARCADEL` / `MERCADEL`, `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
 
-## ChanServ
+## CHaN
 
 Channel registration belongs to **CReG**, not ChanServ: `ch.mrc` has no
 `REGISTRA`, `cr.mrc` does. ChanServ points at CReG instead, and CReG keeps the
@@ -59,7 +59,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `AKICK`, `LEVELS`, `DELACCESS`, `SECUREOPS`… | todo | The rank model |
 | `SET *` (founder, successor, entrymsg, mlock, topiclock…), `SUSPEND`, `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
 
-## MemoServ
+## MeMo
 
 | Command | Status | Notes |
 |---|---|---|
@@ -67,7 +67,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `NOMEMOS`, `SET` / `SET NOTIFY` | todo | |
 | `OPERS` / `ADMINS` / `COADMINS` / `PREOPERS` / `USERS` | todo | Memos to a group |
 
-## OperServ
+## OPeR
 
 | Command | Status |
 |---|---|
@@ -102,7 +102,7 @@ sees the whole stream, and keeps it narrower on purpose:
 DBOTS_DEBUG_CHANNEL=#DeBuG
 ```
 
-When set, every service — `NickServ`, `ChanServ`, `MemoServ`, `OperServ`, `CReG`
+When set, every service — `NiCK`, `CHaN`, `MeMo`, `OPeR`, `CReG`
 and the `DeBuG` relay — joins that channel with operator status, the way the
 original services sat in the debug channel. `DeBuG` is the one that writes to it. The `<DeBuG>`
 you see is its nickname, and the timestamp is your client's: the message body

@@ -47,7 +47,7 @@ final class ChanServCommandHandlerTest extends TestCase
             $this->projection,
             new AccountResolver($this->accounts),
             $this->irc,
-            'ChanServ',
+            'CHaN',
             '003A00002',
             ChanServHelp::create(),
         );
@@ -167,7 +167,7 @@ final class ChanServCommandHandlerTest extends TestCase
     #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
-        $message = new IrcMessage('001AAAAAA', 'PRIVMSG', ['NickServ'], 'register #test');
+        $message = new IrcMessage('001AAAAAA', 'PRIVMSG', ['NiCK'], 'register #test');
 
         $this->handler->handle($message, $this->state);
 
@@ -176,7 +176,7 @@ final class ChanServCommandHandlerTest extends TestCase
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
-        return new IrcMessage($uid, 'PRIVMSG', ['ChanServ'], $text);
+        return new IrcMessage($uid, 'PRIVMSG', ['CHaN'], $text);
     }
 }
 

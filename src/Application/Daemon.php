@@ -78,10 +78,10 @@ final readonly class Daemon
     private function introduceServices(): void
     {
         $services = [
-            ['NickServ', sprintf('%sA00001', $this->sid), 'Nickname Registration Services'],
-            ['ChanServ', sprintf('%sA00002', $this->sid), 'Channel Registration Services'],
-            ['MemoServ', sprintf('%sA00003', $this->sid), 'Memo Services'],
-            ['OperServ', sprintf('%sA00004', $this->sid), 'Network Operations Services'],
+            ['NiCK', sprintf('%sA00001', $this->sid), 'Nickname Registration Services'],
+            ['CHaN', sprintf('%sA00002', $this->sid), 'Channel Registration Services'],
+            ['MeMo', sprintf('%sA00003', $this->sid), 'Memo Services'],
+            ['OPeR', sprintf('%sA00004', $this->sid), 'Network Operations Services'],
             ['CReG', sprintf('%sA00006', $this->sid), 'Channel Registration Requests'],
         ];
 
@@ -311,10 +311,10 @@ final readonly class Daemon
         }
 
         $known = [
-            sprintf('%sA00001', $this->sid) => 'NickServ',
-            sprintf('%sA00002', $this->sid) => 'ChanServ',
-            sprintf('%sA00003', $this->sid) => 'MemoServ',
-            sprintf('%sA00004', $this->sid) => 'OperServ',
+            sprintf('%sA00001', $this->sid) => 'NiCK',
+            sprintf('%sA00002', $this->sid) => 'CHaN',
+            sprintf('%sA00003', $this->sid) => 'MeMo',
+            sprintf('%sA00004', $this->sid) => 'OPeR',
         ];
 
         return $known[$target] ?? (in_array($target, $known, true) ? $target : null);

@@ -43,7 +43,7 @@ final class MemoServCommandHandlerTest extends TestCase
             $this->memos,
             new AccountResolver($accounts),
             $this->irc,
-            'MemoServ',
+            'MeMo',
             '003A00003',
             MemoServHelp::create(),
         );
@@ -149,14 +149,14 @@ final class MemoServCommandHandlerTest extends TestCase
     #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
-        $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['ChanServ'], 'list'), $this->state);
+        $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['CHaN'], 'list'), $this->state);
 
         self::assertSame([], $this->irc->replies);
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
     {
-        return new IrcMessage($uid, 'PRIVMSG', ['MemoServ'], $text);
+        return new IrcMessage($uid, 'PRIVMSG', ['MeMo'], $text);
     }
 
     private function sendToBob(): void

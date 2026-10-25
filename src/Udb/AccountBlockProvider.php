@@ -59,7 +59,7 @@ final readonly class AccountBlockProvider implements BlockProviderInterface
         if ('S' === $block) {
             // Service mask so IRCd-originated notices come from NickServ and not
             // from the local server source.
-            return ['nickserv' => 'NickServ!NickServ@' . $this->serviceHost];
+            return ['nickserv' => 'NiCK!NiCK@' . $this->serviceHost];
         }
 
         if ('N' !== $block) {

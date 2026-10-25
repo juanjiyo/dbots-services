@@ -52,12 +52,12 @@ final readonly class DebugFormatter
             [$nick, $key] = $parts;
 
             return match ($key) {
-                'pass' => sprintf('NickServ registra o cambia la clave de %s', $nick),
-                'forbid' => sprintf('NickServ %s la prohibición de %s', $verb, $nick),
-                'suspend' => sprintf('NickServ %s la suspensión de %s', $verb, $nick),
-                'swhois' => sprintf('NickServ %s el SWHOIS de %s', $verb, $nick),
-                'vhost' => sprintf('NickServ %s el vhost de %s', $verb, $nick),
-                default => sprintf('NickServ %s %s (%s)', $verb, $nick, $key),
+                'pass' => sprintf('NiCK registra o cambia la clave de %s', $nick),
+                'forbid' => sprintf('NiCK %s la prohibición de %s', $verb, $nick),
+                'suspend' => sprintf('NiCK %s la suspensión de %s', $verb, $nick),
+                'swhois' => sprintf('NiCK %s el SWHOIS de %s', $verb, $nick),
+                'vhost' => sprintf('NiCK %s el vhost de %s', $verb, $nick),
+                default => sprintf('NiCK %s %s (%s)', $verb, $nick, $key),
             };
         }
 
@@ -65,18 +65,18 @@ final readonly class DebugFormatter
             [$channel, $key] = $parts;
 
             return match ($key) {
-                'founder' => sprintf('ChanServ fija el fundador de %s a %s', $channel, $value),
-                'topic' => sprintf('ChanServ cambia el tema de %s', $channel),
-                default => sprintf('ChanServ %s %s (%s)', $verb, $channel, $key),
+                'founder' => sprintf('CHaN fija el fundador de %s a %s', $channel, $value),
+                'topic' => sprintf('CHaN cambia el tema de %s', $channel),
+                default => sprintf('CHaN %s %s (%s)', $verb, $channel, $key),
             };
         }
 
         if ('C' === $block && 3 === count($parts) && 'access' === $parts[1]) {
-            return sprintf('ChanServ %s acceso de %s a %s', $verb, $parts[2], $parts[0]);
+            return sprintf('CHaN %s acceso de %s a %s', $verb, $parts[2], $parts[0]);
         }
 
         if ('K' === $block) {
-            return sprintf('OperServ %s una regla de spamfilter', $verb);
+            return sprintf('OPeR %s una regla de spamfilter', $verb);
         }
 
         return sprintf('DB %s %s::%s', strtoupper($operation), $block, $path);

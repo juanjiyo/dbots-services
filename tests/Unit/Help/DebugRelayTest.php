@@ -58,7 +58,7 @@ final class DebugRelayTest extends TestCase
 
         $line = $this->transport->written[0];
 
-        self::assertStringContainsString('NickServ registra o cambia la clave de JuanJo', $line);
+        self::assertStringContainsString('NiCK registra o cambia la clave de JuanJo', $line);
         self::assertStringNotContainsString('!sAAAA', $line);
     }
 
@@ -67,7 +67,7 @@ final class DebugRelayTest extends TestCase
     {
         $this->relay->mutation(':004 DB * INS 0123456789abcdef 4 N::JuanJo::forbid :!sAAAA');
 
-        self::assertStringContainsString('NickServ añade la prohibición de JuanJo', $this->transport->written[0]);
+        self::assertStringContainsString('NiCK añade la prohibición de JuanJo', $this->transport->written[0]);
     }
 
     #[Test]
