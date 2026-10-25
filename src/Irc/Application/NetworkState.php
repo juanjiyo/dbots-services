@@ -38,6 +38,12 @@ final class NetworkState
     /** @var array<string, string> sid => server name */
     private array $servers = [];
 
+    /** @var array<string, string|null> sid => parent sid */
+    private array $serverParents = [];
+
+    /** @var array<string, array<string, true>> sid => child sid => true */
+    private array $serverChildren = [];
+
     /** @var array<string, array<string, string>> channel => uid => member modes */
     private array $channels = [];
 
@@ -145,11 +151,33 @@ final class NetworkState
         return $nicks;
     }
 
-    public function registerServer(string $sid, string $name): void
+    public function registerServer(string $sid, string $name, ?string $parentSid = null): void
     {
-        if ('' !== $sid && '' !== $name) {
-            $this->servers[$sid] = $name;
+        if ('' === $sid || '' === $name) {
+            return;
         }
+
+        $this->servers[$sid] = $name;
+        $this->serverParents[$sid] = $parentSid;
+
+        if (null !== $parentSid) {
+            $this->serverChildren[$parentSid][$sid] = true;
+        }
+    }
+
+    public function unregisterServer(string $sid): void
+    {
+        foreach ($this->serverChildren[$sid] ?? [] as $child => $_) {
+            $this->unregisterServer($child);
+        }
+
+        $parentSid = $this->serverParents[$sid] ?? null;
+
+        if (null !== $parentSid) {
+            unset($this->serverChildren[$parentSid][$sid]);
+        }
+
+        unset($this->servers[$sid], $this->serverParents[$sid], $this->serverChildren[$sid]);
     }
 
     /** Resolves a server SID to its name; the debug channel should never show raw SIDs. */
@@ -308,6 +336,61 @@ final class NetworkState
         return isset($this->servers[$id]);
     }
 
+    /** @return list<string> SIDs that have no parent (the roots of the map) */
+    public function rootServers(): array
+    {
+        $roots = [];
+
+        foreach ($this->servers as $sid => $name) {
+            if (null === ($this->serverParents[$sid] ?? null)) {
+                $roots[] = $sid;
+            }
+        }
+
+        return $roots;
+    }
+
+    /** @return list<string> direct children of the given server */
+    public function childrenOf(string $sid): array
+    {
+        return array_keys($this->serverChildren[$sid] ?? []);
+    }
+
+    /** @return array<string, int> host => number of connected users */
+    public function sessionsByHost(): array
+    {
+        $counts = [];
+
+        foreach ($this->hosts as $uid => $host) {
+            if (isset($this->nicks[$uid])) {
+                $counts[$host] = ($counts[$host] ?? 0) + 1;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @return list<array{host: string, count: int}> hosts with at least $min
+     *                                              sessions, sorted by count desc
+     */
+    public function hostsWithAtLeast(int $min): array
+    {
+        $result = [];
+
+        foreach ($this->sessionsByHost() as $host => $count) {
+            if ($count >= $min) {
+                $result[] = ['host' => $host, 'count' => $count];
+            }
+        }
+
+        usort($result, static function (array $a, array $b): int {
+            return $b['count'] <=> $a['count'];
+        });
+
+        return $result;
+    }
+
     public function nickOf(string $uid): ?string
     {
         return $this->nicks[$uid] ?? null;
@@ -349,6 +432,8 @@ final class NetworkState
         $this->modes = [];
         $this->hosts = [];
         $this->servers = [];
+        $this->serverParents = [];
+        $this->serverChildren = [];
         $this->channels = [];
     }
 

@@ -91,4 +91,31 @@ final readonly class S2sEnforcement implements EnforcementInterface
     {
         $this->transport->writeLine(sprintf(':%s SVSMODE %s %s', $this->sid, $uid, $modes));
     }
+
+    public function eline(string $userMask, string $hostMask, int $durationSeconds, string $reason): void
+    {
+        $now = time();
+
+        $this->transport->writeLine(sprintf(
+            ':%s TKL + E %s %s %s %d %d :%s',
+            $this->sid,
+            $userMask,
+            $hostMask,
+            $this->sid,
+            0 === $durationSeconds ? 0 : $now + $durationSeconds,
+            $now,
+            $reason,
+        ));
+    }
+
+    public function uneline(string $userMask, string $hostMask): void
+    {
+        $this->transport->writeLine(sprintf(
+            ':%s TKL - E %s %s %s',
+            $this->sid,
+            $userMask,
+            $hostMask,
+            $this->sid,
+        ));
+    }
 }

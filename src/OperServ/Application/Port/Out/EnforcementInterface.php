@@ -32,4 +32,15 @@ interface EnforcementInterface
 
     /** Sets user modes on a connected user. */
     public function userMode(string $uid, string $modes): void;
+
+    /**
+     * Adds an E-Line exception.
+     *
+     * UnrealIRCd TKL: `TKL + E <user> <host> <sid> <expire> <set-at> :<reason>`,
+     * where expire 0 means permanent.
+     */
+    public function eline(string $userMask, string $hostMask, int $durationSeconds, string $reason): void;
+
+    /** Removes an E-Line exception. */
+    public function uneline(string $userMask, string $hostMask): void;
 }

@@ -77,6 +77,7 @@ services:
     Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoRepository'
 
     Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteSpamRuleRepository'
+    Dbots\OperServ\Application\Port\Out\ElineRepositoryInterface: '@Dbots\OperServ\Adapter\Out\Persistence\SqliteElineRepository'
 
     Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface: '@Dbots\CRegServ\Adapter\Out\Persistence\SqliteChannelRequestRepository'
 

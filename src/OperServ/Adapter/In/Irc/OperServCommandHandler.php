@@ -10,15 +10,20 @@ use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Spam\SpamRule;
+use Dbots\Domain\Staff\StaffRank;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\Port\Out\AccountProjectionInterface;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\OperServ\Application\Duration;
+use Dbots\OperServ\Application\Port\Out\ElineRepositoryInterface;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\OperServ\Application\Port\Out\SpamRuleRepositoryInterface;
+use Dbots\OperServ\Domain\Eline;
+use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Udb\UdbSpamProjection;
 use InvalidArgumentException;
 
@@ -27,6 +32,8 @@ use function array_shift;
 use function array_slice;
 use function array_values;
 use function count;
+use function ctype_digit;
+use function date;
 use function explode;
 use function hash_equals;
 use function implode;
@@ -68,6 +75,9 @@ final class OperServCommandHandler
         private int $blockMinutes = 300,
         private string $rootPassword = '',
         private string $jailChannel = '',
+        private ?ElineRepositoryInterface $elines = null,
+        private ?StaffAuthority $staff = null,
+        private ?AccountResolver $resolver = null,
     ) {
     }
 
@@ -113,6 +123,9 @@ final class OperServCommandHandler
             'BLOCK' => $this->onHostBan($sender, $parts, $state, 'block'),
             'JAIL' => $this->onJail($sender, $parts, $state),
             'UMODE' => $this->onUmode($sender, $parts, $state),
+            'ELINE' => $this->onEline($sender, $parts, $state),
+            'SERVERMAP' => $this->onServermap($sender, $state),
+            'CONEXIONES' => $this->onConexiones($sender, $parts, $state),
             'SETTIME' => $this->onSetTime($sender, $state),
             'ROOT' => $this->onRoot($sender, $parts),
             'LIMPIA' => $this->onClean($sender, $parts, $state),
@@ -574,6 +587,282 @@ final class OperServCommandHandler
         $this->reply->reply($sender, sprintf('User modes %s applied to %s.', $modes, $nick));
     }
 
+    /** @param list<string> $args */
+    private function onEline(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireAdmin($sender, $state)) {
+            return;
+        }
+
+        if (null === $this->elines) {
+            $this->reply->reply($sender, 'ELINE repository is not available.');
+
+            return;
+        }
+
+        $action = strtoupper((string) array_shift($args));
+
+        match ($action) {
+            'ADD' => $this->onElineAdd($sender, $args, $state),
+            'DEL' => $this->onElineDel($sender, $args),
+            'LIST' => $this->onElineList($sender),
+            'VIEW' => $this->onElineView($sender, $args),
+            'COUNT' => $this->onElineCount($sender),
+            default => $this->reply->reply($sender, 'Syntax: ELINE ADD|DEL|LIST|VIEW|COUNT ...'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onElineAdd(string $sender, array $args, NetworkState $state): void
+    {
+        $mask = array_shift($args);
+        $durationValue = array_shift($args);
+
+        if (null === $mask || null === $durationValue || [] === $args) {
+            $this->reply->reply($sender, 'Syntax: ELINE ADD <user@host|host> <duración> <motivo>');
+
+            return;
+        }
+
+        $duration = Duration::parse($durationValue);
+
+        if (null === $duration) {
+            $this->reply->reply($sender, 'Invalid duration. Use minutes, or a suffix: 30m, 2h, 1d, 0 for permanent.');
+
+            return;
+        }
+
+        [$user, $host] = $this->splitMask($mask);
+
+        if ('' === $host || false === filter_var($host, FILTER_VALIDATE_IP)) {
+            $this->reply->reply($sender, 'The mask needs a valid IP host part, for example *@192.0.2.1.');
+
+            return;
+        }
+
+        $canonicalMask = $user . '@' . $host;
+
+        if (null !== $this->elines->findByMask($canonicalMask)) {
+            $this->reply->reply($sender, sprintf('An E-Line already exists for %s.', $canonicalMask));
+
+            return;
+        }
+
+        $reason = implode(' ', $args);
+        $who = $state->nickOf($sender) ?? 'OPeR';
+        $now = time();
+        $expires = 0 === $duration ? 0 : $now + $duration;
+
+        $this->elines->save(new Eline(null, $canonicalMask, $reason, $who, $now, $expires));
+        $this->enforcement->eline($user, $host, $duration, $reason);
+
+        $this->reply->reply($sender, sprintf(
+            'E-Line added on %s (%s).',
+            $canonicalMask,
+            Duration::describe($duration),
+        ));
+    }
+
+    /** @param list<string> $args */
+    private function onElineDel(string $sender, array $args): void
+    {
+        $mask = array_shift($args);
+
+        if (null === $mask) {
+            $this->reply->reply($sender, 'Syntax: ELINE DEL <user@host|host|num>');
+
+            return;
+        }
+
+        if (ctype_digit($mask)) {
+            $id = (int) $mask;
+            $eline = $this->elines->findById($id);
+
+            if (null === $eline) {
+                $this->reply->reply($sender, sprintf('No E-Line with number %d.', $id));
+
+                return;
+            }
+
+            $this->elines->deleteById($id);
+            [$user, $host] = $this->splitMask($eline->mask);
+            $this->enforcement->uneline($user, $host);
+            $this->reply->reply($sender, sprintf('E-Line %d removed.', $id));
+
+            return;
+        }
+
+        [$user, $host] = $this->splitMask($mask);
+        $canonicalMask = $user . '@' . $host;
+
+        if (!$this->elines->deleteByMask($canonicalMask)) {
+            $this->reply->reply($sender, sprintf('No E-Line matches %s.', $canonicalMask));
+
+            return;
+        }
+
+        $this->enforcement->uneline($user, $host);
+        $this->reply->reply($sender, sprintf('E-Line removed on %s.', $canonicalMask));
+    }
+
+    private function onElineList(string $sender): void
+    {
+        $elines = $this->elines->allActive(time());
+
+        if ([] === $elines) {
+            $this->reply->reply($sender, 'No E-Lines are defined.');
+
+            return;
+        }
+
+        $this->reply->reply($sender, 'E-Lines:');
+
+        foreach ($elines as $eline) {
+            $this->reply->reply($sender, sprintf(
+                '%d. %s (%s)',
+                $eline->id,
+                $eline->mask,
+                Duration::describe(0 === $eline->expiresAt ? 0 : $eline->expiresAt - $eline->createdAt),
+            ));
+        }
+    }
+
+    /** @param list<string> $args */
+    private function onElineView(string $sender, array $args): void
+    {
+        $idValue = array_shift($args);
+
+        if (null === $idValue || !ctype_digit($idValue)) {
+            $this->reply->reply($sender, 'Syntax: ELINE VIEW <num>');
+
+            return;
+        }
+
+        $eline = $this->elines->findById((int) $idValue);
+
+        if (null === $eline) {
+            $this->reply->reply($sender, sprintf('No E-Line with number %d.', $idValue));
+
+            return;
+        }
+
+        $this->reply->reply($sender, sprintf('E-Line %d: %s', $eline->id, $eline->mask));
+        $this->reply->reply($sender, sprintf('Set by %s on %s.', $eline->who, date('Y-m-d H:i', $eline->createdAt)));
+        $this->reply->reply($sender, sprintf('Expires: %s.', 0 === $eline->expiresAt ? 'never' : date('Y-m-d H:i', $eline->expiresAt)));
+        $this->reply->reply($sender, sprintf('Reason: %s.', $eline->reason));
+    }
+
+    private function onElineCount(string $sender): void
+    {
+        $count = $this->elines->count();
+
+        $this->reply->reply($sender, 0 === $count
+            ? 'No E-Lines are defined.'
+            : sprintf('There are %d E-Line(s) defined.', $count));
+    }
+
+    private function onServermap(string $sender, NetworkState $state): void
+    {
+        if (!$this->requireAdmin($sender, $state)) {
+            return;
+        }
+
+        $roots = $state->rootServers();
+
+        if ([] === $roots) {
+            $this->reply->reply($sender, 'No server map available.');
+
+            return;
+        }
+
+        foreach ($roots as $root) {
+            $this->renderServermap($sender, $state, $root, 0, []);
+        }
+    }
+
+    /**
+     * @param list<bool> $continuations
+     */
+    private function renderServermap(string $sender, NetworkState $state, string $sid, int $level, array $continuations): void
+    {
+        $prefix = '';
+
+        for ($i = 0; $i < $level - 1; ++$i) {
+            $prefix .= ($continuations[$i] ?? false) ? '  |   ' : '      ';
+        }
+
+        if ($level > 0) {
+            $prefix .= '  +-- ';
+        }
+
+        $name = $state->serverNameOf($sid) ?? $sid;
+        $this->reply->reply($sender, $prefix . $name);
+
+        $children = $state->childrenOf($sid);
+        $lastIndex = count($children) - 1;
+
+        foreach ($children as $index => $child) {
+            $this->renderServermap($sender, $state, $child, $level + 1, [...$continuations, $index !== $lastIndex]);
+        }
+    }
+
+    /** @param list<string> $args */
+    private function onConexiones(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireAdmin($sender, $state)) {
+            return;
+        }
+
+        $action = strtoupper((string) array_shift($args));
+        $param = array_shift($args);
+
+        if ('LIST' === $action) {
+            if (null === $param || !ctype_digit($param) || (int) $param <= 1) {
+                $this->reply->reply($sender, 'Syntax: CONEXIONES LIST <min>');
+
+                return;
+            }
+
+            $hosts = $state->hostsWithAtLeast((int) $param);
+
+            if ([] === $hosts) {
+                $this->reply->reply($sender, 'No hosts match that threshold.');
+
+                return;
+            }
+
+            $this->reply->reply($sender, sprintf('Hosts with at least %s sessions:', $param));
+
+            foreach ($hosts as $entry) {
+                $this->reply->reply($sender, sprintf('%d - %s', $entry['count'], $entry['host']));
+            }
+
+            return;
+        }
+
+        if ('VIEW' === $action) {
+            if (null === $param) {
+                $this->reply->reply($sender, 'Syntax: CONEXIONES VIEW <host>');
+
+                return;
+            }
+
+            $sessions = $state->sessionsByHost();
+
+            if (!isset($sessions[$param])) {
+                $this->reply->reply($sender, sprintf('No sessions found for %s.', $param));
+
+                return;
+            }
+
+            $this->reply->reply($sender, sprintf('%s has %d session(s).', $param, $sessions[$param]));
+
+            return;
+        }
+
+        $this->reply->reply($sender, 'Syntax: CONEXIONES LIST <min>|VIEW <host>');
+    }
+
     private function onSetTime(string $sender, NetworkState $state): void
     {
         if (!$this->requireRoot($sender, $state)) {
@@ -754,6 +1043,30 @@ final class OperServCommandHandler
         }
 
         $this->reply->reply($sender, 'This command is restricted to IRC operators.');
+
+        return false;
+    }
+
+    /** Commands such as ELINE need a CeNTeR rank of Administrador or above. */
+    private function requireAdmin(string $sender, NetworkState $state): bool
+    {
+        if (isset($this->roots[$sender])) {
+            return true;
+        }
+
+        if (null === $this->staff || null === $this->resolver) {
+            $this->reply->reply($sender, 'This command requires a CeNTeR rank of Administrador.');
+
+            return false;
+        }
+
+        $account = $this->resolver->resolve($sender, $state);
+
+        if ($this->staff->atLeast($account, StaffRank::Administrador)) {
+            return true;
+        }
+
+        $this->reply->reply($sender, 'This command requires a CeNTeR rank of Administrador.');
 
         return false;
     }

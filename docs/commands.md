@@ -92,6 +92,10 @@ approval flow — you request, staff approve. The original *supports* stage
 | `GLINE <user@host> <duration> [reason]`, `UNGLINE` | done |
 | `RENAME <nick> [newnick]`, `DROPNDB <nick>`, `APODERA <#channel> [nick]` | done |
 | `LISTCLONES`, `KILLCLONES`, `BLOCK` | done |
+| `JAIL <nick>`, `UMODE <nick> +/-modes` | done | Requires IRC operator (`+o`) |
+| `ELINE ADD\|DEL\|LIST\|VIEW\|COUNT ...` | done | Requires CeNTeR `Administrador`; IP-based masks |
+| `SERVERMAP` | done | Requires CeNTeR `Administrador` |
+| `CONEXIONES LIST <min>`, `CONEXIONES VIEW <host>` | done | Requires CeNTeR `Administrador` |
 | `LIMPIA <#channel>`, `STATS`, `IRCOPS`, `ROOT`, `SETTIME`, `SPAM LIST\|ADD\|DEL` | done |
 | `invite`, `SET` | todo |
 

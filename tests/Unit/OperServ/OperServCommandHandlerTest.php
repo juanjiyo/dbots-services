@@ -4,11 +4,19 @@ declare(strict_types=1);
 
 namespace Dbots\Tests\Unit\OperServ;
 
+use DateTimeImmutable;
+use Dbots\Domain\Account\Account;
+use Dbots\Domain\Account\Nick;
+use Dbots\Domain\Account\Password;
+use Dbots\Domain\Staff\StaffRank;
 use Dbots\Irc\Adapter\In\IrcMessage;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Application\Help\OperServHelp;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
+use Dbots\Staff\Application\StaffAuthority;
+use Dbots\Tests\Support\InMemoryStaffRankRepository;
 use Dbots\Tests\Support\RecordingIrc;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -21,6 +29,8 @@ final class OperServCommandHandlerTest extends TestCase
     private NetworkState $state;
     private \Dbots\Tests\Support\InMemoryAccountRepository $accounts;
     private \Dbots\Tests\Support\InMemoryChannelRepository $channels;
+    private InMemoryStaffRankRepository $ranks;
+    private StaffAuthority $staff;
 
     protected function setUp(): void
     {
@@ -28,6 +38,8 @@ final class OperServCommandHandlerTest extends TestCase
         $this->irc = new RecordingIrc();
         $this->accounts = new \Dbots\Tests\Support\InMemoryAccountRepository();
         $this->channels = new \Dbots\Tests\Support\InMemoryChannelRepository();
+        $this->ranks = new InMemoryStaffRankRepository();
+        $this->staff = new StaffAuthority($this->ranks);
 
         $this->handler = new OperServCommandHandler(
             $this->enforcement,
@@ -42,6 +54,9 @@ final class OperServCommandHandlerTest extends TestCase
             '003A00004',
             OperServHelp::create(),
             jailChannel: '#jail',
+            elines: new \Dbots\Tests\Support\InMemoryElineRepository(),
+            staff: $this->staff,
+            resolver: new AccountResolver($this->accounts),
         );
         $this->state = new NetworkState();
         $this->state->introduceUser('001AAAAAA', 'oper', null, 'o', 'staff.example');
@@ -372,6 +387,104 @@ final class OperServCommandHandlerTest extends TestCase
         self::assertSame([], $this->enforcement->kills);
     }
 
+    #[Test]
+    public function anAdminCanAddAndRemoveAnEline(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'admin', null, 'r', 'staff.example');
+        $this->accounts->save(Account::register(new Nick('admin'), Password::fromPlain('secreto'), null, new DateTimeImmutable()));
+        $this->ranks->assign('admin', StaffRank::Administrador);
+
+        $this->handler->handle($this->privmsg('ELINE ADD *@192.0.2.5 2h test reason', '001DDDDDD'), $this->state);
+
+        self::assertSame(['*@192.0.2.5|7200|test reason'], $this->enforcement->elines);
+        self::assertStringContainsString('E-Line added on *@192.0.2.5', implode(' ', $this->irc->replies));
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('ELINE LIST', '001DDDDDD'), $this->state);
+
+        $listReply = implode(' ', $this->irc->replies);
+        self::assertStringContainsString('E-Lines:', $listReply);
+        self::assertStringContainsString('192.0.2.5', $listReply);
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('ELINE DEL 1', '001DDDDDD'), $this->state);
+
+        self::assertSame(['*@192.0.2.5'], $this->enforcement->unelines);
+        self::assertSame(['001DDDDDD: E-Line 1 removed.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function elineRejectsInvalidHosts(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'admin', null, 'r', 'staff.example');
+        $this->accounts->save(Account::register(new Nick('admin'), Password::fromPlain('secreto'), null, new DateTimeImmutable()));
+        $this->ranks->assign('admin', StaffRank::Administrador);
+
+        $this->handler->handle($this->privmsg('ELINE ADD *@not-an-ip 2h reason', '001DDDDDD'), $this->state);
+
+        self::assertSame([], $this->enforcement->elines);
+        self::assertSame(['001DDDDDD: The mask needs a valid IP host part, for example *@192.0.2.1.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aNonAdminCannotUseEline(): void
+    {
+        $this->handler->handle($this->privmsg('ELINE LIST', '001AAAAAA'), $this->state);
+
+        self::assertSame(['001AAAAAA: This command requires a CeNTeR rank of Administrador.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anAdminCanViewAServermap(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'admin', null, 'r', 'staff.example');
+        $this->accounts->save(Account::register(new Nick('admin'), Password::fromPlain('secreto'), null, new DateTimeImmutable()));
+        $this->ranks->assign('admin', StaffRank::Administrador);
+
+        $this->state->registerServer('001', 'hub.test');
+        $this->state->registerServer('002', 'leaf1.test', '001');
+        $this->state->registerServer('003', 'leaf2.test', '001');
+
+        $this->handler->handle($this->privmsg('SERVERMAP', '001DDDDDD'), $this->state);
+
+        self::assertSame([
+            '001DDDDDD: hub.test',
+            '001DDDDDD:   +-- leaf1.test',
+            '001DDDDDD:   +-- leaf2.test',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anAdminCanListConnections(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'admin', null, 'r', 'staff.example');
+        $this->accounts->save(Account::register(new Nick('admin'), Password::fromPlain('secreto'), null, new DateTimeImmutable()));
+        $this->ranks->assign('admin', StaffRank::Administrador);
+
+        $this->state->introduceUser('001EEEEEE', 'user1', null, 'i', '192.0.2.20');
+        $this->state->introduceUser('001FFFFFFF', 'user2', null, 'i', '192.0.2.20');
+        $this->state->introduceUser('001GGGGGG', 'user3', null, 'i', '192.0.2.20');
+
+        $this->handler->handle($this->privmsg('CONEXIONES LIST 3', '001DDDDDD'), $this->state);
+
+        self::assertSame([
+            '001DDDDDD: Hosts with at least 3 sessions:',
+            '001DDDDDD: 3 - 192.0.2.20',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anAdminCanViewConnectionsForAHost(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'admin', null, 'r', 'staff.example');
+        $this->accounts->save(Account::register(new Nick('admin'), Password::fromPlain('secreto'), null, new DateTimeImmutable()));
+        $this->ranks->assign('admin', StaffRank::Administrador);
+
+        $this->handler->handle($this->privmsg('CONEXIONES VIEW clone.example', '001DDDDDD'), $this->state);
+
+        self::assertSame(['001DDDDDD: clone.example has 2 session(s).'], $this->irc->replies);
+    }
+
     private function rootedHandler(string $password): OperServCommandHandler
     {
         return new OperServCommandHandler(
@@ -442,6 +555,12 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<string> */
     public array $userModes = [];
 
+    /** @var list<string> */
+    public array $elines = [];
+
+    /** @var list<string> */
+    public array $unelines = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -490,5 +609,15 @@ final class RecordingEnforcement implements EnforcementInterface
     public function userMode(string $uid, string $modes): void
     {
         $this->userModes[] = $uid . '|' . $modes;
+    }
+
+    public function eline(string $userMask, string $hostMask, int $durationSeconds, string $reason): void
+    {
+        $this->elines[] = $userMask . '@' . $hostMask . '|' . $durationSeconds . '|' . $reason;
+    }
+
+    public function uneline(string $userMask, string $hostMask): void
+    {
+        $this->unelines[] = $userMask . '@' . $hostMask;
     }
 }

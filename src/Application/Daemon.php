@@ -222,14 +222,25 @@ final readonly class Daemon
         }
     }
 
-    /** Any other server introduced on the network: `:<sid> SERVER <name> ...`. */
+    /** Any other server introduced on the network: `:<parent> SERVER <name> <hops> <sid>`. */
     private function onServer(IrcMessage $message): void
     {
         $name = $message->params[0] ?? null;
-        $sid = $message->source() ?? $this->runner->handshake()->remoteSid();
+        $sid = $message->params[2] ?? null;
+        $parentSid = $message->source() ?? $this->runner->handshake()->remoteSid();
 
         if (null !== $sid && null !== $name && 1 === preg_match('/^[0-9][0-9A-Z]{2}$/', $sid)) {
-            $this->state->registerServer($sid, $name);
+            $this->state->registerServer($sid, $name, $parentSid);
+        }
+    }
+
+    /** A server leaves the network: `:<source> SQUIT <sid> :<reason>`. */
+    private function onSquit(IrcMessage $message): void
+    {
+        $sid = $message->params[0] ?? null;
+
+        if (null !== $sid) {
+            $this->state->unregisterServer($sid);
         }
     }
 
@@ -287,6 +298,7 @@ final readonly class Daemon
             'UMODE2' => $this->onUmode2($message),
             'MODE' => $this->onMode($message),
             'SERVER' => $this->onServer($message),
+            'SQUIT' => $this->onSquit($message),
             'SJOIN' => $this->onSjoin($message),
             'JOIN' => $this->onJoin($message),
             'TOPIC' => $this->onTopic($message),
