@@ -34,8 +34,8 @@ were loaded and unloaded in the mIRC generation (`sistema/modulos/<name>`).
 - **T1** (S1, S2) — **done**. `ModuleInterface`, `ModuleContext`, manifest.
 - **T2** (S3, S4, S5) — **done**. Registry, SQLite state, introduction and routing.
 - **T3** (S6) — **done**. `CeNTeR MODULO LIST|LOAD|UNLOAD`; hot loading applies the change immediately.
-- **T4** (S7, S8) — **done for isolation**. A module that throws is caught and
-  logged; the trust warning still has to land in the installation docs.
+- **T4** (S7, S8) — **done**. A module that throws is caught and logged; the
+  trust warning is in `docs/installation.md`.
 - **T5** — **done**. `modules/Ping` answers `PING` and proves the path live.
 
 ## Log
@@ -58,3 +58,5 @@ were loaded and unloaded in the mIRC generation (`sistema/modulos/<name>`).
   on-disk list and persisted state, but the runtime owns the live set, allocates
   stable UIDs, and sends UID/JOIN or QUIT when `refresh()` is called from
   `CenTeRServCommandHandler`.
+- **L5** — Added the module trust warning to `docs/installation.md`: modules run
+  inside the daemon process and require Root-level staff to enable.

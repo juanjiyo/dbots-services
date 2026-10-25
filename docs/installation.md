@@ -225,6 +225,32 @@ sudo loginctl enable-linger "$USER"
 `enable-linger` is not optional: without it the daemon stops when you log out,
 and the IRCd then refuses every new client.
 
+## Modules (optional)
+
+A module is a directory under `modules/` that contains a `module.json` manifest
+and a PHP class implementing `Dbots\Module\ModuleInterface`. dbots loads it as
+its own pseudo-client and routes messages addressed to its nick.
+
+**A module is not a sandbox.** It runs inside the dbots process with the same
+privileges as the daemon itself: it can send arbitrary S2S commands, read the
+database, and impersonate any service. Only enable code you trust as much as the
+daemon itself.
+
+For that reason enabling a module requires **Root** level staff (`CeNTeR MODULO
+LOAD <name>`). The manifest controls whether a module starts enabled by default:
+
+```json
+{
+    "class": "Modules\\Ping\\PingModule",
+    "nick": "PiNG",
+    "description": "Responde PING con PONG. Modulo de ejemplo del sistema de modulos.",
+    "enabled_by_default": true
+}
+```
+
+The bundled `modules/Ping` module answers `PING` with `PONG` and is safe to keep
+enabled; it exists only to prove the loading path.
+
 ## 8. Verify the installation
 
 ```bash
