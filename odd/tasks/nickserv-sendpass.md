@@ -31,7 +31,7 @@ account via memo.
 - [x] **T4** (S4) — Wire `MemoRepositoryInterface` into the handler/factory.
 - [x] **T5** (S8) — Update `docs/commands.md`.
 - [x] **T6** — Unit tests.
-- [ ] **T7** — Run `composer check`, commit, and push.
+- [x] **T7** — Run `composer check`, commit, and push.
 
 ## Log
 
