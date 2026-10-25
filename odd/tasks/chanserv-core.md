@@ -108,3 +108,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L12** — The entry message now greets on join, replacing `<nick>` as
+  `chanserv.c.r` does. Two bugs surfaced on the way. `onJoin`/`onPart` read
+  `params[0]`, but `JOIN :#channel` carries the channel in the trailing part, so
+  membership was never updated from those events. And Unreal does not send `JOIN`
+  to other servers at all: a live join arrives as `SJOIN <ts> #chan :@uid`.
+  Greeting therefore sits in the SJOIN handler, gated on `LinkState::Synced` so
+  the burst does not greet the whole network.

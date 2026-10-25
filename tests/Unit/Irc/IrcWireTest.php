@@ -31,6 +31,25 @@ final class IrcWireTest extends TestCase
     }
 
     #[Test]
+    public function aJoinKeepsTheChannelInTheTrailingPart(): void
+    {
+        $message = $this->parser->parse(':001AAAAAA!db@host JOIN :#clavedemo2');
+
+        self::assertNotNull($message);
+        self::assertSame([], $message->params);
+        self::assertSame('#clavedemo2', $message->firstParameter());
+    }
+
+    #[Test]
+    public function aPartWithAParameterStillResolvesTheChannel(): void
+    {
+        $message = $this->parser->parse(':001AAAAAA!db@host PART #clavedemo2 :bye');
+
+        self::assertNotNull($message);
+        self::assertSame('#clavedemo2', $message->firstParameter());
+    }
+
+    #[Test]
     public function itParsesAUserIntroductionFromALiveBurst(): void
     {
         $message = $this->parser->parse(

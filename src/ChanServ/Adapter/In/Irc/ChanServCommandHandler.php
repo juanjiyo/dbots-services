@@ -29,6 +29,7 @@ use function array_slice;
 use function implode;
 use function sprintf;
 use function strcasecmp;
+use function str_replace;
 use function strtoupper;
 
 final class ChanServCommandHandler
@@ -205,6 +206,27 @@ final class ChanServCommandHandler
     private function isIdentifiedFounder(string $uid, string $channel): bool
     {
         return isset($this->identified[$channel][$uid]);
+    }
+
+    /**
+     * `chanserv.c.r` notices the entry message when somebody joins, replacing
+     * `<nick>` with their nick. It needs no permission: it is a greeting.
+     */
+    public function announceEntry(string $uid, string $channel, NetworkState $state): void
+    {
+        try {
+            $registered = $this->channels->find(new ChannelName($channel));
+        } catch (InvalidArgumentException) {
+            return;
+        }
+
+        $message = $registered?->entryMessage;
+
+        if (null === $message || '' === $message) {
+            return;
+        }
+
+        $this->reply->reply($uid, str_replace('<nick>', $state->nickOf($uid) ?? '', $message));
     }
 
     /** @param list<string> $args */

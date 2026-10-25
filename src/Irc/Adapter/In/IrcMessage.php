@@ -33,6 +33,15 @@ final readonly class IrcMessage
         return $this->params[0] ?? null;
     }
 
+    /**
+     * The first argument, whether the server sent it as a parameter or as the
+     * trailing part. A join arrives as `JOIN :#channel`, so params stays empty.
+     */
+    public function firstParameter(): ?string
+    {
+        return $this->params[0] ?? $this->trailing;
+    }
+
     public function text(): string
     {
         return $this->trailing ?? '';

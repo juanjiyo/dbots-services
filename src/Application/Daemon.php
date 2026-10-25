@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dbots\Application;
 
 use Dbots\Application\Link\LinkRunner;
+use Dbots\Domain\Link\LinkState;
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
@@ -125,6 +126,9 @@ final readonly class Daemon
             return;
         }
 
+        // A SJOIN before EOS replays the whole network, so it must not greet.
+        $live = LinkState::Synced === $this->handshakeState();
+
         $members = [];
         $modes = '';
 
@@ -150,22 +154,30 @@ final readonly class Daemon
             $members[] = $token;
             $modes = $rank;
             $this->state->joinChannel($channel, [$token], $rank);
+
+            if ($live) {
+                $this->chanServ->announceEntry($token, $channel, $this->state);
+            }
         }
     }
 
     private function onJoin(IrcMessage $message): void
     {
-        $channel = $message->params[0] ?? null;
+        // `:uid JOIN :#channel`: the channel is the trailing part.
+        $channel = $message->firstParameter();
         $uid = $message->source();
 
         if (null !== $channel && null !== $uid) {
             $this->state->joinChannel($channel, [$uid]);
+
+            // The entry message greets the user, the way `chanserv.c.r` does.
+            $this->chanServ->announceEntry($uid, $channel, $this->state);
         }
     }
 
     private function onPart(IrcMessage $message): void
     {
-        $channel = $message->params[0] ?? null;
+        $channel = $message->firstParameter();
         $uid = $message->source();
 
         if (null !== $channel && null !== $uid) {
@@ -223,7 +235,7 @@ final readonly class Daemon
             return null;
         }
 
-        if ('1' === getenv('DBOTS_DEBUG') && in_array($message->command, ['DB', 'PRIVMSG', 'ACCOUNT', 'UID', 'MODE', 'UMODE2'], true)) {
+        if ('1' === getenv('DBOTS_DEBUG') && in_array($message->command, ['DB', 'PRIVMSG', 'ACCOUNT', 'UID', 'MODE', 'UMODE2', 'JOIN', 'SJOIN'], true)) {
             fwrite(STDERR, "{$message->command}> {$line}\n");
         }
 

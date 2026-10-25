@@ -260,6 +260,29 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function itGreetsWithTheEntryMessageReplacingTheNick(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test entrymsg Hola <nick>, lee las normas'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->announceEntry('001AAAAAA', '#test', $this->state);
+
+        self::assertSame(['001AAAAAA: Hola alice, lee las normas'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aChannelWithoutEntryMessageIsSilent(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->announceEntry('001AAAAAA', '#test', $this->state);
+        $this->handler->announceEntry('001AAAAAA', '#sinRegistrar', $this->state);
+
+        self::assertSame([], $this->irc->replies);
+    }
+
+    #[Test]
     public function itIgnoresMessagesForAnotherService(): void
     {
         $message = new IrcMessage('001AAAAAA', 'PRIVMSG', ['NiCK'], 'register #test');
