@@ -54,6 +54,11 @@ final readonly class UdbChannelProjection implements ChannelProjectionInterface
         $this->authority->delete('C', sprintf('%s::access::%s', (new ChannelName($channel))->value, (new Nick($nick))->value));
     }
 
+    public function publishFounderRemoved(string $channel): void
+    {
+        $this->authority->delete('C', sprintf('%s::founder', (new ChannelName($channel))->value));
+    }
+
     public function publishForbid(string $channel, ?string $reason): void
     {
         $name = (new ChannelName($channel))->value;

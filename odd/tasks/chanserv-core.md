@@ -104,6 +104,19 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S46** — `LIST <pattern>` is oper-only and answers
+  `Lista de Canales que satisfacen <pattern>:`, one
+  `<channel> - ACTIVO|SUSPENDIDO (BDD)` per match, capped at 50, then
+  `Fin de la lista, <shown>/<total> entradas mostradas.`
+- **S47** — `GETPASS <#channel>` is oper-only and cannot return the secret,
+  because it is hashed: it answers `La contraseña de <channel> está cifrada y no
+  se puede recuperar. Usa SET PASSWORD para cambiarla.` This is a deliberate,
+  approved deviation from `ch.mrc`, which prints the password in clear.
+- **S48** — `BFOUNDER <#channel>` is the repair tool: it removes the founder
+  record. Our profile is the source, so it removes the profile (channel, access,
+  akicks, levels) and publishes the record deletion, answering
+  `Borrada la entrada FOUNDER del canal <channel> en el UDB.`
+- **S49** — `ESPECIAL` is out of scope: it manages numbered entry bots.
 - **S42** — `FORBID <#channel> <reason>` is oper-only, requires a reason and a `#`
   name, refuses a duplicate, and answers `El canal <channel> ha sido prohibido.`
 - **S43** — Forbidding a registered channel drops the profile first (channel,
@@ -166,7 +179,11 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   `C::<channel>::suspend` record.
 - **T15b** (S42-S45) — **done**. `FORBID`/`UNFORBID`/`LISTFORBID` with the
   `C::<channel>::forbid` record.
-- **T15c** — `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
+- **T15c** (S46-S49) — **done**. `LIST`, `GETPASS`, `BFOUNDER`.
+- **T15d** — `ESPECIAL` is **dropped, not pending**: it manages a pool of
+  numbered entry bots (`1..11`) that join a channel on demand, and this daemon
+  runs no such bots. Porting the command would mean inventing a registry for
+  clients we do not have.
 - **T16** — `SET` options that drive the reactor: `MLOCK`, `TOPICLOCK`,
   `KEEPTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PRIVATE`, `SECURE`,
   `RESTRICTED`, `PBANS`, `PMODE`, `NOEXPIRE`, `DEBUG`, `NAME`, `DEFTOPIC`.
@@ -187,6 +204,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L21** — `ESPECIAL` is the first ch.mrc command we drop on purpose rather than
+  defer. It is not a permission or a storage feature: it exists to drive a pool of
+  eleven extra client bots that join channels on request, and this daemon has no
+  such pool. UBot and CaoS were dropped for the same kind of reason.
 - **L20** — Forbid is keyed on the channel name, not on a profile: `ch.mrc` keeps
   it in its own list and drops the registration as a side effect, which is exactly
   what the code does now.

@@ -19,4 +19,7 @@ interface ChannelProjectionInterface
     public function publishSuspension(string $channel): void;
 
     public function publishForbid(string $channel, ?string $reason): void;
+
+    /** Repair tool: removes the founder record without touching the rest. */
+    public function publishFounderRemoved(string $channel): void;
 }

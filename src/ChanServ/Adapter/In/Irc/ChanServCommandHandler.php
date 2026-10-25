@@ -38,6 +38,7 @@ use function implode;
 use function in_array;
 use function str_starts_with;
 use function preg_match;
+use function preg_quote;
 use function sprintf;
 use function strcasecmp;
 use function str_replace;
@@ -113,6 +114,9 @@ final class ChanServCommandHandler
             'FORBID' => $this->onForbid($sender, $parts, $state),
             'UNFORBID' => $this->onUnforbid($sender, $parts, $state),
             'LISTFORBID' => $this->onListForbid($sender, $state),
+            'LIST' => $this->onList($sender, $parts, $state),
+            'GETPASS' => $this->onGetpass($sender, $parts, $state),
+            'BFOUNDER' => $this->onBfounder($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -965,6 +969,114 @@ final class ChanServCommandHandler
         }
 
         $this->reply->reply($uid, 'Fin de la lista de canales prohibidos.');
+    }
+
+    /** @param list<string> $args */
+    private function onList(string $uid, array $args, NetworkState $state): void
+    {
+        $pattern = (string) ($args[0] ?? '');
+
+        if ('' === $pattern) {
+            $this->reply->reply($uid, 'Error de Sintaxis: LIST <patrón>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $everything = $this->channels->all();
+        $shown = 0;
+
+        $this->reply->reply($uid, sprintf('Lista de Canales que satisfacen %s:', $pattern));
+
+        foreach ($everything as $channel) {
+            if (50 === $shown) {
+                break;
+            }
+
+            if (1 !== preg_match('/'.str_replace('\*', '.*', preg_quote($pattern, '/')).'/i', $channel->name->value)) {
+                continue;
+            }
+
+            $this->reply->reply($uid, sprintf('%s - %s (BDD)', $channel->name->value, $channel->isSuspended() ? 'SUSPENDIDO' : 'ACTIVO'));
+            ++$shown;
+        }
+
+        $this->reply->reply($uid, sprintf('Fin de la lista, %d/%d entradas mostradas.', $shown, count($everything)));
+    }
+
+    /** @param list<string> $args */
+    private function onGetpass(string $uid, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: GETPASS <canal>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        // The original answers with the password in clear. We only keep a hash,
+        // so the honest answer is that it cannot be recovered.
+        $this->reply->reply($uid, sprintf(
+            'La contraseña de %s está cifrada y no se puede recuperar. Usa SET PASSWORD para cambiarla.',
+            $registered->name->value,
+        ));
+    }
+
+    /** @param list<string> $args */
+    private function onBfounder(string $uid, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: BFOUNDER <canal>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        try {
+            $registered = $this->channels->find(new ChannelName($channel));
+        } catch (InvalidArgumentException) {
+            $registered = null;
+        }
+
+        if (null === $registered) {
+            $this->reply->reply($uid, sprintf('No hay founder para el canal %s en el UDB.', $channel));
+
+            return;
+        }
+
+        // Our profile is the source, so removing the founder means removing it.
+        $this->channels->delete($registered->name);
+        $this->access->removeAll($registered->name->value);
+        $this->akicks->removeAll($registered->name->value);
+        $this->levels->forget($registered->name);
+        $this->projection->publishFounderRemoved($registered->name->value);
+
+        $this->reply->reply($uid, sprintf('Borrada la entrada FOUNDER del canal %s en el UDB.', $registered->name->value));
     }
 
     /** The channel exists, or the sender is told it does not. */

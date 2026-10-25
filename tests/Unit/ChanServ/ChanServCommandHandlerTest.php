@@ -367,6 +367,70 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function listFiltersByPatternAndCountsWhatItShows(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->channels->seed('#Otro', 'bob');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('list #te*', '001OOOOOO'), $state);
+
+        self::assertSame('001OOOOOO: Lista de Canales que satisfacen #te*:', $this->irc->replies[0]);
+        self::assertContains('001OOOOOO: #test - ACTIVO (BDD)', $this->irc->replies);
+        self::assertNotContains('001OOOOOO: #otro - ACTIVO (BDD)', $this->irc->replies);
+        self::assertSame('001OOOOOO: Fin de la lista, 1/2 entradas mostradas.', $this->irc->replies[array_key_last($this->irc->replies)]);
+    }
+
+    #[Test]
+    public function getpassSaysThePasswordIsHashed(): void
+    {
+        $this->channels->seed('#Test', 'alice', Password::fromPlain('claveCanal123')->hash());
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('getpass #test', '001OOOOOO'), $state);
+
+        self::assertSame(
+            ['001OOOOOO: La contraseña de #test está cifrada y no se puede recuperar. Usa SET PASSWORD para cambiarla.'],
+            $this->irc->replies,
+        );
+    }
+
+    #[Test]
+    public function bfounderRemovesTheProfileAndTheRecord(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('bfounder #test', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('bfounder #fantasma', '001OOOOOO'), $state);
+
+        self::assertSame([
+            '001OOOOOO: Borrada la entrada FOUNDER del canal #test en el UDB.',
+            '001OOOOOO: No hay founder para el canal #fantasma en el UDB.',
+        ], $this->irc->replies);
+        self::assertNull($this->channels->find(new ChannelName('#test')));
+        self::assertSame(['#test'], $this->projection->founderRemoved);
+    }
+
+    #[Test]
+    public function theOperOnlyReadsRefuseAFounder(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('list #te*'), $this->state);
+        $this->handler->handle($this->privmsg('getpass #test'), $this->state);
+        $this->handler->handle($this->privmsg('bfounder #test'), $this->state);
+
+        self::assertSame(
+            ['001AAAAAA: Permiso denegado.', '001AAAAAA: Permiso denegado.', '001AAAAAA: Permiso denegado.'],
+            $this->irc->replies,
+        );
+    }
+
+    #[Test]
     public function forbidDropsTheProfileAndPublishesTheRecord(): void
     {
         $this->channels->seed('#Test', 'alice');
