@@ -142,7 +142,6 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->channels->seed('#Test', 'alice');
 
         $this->handler->handle($this->privmsg('access add #test bob 400'), $this->state);
-        self::assertSame(['#test:bob'], $this->projection->accessAdded);
         self::assertSame(
             ['001AAAAAA: bob agregado a la lista de acceso de #test con nivel 400.'],
             $this->irc->replies,
@@ -153,7 +152,6 @@ final class ChanServCommandHandlerTest extends TestCase
         self::assertSame('001AAAAAA: Fin de la lista.', end($this->irc->replies));
 
         $this->handler->handle($this->privmsg('access del #test bob'), $this->state);
-        self::assertSame(['#test:bob'], $this->projection->accessRemoved);
         self::assertSame('001AAAAAA: bob borrado de la lista de acceso de #test.', end($this->irc->replies));
     }
 
@@ -166,7 +164,6 @@ final class ChanServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('access add #test bob 400', '001BBBBBB'), $state);
 
-        self::assertSame([], $this->projection->accessAdded);
         self::assertSame(['001BBBBBB: Permiso denegado.'], $this->irc->replies);
     }
 

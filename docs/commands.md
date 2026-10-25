@@ -54,7 +54,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `REGISTER` | moved | Channel registration lives in CReG; CHaN answers with a redirect |
 | `IDENTIFY <#channel> <password>` | done | The channel password identifies its founder for the session, account or not |
 | `INFO <#channel>`, `DROP <#channel>` | done | Founder only for `DROP` |
-| `ACCESS LIST\|ADD\|DEL <#channel> <nick> [level]` | done | Level -1..499, gated by `ACC-LIST`/`ACC-CHANGE`; UDB stores the entry without the level |
+| `ACCESS LIST\|ADD\|DEL <#channel> <nick> [level]` | done | Level -1..499, gated by `ACC-LIST`/`ACC-CHANGE`; kept in SQLite — UDB treats `C::access` as a join allowlist |
 | `TOPIC <#channel> <text>` | done | UDB `C::<channel>::topic` |
 | `LEVELS <#channel> LIST\|SET\|RESET [key] [level]` | done | Thresholds -1..500 per command; 500 is founder or IRCop. Only a founder-level user changes it |
 | `SET <#channel> DESC\|URL\|EMAIL\|ENTRYMSG [value]` | done | Services-only settings; the entry message greets on join with `<nick>` replaced |

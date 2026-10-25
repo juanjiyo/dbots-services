@@ -358,7 +358,6 @@ final class ChanServCommandHandler
         }
 
         $this->access->add($channel->name->value, $target, $level);
-        $this->projection->publishAccess($channel->name->value, $target);
         $this->reply->reply($uid, sprintf(
             '%s agregado a la lista de acceso de %s con nivel %d.',
             $target,
@@ -390,7 +389,6 @@ final class ChanServCommandHandler
             return;
         }
 
-        $this->projection->removeAccess($channel->name->value, $nick);
         $this->reply->reply($uid, sprintf('%s borrado de la lista de acceso de %s.', $nick, $channel->name->value));
     }
 

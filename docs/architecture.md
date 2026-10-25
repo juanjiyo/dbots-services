@@ -65,7 +65,7 @@ and pushes live mutations. Blocks it publishes:
 | Block | Owner | Content |
 |---|---|---|
 | `N` | `NiCK` | account password, forbid, suspend, swhois, vhost |
-| `C` | `CHaN` | channel founder, topic, access list |
+| `C` | `CHaN` | channel founder, topic, options (`PERSISTENT`), suspend and forbid |
 | `K` | `OPeR` | dynamic spamfilter profiles |
 | `S` | `NiCK` | the service mask, so notices come from a service nick |
 | `I`, `L` | — | empty for now |

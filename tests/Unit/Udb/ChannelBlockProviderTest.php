@@ -7,7 +7,6 @@ namespace Dbots\Tests\Unit\Udb;
 use DateTimeImmutable;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
-use Dbots\Tests\Support\InMemoryChannelAccessRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Udb\ChannelBlockProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -21,7 +20,7 @@ final class ChannelBlockProviderTest extends TestCase
     protected function setUp(): void
     {
         $this->channels = new InMemoryChannelRepository();
-        $this->provider = new ChannelBlockProvider($this->channels, new InMemoryChannelAccessRepository());
+        $this->provider = new ChannelBlockProvider($this->channels);
     }
 
     #[Test]

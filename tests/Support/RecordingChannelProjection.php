@@ -15,12 +15,6 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     public array $dropped = [];
 
     /** @var list<string> */
-    public array $accessAdded = [];
-
-    /** @var list<string> */
-    public array $accessRemoved = [];
-
-    /** @var list<string> */
     public array $topics = [];
 
     /** @var list<string> */
@@ -40,16 +34,6 @@ final class RecordingChannelProjection implements ChannelProjectionInterface
     public function publishDropped(string $channel): void
     {
         $this->dropped[] = $channel;
-    }
-
-    public function publishAccess(string $channel, string $nick): void
-    {
-        $this->accessAdded[] = $channel . ':' . $nick;
-    }
-
-    public function removeAccess(string $channel, string $nick): void
-    {
-        $this->accessRemoved[] = $channel . ':' . $nick;
     }
 
     public function publishTopic(string $channel): void

@@ -6,7 +6,6 @@ namespace Dbots\Udb;
 
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
-use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\ChannelName;
 
 use function sprintf;
@@ -35,6 +34,12 @@ final readonly class UdbChannelProjection implements ChannelProjectionInterface
             sprintf('%s::founder', $registered->name->value),
             $registered->founder,
         );
+
+        $this->authority->insert(
+            'C',
+            sprintf('%s::options', $registered->name->value),
+            ChannelBlockProvider::PERSISTENT,
+        );
     }
 
     public function publishDropped(string $channel): void
@@ -42,16 +47,7 @@ final readonly class UdbChannelProjection implements ChannelProjectionInterface
         $this->authority->delete('C', sprintf('%s::founder', (new ChannelName($channel))->value));
         $this->authority->delete('C', sprintf('%s::topic', (new ChannelName($channel))->value));
         $this->authority->delete('C', sprintf('%s::suspend', (new ChannelName($channel))->value));
-    }
-
-    public function publishAccess(string $channel, string $nick): void
-    {
-        $this->authority->insert('C', sprintf('%s::access::%s', (new ChannelName($channel))->value, (new Nick($nick))->value), null);
-    }
-
-    public function removeAccess(string $channel, string $nick): void
-    {
-        $this->authority->delete('C', sprintf('%s::access::%s', (new ChannelName($channel))->value, (new Nick($nick))->value));
+        $this->authority->delete('C', sprintf('%s::options', (new ChannelName($channel))->value));
     }
 
     public function publishFounderRemoved(string $channel): void

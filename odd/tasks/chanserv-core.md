@@ -93,8 +93,14 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 - **S24** — `ACCESS ADD <nick> <level>` takes -1..499, because 500 belongs to the
   founder. Non-numeric answers `El nivel del registro debe de ser un número.`,
   out of range answers `El nivel de registro debe estar comprendido entre -1 y 499.`
-- **S25** — The level is a services-only value: UDB records the access entry as
-  `C::<channel>::access::<nick>` with no level field.
+- **S25a** — Access ranks never leave SQLite. UDB reads `C::<channel>::access` as
+  a **join allowlist**: once any entry exists, every other nick is refused with
+  `448 You must be authorized and identified to join this channel`. Publishing
+  ranks there would turn a level list into a private channel.
+- **S25b** — Every registered channel publishes `C::<channel>::options` with the
+  `PERSISTENT` bit (0x08), so the IRCd keeps it alive with no members. That also
+  makes joins into a registered channel observable: an existing channel sends
+  `SJOIN`, a channel created from a profile sends nothing.
 
 - **S26** — A rank command takes `<<#channel>> <nick>`, requires the target to be
   in the channel, and reads its threshold from the table: `OPDEOP` for
@@ -204,6 +210,14 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L22** — Two findings while wiring `PERSISTENT`. First, publishing access ranks
+  to UDB locked channels to their access list: the module uses
+  `C::<channel>::access` as a join allowlist (refusing with 448), not as ranks, so
+  the projection no longer touches it and reconcile removes what was already
+  there. Second, `PERSISTENT` closes the invisible-join hole: a registered channel
+  now exists while empty, so the next visitor's join is a join into an existing
+  channel and does send `SJOIN`. Verified live: `JOIN #clavedemo2` now answers with
+  the entry message even when nobody was inside.
 - **L21** — `ESPECIAL` is the first ch.mrc command we drop on purpose rather than
   defer. It is not a permission or a storage feature: it exists to drive a pool of
   eleven extra client bots that join channels on request, and this daemon has no

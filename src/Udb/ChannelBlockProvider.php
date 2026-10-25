@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Dbots\Udb;
 
-use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 
 use function sprintf;
@@ -18,9 +17,11 @@ use function sprintf;
  */
 final readonly class ChannelBlockProvider implements BlockProviderInterface
 {
+    /** UDB `C::options` bit: keep the channel alive with no members. */
+    public const int PERSISTENT = 0x08;
+
     public function __construct(
         private ChannelRepositoryInterface $channels,
-        private ChannelAccessRepositoryInterface $access,
     ) {}
 
     public function records(string $block): array
@@ -34,6 +35,10 @@ final readonly class ChannelBlockProvider implements BlockProviderInterface
         foreach ($this->channels->all() as $channel) {
             $records[sprintf('%s::founder', $channel->name->value)] = $channel->founder;
 
+            // A registered channel must survive being empty: otherwise the IRCd
+            // destroys it and the first join of the next visitor sends no event.
+            $records[sprintf('%s::options', $channel->name->value)] = self::PERSISTENT;
+
             if ($channel->isSuspended()) {
                 $records[sprintf('%s::suspend', $channel->name->value)] = $channel->suspendReason;
             }
@@ -42,9 +47,8 @@ final readonly class ChannelBlockProvider implements BlockProviderInterface
                 $records[sprintf('%s::topic', $channel->name->value)] = $channel->topic;
             }
 
-            foreach ($this->access->forChannel($channel->name->value) as $nick) {
-                $records[sprintf('%s::access::%s', $channel->name->value, $nick)] = null;
-            }
+            // Access ranks stay in SQLite: UDB reads C::<channel>::access as a
+            // join allowlist, so publishing them would lock the channel to them.
         }
 
         return $records;
