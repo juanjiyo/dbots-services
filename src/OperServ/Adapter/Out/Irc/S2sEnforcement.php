@@ -128,4 +128,14 @@ final readonly class S2sEnforcement implements EnforcementInterface
             $reason,
         ));
     }
+
+    public function invite(string $targetNick, string $channel): void
+    {
+        $this->transport->writeLine(sprintf(
+            ':%s INVITE %s %s',
+            $this->sid,
+            $targetNick,
+            $channel,
+        ));
+    }
 }

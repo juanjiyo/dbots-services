@@ -34,6 +34,7 @@ final class OperServHelp
             new HelpEntry('SPAM', 'SPAM LIST|ADD|DEL <patrón> <acción>', 'Gestiona las reglas de spamfilter.', '/msg OPeR SPAM ADD *http://malo* gline', operOnly: true),
             new HelpEntry('STATS', 'STATS', 'Usuarios conectados.', '/msg OPeR STATS', operOnly: true),
             new HelpEntry('IRCOPS', 'IRCOPS', 'Lista los operadores conectados.', '/msg OPeR IRCOPS', operOnly: true),
+            new HelpEntry('INVITE', 'INVITE <#canal>', 'Te invita a un canal.', '/msg OPeR INVITE #canal', operOnly: true),
             new HelpEntry('ROOT', 'ROOT <contraseña>', 'Te identifica como root, un nivel por encima de oper.', '/msg OPeR ROOT miClaveRoot'),
             new HelpEntry('SETTIME', 'SETTIME', 'Resincroniza el reloj de la red. Requiere root.', '/msg OPeR SETTIME'),
         ]);

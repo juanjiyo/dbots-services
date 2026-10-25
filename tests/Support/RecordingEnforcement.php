@@ -47,6 +47,9 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<string> */
     public array $reservedNicks = [];
 
+    /** @var list<string> */
+    public array $invites = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -110,5 +113,10 @@ final class RecordingEnforcement implements EnforcementInterface
     public function reserveNick(string $nick, string $reason): void
     {
         $this->reservedNicks[] = $nick . '|' . $reason;
+    }
+
+    public function invite(string $targetNick, string $channel): void
+    {
+        $this->invites[] = $targetNick . '->' . $channel;
     }
 }

@@ -124,6 +124,33 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanInviteThemselvesToAChannel(): void
+    {
+        $this->handler->handle($this->privmsg('INVITE #canal'), $this->state);
+
+        self::assertSame(['oper->#canal'], $this->enforcement->invites);
+        self::assertSame(['001AAAAAA: Invitation sent to #canal.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function inviteRequiresAChannelArgument(): void
+    {
+        $this->handler->handle($this->privmsg('INVITE notachannel'), $this->state);
+
+        self::assertSame([], $this->enforcement->invites);
+        self::assertSame(['001AAAAAA: Syntax: INVITE <#channel>'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aNonOperCannotInvite(): void
+    {
+        $this->handler->handle($this->privmsg('INVITE #canal', '001BBBBBB'), $this->state);
+
+        self::assertSame([], $this->enforcement->invites);
+        self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
     public function anOperCanOpAndDeop(): void
     {
         $this->handler->handle($this->privmsg('OP #chan victim'), $this->state);

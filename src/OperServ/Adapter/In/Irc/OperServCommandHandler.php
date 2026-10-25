@@ -132,6 +132,7 @@ final class OperServCommandHandler
             'SPAM' => $this->onSpam($sender, $parts, $state),
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
+            'INVITE' => $this->onInvite($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -1034,6 +1035,33 @@ final class OperServCommandHandler
         $this->reply->reply($sender, [] === $operators
             ? 'No IRC operators are online.'
             : sprintf('IRC operators online: %s.', implode(', ', $operators)));
+    }
+
+    /** @param list<string> $args */
+    private function onInvite(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $channel = array_shift($args);
+
+        if (null === $channel || 0 !== strpos($channel, '#')) {
+            $this->reply->reply($sender, 'Syntax: INVITE <#channel>');
+
+            return;
+        }
+
+        $senderNick = $state->nickOf($sender);
+
+        if (null === $senderNick) {
+            $this->reply->reply($sender, 'Unable to resolve your nickname.');
+
+            return;
+        }
+
+        $this->enforcement->invite($senderNick, $channel);
+        $this->reply->reply($sender, sprintf('Invitation sent to %s.', $channel));
     }
 
     private function requireOper(string $sender, NetworkState $state): bool

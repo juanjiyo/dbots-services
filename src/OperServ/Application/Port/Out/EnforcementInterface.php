@@ -50,4 +50,11 @@ interface EnforcementInterface
      * UnrealIRCd: `:<sid> SQLINE <nick> :<reason>`.
      */
     public function reserveNick(string $nick, string $reason): void;
+
+    /**
+     * Invites a user to a channel.
+     *
+     * UnrealIRCd: `:<sid> INVITE <nick> <#channel>`.
+     */
+    public function invite(string $targetNick, string $channel): void;
 }

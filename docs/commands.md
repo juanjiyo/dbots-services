@@ -97,7 +97,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `SERVERMAP` | done | Requires CeNTeR `Administrador` |
 | `CONEXIONES LIST <min>`, `CONEXIONES VIEW <host>` | done | Requires CeNTeR `Administrador` |
 | `LIMPIA <#channel>`, `STATS`, `IRCOPS`, `ROOT`, `SETTIME`, `SPAM LIST\|ADD\|DEL` | done |
-| `invite`, `SET` | todo |
+| `INVITE <#channel>` | done | |
+| `SET` | todo |
 
 ## CReG
 
