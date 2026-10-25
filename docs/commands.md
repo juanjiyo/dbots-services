@@ -36,9 +36,9 @@ the original; **todo** is not implemented.
 | `FORBID <nick> [reason]`, `UNFORBID`, `LISTFORBID` | done | Operator only; UDB `N::<nick>::forbid` |
 | `SWHOIS <nick> <text>` | done | Operator only; UDB `N::<nick>::swhois` |
 | `NOEXPIRE <nick>` | done | Operator only; toggles the flag |
-| `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, VHOST, AUTOMODE…) | todo | |
+| `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, AUTOMODE…) | todo | |
 | `SENDPASS` / `SENDNEWPASS`, `GETPASS` | todo | Passwords are hashed, so they cannot be read back; only a reset is possible |
-| `VHOST`, `DROPVHOST`, `VIEWIP` | todo | |
+| `VIEWIP` | todo | Will move to a future `HostServ`; `VHOST` / `DROPVHOST` deliberately live there, not in NiCK |
 | `MARCA` / `MARCADEL` / `MERCADEL`, `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
 
 ## CHaN
