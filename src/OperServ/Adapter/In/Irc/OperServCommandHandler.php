@@ -112,6 +112,7 @@ final class OperServCommandHandler
             'KILLCLONES' => $this->onHostBan($sender, $parts, $state, 'killclones'),
             'BLOCK' => $this->onHostBan($sender, $parts, $state, 'block'),
             'JAIL' => $this->onJail($sender, $parts, $state),
+            'UMODE' => $this->onUmode($sender, $parts, $state),
             'SETTIME' => $this->onSetTime($sender, $state),
             'ROOT' => $this->onRoot($sender, $parts),
             'LIMPIA' => $this->onClean($sender, $parts, $state),
@@ -537,6 +538,40 @@ final class OperServCommandHandler
         $this->enforcement->userMode($uid, '+C');
         $this->enforcement->svsJoin($uid, $this->jailChannel);
         $this->reply->reply($sender, sprintf('%s has been jailed.', $nick));
+    }
+
+    /** @param list<string> $args */
+    private function onUmode(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+        $modes = array_shift($args);
+
+        if (null === $nick || null === $modes) {
+            $this->reply->reply($sender, 'Syntax: UMODE <nick> +/-modes');
+
+            return;
+        }
+
+        if (str_contains($modes, 'r') || str_contains($modes, 'h')) {
+            $this->reply->reply($sender, 'You cannot set or unset the r and h modes.');
+
+            return;
+        }
+
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return;
+        }
+
+        $this->enforcement->userMode($uid, $modes);
+        $this->reply->reply($sender, sprintf('User modes %s applied to %s.', $modes, $nick));
     }
 
     private function onSetTime(string $sender, NetworkState $state): void

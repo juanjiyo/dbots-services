@@ -311,6 +311,24 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanSetUserModes(): void
+    {
+        $this->handler->handle($this->privmsg('UMODE victim +w'), $this->state);
+
+        self::assertSame(['001BBBBBB|+w'], $this->enforcement->userModes);
+        self::assertSame(['001AAAAAA: User modes +w applied to victim.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function umodeRejectsRestrictedModes(): void
+    {
+        $this->handler->handle($this->privmsg('UMODE victim +wr'), $this->state);
+
+        self::assertSame([], $this->enforcement->userModes);
+        self::assertSame(['001AAAAAA: You cannot set or unset the r and h modes.'], $this->irc->replies);
+    }
+
+    #[Test]
     public function rootAuthenticationGatesRootCommands(): void
     {
         $handler = $this->rootedHandler('secreto');
