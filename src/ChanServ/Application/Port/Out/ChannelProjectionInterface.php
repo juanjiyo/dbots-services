@@ -17,4 +17,6 @@ interface ChannelProjectionInterface
     public function publishTopic(string $channel): void;
 
     public function publishSuspension(string $channel): void;
+
+    public function publishForbid(string $channel, ?string $reason): void;
 }

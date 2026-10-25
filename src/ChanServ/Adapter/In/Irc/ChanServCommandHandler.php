@@ -9,6 +9,7 @@ use Dbots\ChanServ\Application\DropChannel\DropChannelResult;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelActionsInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelAkickRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelForbidRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
@@ -35,6 +36,7 @@ use function explode;
 use function array_slice;
 use function implode;
 use function in_array;
+use function str_starts_with;
 use function preg_match;
 use function sprintf;
 use function strcasecmp;
@@ -53,6 +55,7 @@ final class ChanServCommandHandler
         private ChannelLevelRepositoryInterface $levels,
         private ChannelActionsInterface $actions,
         private ChannelAkickRepositoryInterface $akicks,
+        private ChannelForbidRepositoryInterface $forbids,
         private AccountRepositoryInterface $accountStore,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
@@ -107,6 +110,9 @@ final class ChanServCommandHandler
             'SUSPEND' => $this->onSuspend($sender, $parts, $state),
             'UNSUSPEND' => $this->onUnsuspend($sender, $parts, $state),
             'LISTSUSPEND' => $this->onListSuspend($sender, $state),
+            'FORBID' => $this->onForbid($sender, $parts, $state),
+            'UNFORBID' => $this->onUnforbid($sender, $parts, $state),
+            'LISTFORBID' => $this->onListForbid($sender, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -854,6 +860,111 @@ final class ChanServCommandHandler
     private function isOper(string $uid, NetworkState $state): bool
     {
         return $state->hasMode($uid, 'o');
+    }
+
+    /** @param list<string> $args */
+    private function onForbid(string $uid, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $reason = implode(' ', array_slice($args, 1));
+
+        if ('' === $channel || '' === $reason) {
+            $this->reply->reply($uid, 'Error de Sintaxis: FORBID <canal> <motivo>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        if (!str_starts_with($channel, '#')) {
+            $this->reply->reply($uid, 'El canal debe comenzar por #');
+
+            return;
+        }
+
+        $name = strtolower($channel);
+
+        if (null !== $this->forbids->find($name)) {
+            $this->reply->reply($uid, sprintf('El canal %s ya está en la lista de forbid.', $channel));
+
+            return;
+        }
+
+        // A forbidden channel cannot stay registered: the profile goes first.
+        try {
+            $registered = $this->channels->find(new ChannelName($name));
+        } catch (InvalidArgumentException) {
+            $registered = null;
+        }
+
+        if (null !== $registered) {
+            $this->channels->delete($registered->name);
+            $this->access->removeAll($registered->name->value);
+            $this->akicks->removeAll($registered->name->value);
+            $this->levels->forget($registered->name);
+            $this->projection->publishDropped($registered->name->value);
+        }
+
+        $this->forbids->add($name, $reason, $state->nickOf($uid) ?? '');
+        $this->projection->publishForbid($name, $reason);
+
+        $this->reply->reply($uid, sprintf('El canal %s ha sido prohibido.', $channel));
+    }
+
+    /** @param list<string> $args */
+    private function onUnforbid(string $uid, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: UNFORBID <canal>');
+
+            return;
+        }
+
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        if (!$this->forbids->remove(strtolower($channel))) {
+            $this->reply->reply($uid, sprintf('El canal %s no está en la lista de forbid.', $channel));
+
+            return;
+        }
+
+        $this->projection->publishForbid($channel, null);
+        $this->reply->reply($uid, sprintf('El canal %s ha sido liberado.', $channel));
+    }
+
+    private function onListForbid(string $uid, NetworkState $state): void
+    {
+        if (!$this->isOper($uid, $state)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $forbids = $this->forbids->all();
+
+        if ([] === $forbids) {
+            $this->reply->reply($uid, 'Lista vacía.');
+
+            return;
+        }
+
+        $this->reply->reply($uid, sprintf('Listado de canales prohibidos -> %d', count($forbids)));
+
+        foreach ($forbids as $channel => $forbid) {
+            $this->reply->reply($uid, sprintf('%s (%s) %s', $channel, $forbid['setBy'], $forbid['reason']));
+        }
+
+        $this->reply->reply($uid, 'Fin de la lista de canales prohibidos.');
     }
 
     /** The channel exists, or the sender is told it does not. */

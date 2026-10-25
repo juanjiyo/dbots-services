@@ -19,6 +19,7 @@ use Dbots\Tests\Support\InMemoryChannelAccessRepository;
 use Dbots\Tests\Support\RecordingChannelActions;
 use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\InMemoryChannelAkickRepository;
+use Dbots\Tests\Support\InMemoryChannelForbidRepository;
 use Dbots\Tests\Support\InMemoryChannelLevelRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
@@ -52,6 +53,7 @@ final class ChanServCommandHandlerTest extends TestCase
             new InMemoryChannelLevelRepository(),
             $this->actions,
             new InMemoryChannelAkickRepository(),
+            new InMemoryChannelForbidRepository(),
             $this->accounts,
             $this->projection,
             new AccountResolver($this->accounts),
@@ -362,6 +364,57 @@ final class ChanServCommandHandlerTest extends TestCase
         self::assertSame(['#test 001AAAAAA'], $this->actions->invites);
         self::assertContains('#test -b alice', $this->actions->modes);
         self::assertContains('001AAAAAA: Has sido desbaneado de #test.', $this->irc->replies);
+    }
+
+    #[Test]
+    public function forbidDropsTheProfileAndPublishesTheRecord(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('forbid #test spam', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('listforbid', '001OOOOOO'), $state);
+
+        self::assertSame('001OOOOOO: El canal #test ha sido prohibido.', $this->irc->replies[0]);
+        self::assertNull($this->channels->find(new ChannelName('#test')));
+        self::assertContains('#test', $this->projection->dropped);
+        self::assertSame(['#test on'], $this->projection->forbids);
+        self::assertContains('001OOOOOO: #test (Operador) spam', $this->irc->replies);
+    }
+
+    #[Test]
+    public function forbidIsOperOnlyAndRefusesADuplicate(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('forbid #test spam'), $this->state);
+        $this->handler->handle($this->privmsg('forbid #test spam', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('forbid #test otra vez', '001OOOOOO'), $state);
+
+        self::assertSame([
+            '001AAAAAA: Permiso denegado.',
+            '001OOOOOO: El canal #test ha sido prohibido.',
+            '001OOOOOO: El canal #test ya está en la lista de forbid.',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function unforbidReleasesTheChannel(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001OOOOOO', 'Operador', null, 'o');
+
+        $this->handler->handle($this->privmsg('forbid #test spam', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('unforbid #test', '001OOOOOO'), $state);
+        $this->handler->handle($this->privmsg('unforbid #otro', '001OOOOOO'), $state);
+
+        self::assertContains('001OOOOOO: El canal #test ha sido liberado.', $this->irc->replies);
+        self::assertSame('001OOOOOO: El canal #otro no está en la lista de forbid.', $this->irc->replies[array_key_last($this->irc->replies)]);
+        self::assertSame(['#test on', '#test off'], $this->projection->forbids);
     }
 
     #[Test]

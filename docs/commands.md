@@ -66,7 +66,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `AKICK <#channel> ADD\|DEL\|LIST\|ENFORCE [nick] [reason]` | done | `AKICK-CHANGE` 499, `AKICK-LIST` 300; 50 entries max |
 | `DELACCESS`, `SECUREOPS`… | todo | The rest of the rank model |
 | `SUSPEND <#channel> <reason>`, `UNSUSPEND <#channel>`, `LISTSUSPEND` | done | Oper only; publishes `C::<channel>::suspend`, so the IRCd enforces it |
-| `SET *` (successor, mlock, topiclock…), `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
+| `FORBID <#channel> <reason>`, `UNFORBID`, `LISTFORBID` | done | Oper only; drops the profile and publishes `C::<channel>::forbid` |
+| `SET *` (successor, mlock, topiclock…), `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
 
 ## MeMo
 

@@ -104,6 +104,15 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S42** — `FORBID <#channel> <reason>` is oper-only, requires a reason and a `#`
+  name, refuses a duplicate, and answers `El canal <channel> ha sido prohibido.`
+- **S43** — Forbidding a registered channel drops the profile first (channel,
+  access, akicks and level overrides), because a forbidden channel cannot stay
+  registered.
+- **S44** — The forbid reason is published as `C::<channel>::forbid`, and
+  `UNFORBID` removes the record and answers `El canal <channel> ha sido liberado.`
+- **S45** — `LISTFORBID` prints `Listado de canales prohibidos -> <n>` and
+  `<channel> (<setter>) <reason>` per entry, then `Fin de la lista de canales prohibidos.`
 - **S38** — `SUSPEND <#channel> <reason>` is oper-only and publishes
   `C::<channel>::suspend` with the reason, so the IRCd itself drops `+r`, refuses
   `+q` and tells joiners why.
@@ -155,7 +164,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   `AKICK-CHANGE` (499) and `AKICK-LIST` (300).
 - **T15a** (S38-S41) — **done**. `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND` with the UDB
   `C::<channel>::suspend` record.
-- **T15b** — `FORBID`/`UNFORBID`/`LISTFORBID` (`C::<channel>::forbid`).
+- **T15b** (S42-S45) — **done**. `FORBID`/`UNFORBID`/`LISTFORBID` with the
+  `C::<channel>::forbid` record.
 - **T15c** — `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
 - **T16** — `SET` options that drive the reactor: `MLOCK`, `TOPICLOCK`,
   `KEEPTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PRIVATE`, `SECURE`,
@@ -177,6 +187,9 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L20** — Forbid is keyed on the channel name, not on a profile: `ch.mrc` keeps
+  it in its own list and drops the registration as a side effect, which is exactly
+  what the code does now.
 - **L19** — Suspend is the first CHaN feature the IRCd enforces on its own: the
   record is the policy. Our own refusal is belt and braces, and exists so a founder
   understands why their command failed instead of seeing nothing happen.
