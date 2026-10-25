@@ -18,6 +18,8 @@ final class ChanServHelp
             new HelpEntry('ACCESS', 'ACCESS LIST|ADD|DEL <#canal> [nick]', 'Gestiona la lista de acceso del canal. Solo el fundador.', '/msg CHaN ACCESS ADD #miCanal JuanJo'),
             new HelpEntry('IDENTIFY', 'IDENTIFY <#canal> <contraseña>', 'Te identifica como fundador con la contraseña del canal, aunque no tengas tu nick identificado.', '/msg CHaN IDENTIFY #miCanal miClave'),
             new HelpEntry('TOPIC', 'TOPIC <#canal> <texto>', 'Fija el tema que el IRCd mantiene en el canal.', '/msg CHaN TOPIC #miCanal Bienvenidos'),
+            new HelpEntry('AKICK', 'AKICK <#canal> ADD|DEL|LIST|ENFORCE [nick] [motivo]', 'Lista de autokick del canal: el nick entra y sale expulsado. Nivel AKICK-CHANGE para cambiarla, AKICK-LIST para verla.', '/msg CHaN AKICK #miCanal ADD Nick molesta'),
+            new HelpEntry('CLEAR', 'CLEAR <#canal> MODES|BANS|OPS|HALFOPS|VOICES|USERS|TOPIC', 'Limpia el canal de golpe. Nivel CLEAR (solo fundador por defecto).', '/msg CHaN CLEAR #miCanal OPS'),
             new HelpEntry('OP', 'OP <#canal> <nick>', 'Da +o en el canal. Nivel OPDEOP.', '/msg CHaN OP #miCanal JuanJo'),
             new HelpEntry('DEOP', 'DEOP <#canal> <nick>', 'Quita +o. Nivel OPDEOP y por encima del afectado.', '/msg CHaN DEOP #miCanal JuanJo'),
             new HelpEntry('HALFOP', 'HALFOP <#canal> <nick>', 'Da +h en el canal. Nivel HALFOPDEHALFOP.', '/msg CHaN HALFOP #miCanal JuanJo'),

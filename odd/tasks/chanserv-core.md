@@ -104,6 +104,14 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S34** — `AKICK <#channel> ADD <nick> [reason]` only accepts a registered nick,
+  refuses a duplicate and stops at 50 entries, with the original wording.
+- **S35** — `AKICK DEL <nick>` and `AKICK LIST` follow, the list showing
+  `Nick: X - Motivo: (setter) -> reason`.
+- **S36** — `AKICK ENFORCE` removes the akicked nicknames we can see in the
+  channel, as the server, with `(setter) -> reason` as the kick reason.
+- **S37** — Automatic enforcement on join belongs to the reactor (T17): the join
+  of a plain user in a channel created from a UDB profile is still invisible.
 - **S31** — `CLEAR <#channel> <option>` requires the `CLEAR` key (500 by default)
   and answers with the original wording per option.
 - **S32** — `CLEAR OPS|HALFOPS|VOICES` removes the rank from every member we know
@@ -135,7 +143,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 - **T13** (S26-S29) — **done**. `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`,
   `INVITE`, `UNBAN`.
 - **T13b** (S31-S33) — **done**. `CLEAR MODES|BANS|OPS|HALFOPS|VOICES|USERS|TOPIC`.
-- **T14** — `AKICK`.
+- **T14** (S34-S37) — **done**. `AKICK ADD|DEL|LIST|ENFORCE`, table-driven by
+  `AKICK-CHANGE` (499) and `AKICK-LIST` (300).
 - **T15** — `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND`, `FORBID`/`UNFORBID`/`LISTFORBID`,
   `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
 - **T16** — `SET` options that drive the reactor: `MLOCK`, `TOPICLOCK`,
@@ -158,6 +167,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L18** — AKICK is storage plus an explicit `ENFORCE`; the automatic kick on
+  join has to wait for T17 for the same reason the entry message did.
 - **L17** — `CLEAR` needed two kinds of state we did not keep: who holds which rank
   (already there since the membership fix) and the ban list (added from the `MODE`
   stream). What it still cannot do is reach a member who joined invisibly, because

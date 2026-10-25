@@ -8,11 +8,13 @@ use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelResult;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelActionsInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelAkickRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
+use Dbots\Domain\Channel\Akick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelLevel;
 use Dbots\Domain\Channel\ChannelName;
@@ -21,6 +23,7 @@ use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use InvalidArgumentException;
 
@@ -48,6 +51,8 @@ final class ChanServCommandHandler
         private ChannelAccessRepositoryInterface $access,
         private ChannelLevelRepositoryInterface $levels,
         private ChannelActionsInterface $actions,
+        private ChannelAkickRepositoryInterface $akicks,
+        private AccountRepositoryInterface $accountStore,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
         private ReplyInterface $reply,
@@ -97,6 +102,7 @@ final class ChanServCommandHandler
             'INVITE' => $this->onInvite($sender, $account, $parts, $state),
             'UNBAN' => $this->onUnban($sender, $account, $parts, $state),
             'CLEAR' => $this->onClear($sender, $account, $parts, $state),
+            'AKICK' => $this->onAkick($sender, $account, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -594,6 +600,131 @@ final class ChanServCommandHandler
         $topic = $channel->topic ?? '';
         $this->actions->setTopic($channel->name->value, $topic);
         $this->reply->reply($uid, sprintf('Tópico de %s restaurado.', $channel->name->value));
+    }
+
+    /** @param list<string> $args */
+    private function onAkick(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $action = strtoupper((string) ($args[1] ?? ''));
+        $nick = (string) ($args[2] ?? '');
+        $reason = implode(' ', array_slice($args, 3));
+
+        if ('' === $channel || !in_array($action, ['ADD', 'DEL', 'LIST', 'ENFORCE'], true)) {
+            $this->reply->reply($uid, 'Error de Sintaxis: AKICK <canal> {ADD|DEL|LIST|ENFORCE} <nick> <motivo>');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        $key = 'LIST' === $action ? ChannelLevel::AkickList : ChannelLevel::AkickChange;
+
+        if (!$this->requireLevel($uid, $registered, $key, $this->authority($uid, $account, $registered, $state))) {
+            return;
+        }
+
+        match ($action) {
+            'ADD' => $this->akickAdd($uid, $registered, $nick, $reason, $account, $state),
+            'DEL' => $this->akickDel($uid, $registered, $nick),
+            'LIST' => $this->akickList($uid, $registered),
+            'ENFORCE' => $this->akickEnforce($uid, $registered, $state),
+        };
+    }
+
+    private function akickAdd(string $uid, Channel $channel, string $nick, string $reason, ?string $account, NetworkState $state): void
+    {
+        if ('' === $nick) {
+            $this->reply->reply($uid, 'Error de Sintaxis: AKICK <canal> ADD <nick> <motivo>');
+
+            return;
+        }
+
+        try {
+            $target = new Nick($nick);
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'Ese nick no es válido.');
+
+            return;
+        }
+
+        if (null === $this->accountStore->findByNick($target)) {
+            $this->reply->reply($uid, sprintf('El nick %s no está registrado.', $target->value));
+
+            return;
+        }
+
+        if ($this->akicks->has($channel->name->value, $target->value)) {
+            $this->reply->reply($uid, sprintf('%s ya existe en la lista de autokicks de %s.', $target->value, $channel->name->value));
+
+            return;
+        }
+
+        if ($this->akicks->countFor($channel->name->value) >= 50) {
+            $this->reply->reply($uid, 'Superado el número máximo de akicks del canal.');
+
+            return;
+        }
+
+        $setBy = $state->nickOf($uid) ?? ($account ?? '');
+
+        $this->akicks->add($channel->name->value, new Akick($target->value, '' === $reason ? 'Sin motivo' : $reason, $setBy));
+        $this->reply->reply($uid, sprintf('%s agregado a la lista de autokick de %s.', $target->value, $channel->name->value));
+    }
+
+    private function akickDel(string $uid, Channel $channel, string $nick): void
+    {
+        if ('' === $nick) {
+            $this->reply->reply($uid, 'Error de Sintaxis: AKICK <canal> DEL <nick>');
+
+            return;
+        }
+
+        if (!$this->akicks->remove($channel->name->value, $nick)) {
+            $this->reply->reply($uid, sprintf('%s no existe en la lista de autokicks de %s.', $nick, $channel->name->value));
+
+            return;
+        }
+
+        $this->reply->reply($uid, sprintf('%s borrado de la lista de autokick de %s.', $nick, $channel->name->value));
+    }
+
+    private function akickList(string $uid, Channel $channel): void
+    {
+        $entries = $this->akicks->forChannel($channel->name->value);
+
+        $this->reply->reply($uid, sprintf('Lista de autokick de %s:', $channel->name->value));
+
+        if ([] === $entries) {
+            $this->reply->reply($uid, 'Lista vacía.');
+
+            return;
+        }
+
+        foreach ($entries as $akick) {
+            $this->reply->reply($uid, sprintf('Nick: %s - Motivo: (%s) -> %s', $akick->nick, $akick->setBy, $akick->reason));
+        }
+
+        $this->reply->reply($uid, 'Fin de la lista.');
+    }
+
+    private function akickEnforce(string $uid, Channel $channel, NetworkState $state): void
+    {
+        foreach ($this->akicks->forChannel($channel->name->value) as $akick) {
+            $member = $state->uidOf($akick->nick);
+
+            if (null === $member || !$state->isInChannel($channel->name->value, $member)) {
+                continue;
+            }
+
+            $this->actions->kick($channel->name->value, $member, sprintf('(%s) -> %s', $akick->setBy, $akick->reason));
+        }
+
+        $this->reply->reply($uid, 'Han sido expulsados del canal los nicks con akick.');
     }
 
     /** The channel exists, or the sender is told it does not. */

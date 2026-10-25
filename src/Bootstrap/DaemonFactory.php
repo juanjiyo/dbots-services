@@ -20,6 +20,7 @@ use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
 use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\ChanServ\Adapter\Out\Irc\IrcChannelActions;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelAkickRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
@@ -77,6 +78,7 @@ final readonly class DaemonFactory
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $channelAccess,
         private ChannelLevelRepositoryInterface $channelLevels,
+        private ChannelAkickRepositoryInterface $channelAkicks,
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private SpamRuleRepositoryInterface $spamRules,
@@ -139,6 +141,8 @@ final readonly class DaemonFactory
             $this->channelAccess,
             $this->channelLevels,
             new IrcChannelActions($this->transport, $chanServUid, $sid),
+            $this->channelAkicks,
+            $this->accounts,
             $channelProjection,
             new AccountResolver($this->accounts),
             new IrcReplySender($this->transport, $chanServUid),

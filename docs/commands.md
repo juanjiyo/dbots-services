@@ -63,7 +63,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `INVITE <#channel>`, `UNBAN <#channel>` | done | `UNBAN` sends `-b <nick>`, so it only lifts a ban written as the bare nick |
 | `CLEAR <#channel> <option>` | done | `MODES`, `BANS`, `OPS`, `HALFOPS`, `VOICES`, `USERS`, `TOPIC`; bounded by what the mode stream has shown us |
 | `KICK` | dropped | By decision: channels kick with native `+o` |
-| `AKICK`, `LEVELS`, `DELACCESS`, `SECUREOPS`… | todo | The rank model |
+| `AKICK <#channel> ADD\|DEL\|LIST\|ENFORCE [nick] [reason]` | done | `AKICK-CHANGE` 499, `AKICK-LIST` 300; 50 entries max |
+| `DELACCESS`, `SECUREOPS`… | todo | The rest of the rank model |
 | `SET *` (founder, successor, entrymsg, mlock, topiclock…), `SUSPEND`, `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |
 
 ## MeMo

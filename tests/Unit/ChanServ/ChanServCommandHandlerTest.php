@@ -18,6 +18,7 @@ use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
 use Dbots\Tests\Support\RecordingChannelActions;
 use Dbots\Tests\Support\RecordingChannelProjection;
+use Dbots\Tests\Support\InMemoryChannelAkickRepository;
 use Dbots\Tests\Support\InMemoryChannelLevelRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
@@ -50,6 +51,8 @@ final class ChanServCommandHandlerTest extends TestCase
             new InMemoryChannelAccessRepository(),
             new InMemoryChannelLevelRepository(),
             $this->actions,
+            new InMemoryChannelAkickRepository(),
+            $this->accounts,
             $this->projection,
             new AccountResolver($this->accounts),
             $this->irc,
@@ -359,6 +362,69 @@ final class ChanServCommandHandlerTest extends TestCase
         self::assertSame(['#test 001AAAAAA'], $this->actions->invites);
         self::assertContains('#test -b alice', $this->actions->modes);
         self::assertContains('001AAAAAA: Has sido desbaneado de #test.', $this->irc->replies);
+    }
+
+    #[Test]
+    public function akickAddsListsAndRemovesAEntry(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('akick #test add bob molesta'), $this->state);
+        $this->handler->handle($this->privmsg('akick #test list'), $this->state);
+        $this->handler->handle($this->privmsg('akick #test del bob'), $this->state);
+
+        self::assertSame('001AAAAAA: bob agregado a la lista de autokick de #test.', $this->irc->replies[0]);
+        self::assertContains('001AAAAAA: Nick: bob - Motivo: (alice) -> molesta', $this->irc->replies);
+        self::assertSame('001AAAAAA: Fin de la lista.', $this->irc->replies[array_key_last($this->irc->replies) - 1]);
+        self::assertSame('001AAAAAA: bob borrado de la lista de autokick de #test.', $this->irc->replies[array_key_last($this->irc->replies)]);
+    }
+
+    #[Test]
+    public function akickRefusesAnUnregisteredNickAndADuplicate(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('akick #test add desconocido'), $this->state);
+        $this->handler->handle($this->privmsg('akick #test add bob'), $this->state);
+        $this->handler->handle($this->privmsg('akick #test add bob otra vez'), $this->state);
+
+        self::assertSame([
+            '001AAAAAA: El nick desconocido no está registrado.',
+            '001AAAAAA: bob agregado a la lista de autokick de #test.',
+            '001AAAAAA: bob ya existe en la lista de autokicks de #test.',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function akickEnforceRemovesTheMembersWeCanSee(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->joinAs('001BBBBBB', 'bob');
+        $this->handler->handle($this->privmsg('akick #test add bob molesta'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('akick #test enforce'), $this->state);
+
+        self::assertSame(['#test 001BBBBBB: (alice) -> molesta'], $this->actions->kicks);
+        self::assertSame(['001AAAAAA: Han sido expulsados del canal los nicks con akick.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function akickListingHasALowerThresholdThanChangingIt(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 350'), $this->state);
+        $this->irc->replies = [];
+        $state = new NetworkState();
+        $state->introduceUser('001CCCCCC', 'carol', 'carol', 'r');
+
+        // AKICK-LIST is 300, AKICK-CHANGE is 499.
+        $this->handler->handle($this->privmsg('akick #test list', '001CCCCCC'), $state);
+        $this->handler->handle($this->privmsg('akick #test add bob', '001CCCCCC'), $state);
+
+        self::assertSame('001CCCCCC: Lista de autokick de #test:', $this->irc->replies[0]);
+        self::assertSame('001CCCCCC: Permiso denegado.', $this->irc->replies[array_key_last($this->irc->replies)]);
     }
 
     #[Test]
