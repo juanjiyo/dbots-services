@@ -21,9 +21,9 @@ Source of truth: `davidlig/unrealircd-udb`, `doc/udb_technical_en.md` and `tests
 - **T3** (S7) — `AccountBlockProvider`, `UdbAccountProjection`. ✅
 - **T4** — Wiring in `Kernel` and `Daemon`. ✅
 - **T5** — 7 unit tests for the authority (41 total in the suite). ✅
-- **T6** (S2) — Offer inventory also when the peer sends `HEL 4 ?` (bootstrap seeker), not only when it names us directly.
-- **T7** (S8) — Use a strictly monotonic round id in `UdbAuthority::announceInventory` so reconnects in the same second cannot collide.
-- **T8** — Verify the changes against the live IRCd and the unit suite.
+- **T6** (S2) — Offer inventory also when the peer sends `HEL 4 ?` (bootstrap seeker), not only when it names us directly. ✅
+- **T7** (S8) — Use a strictly monotonic round id in `UdbAuthority::announceInventory` so reconnects in the same second cannot collide. ✅
+- **T8** — Verify the changes against the live IRCd and the unit suite. ✅
 
 ## Log
 
