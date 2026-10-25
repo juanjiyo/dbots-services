@@ -59,6 +59,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `LEVELS <#channel> LIST\|SET\|RESET [key] [level]` | done | Thresholds -1..500 per command; 500 is founder or IRCop. Only a founder-level user changes it |
 | `SET <#channel> DESC\|URL\|EMAIL\|ENTRYMSG [value]` | done | Services-only settings; the entry message greets on join with `<nick>` replaced |
 | join reactor (entry message, akick, `NOJOIN`, auto rank) | done | Runs on `SJOIN` once the link is synced |
+| mode reactor (`MLOCK`, `SECUREOPS`, `SECUREHALFOPS`, `+q` for the founder) | done | Corrects the channel after somebody else changes modes |
 | `SET <#channel> <OPTION> ON\|OFF` | done | `TOPICLOCK`, `KEEPTOPIC`, `DEFTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PBANS`, `PMODE`, `PRIVATE`, `SECURE`, `RESTRICTED`, `NOEXPIRE`, `DEBUG` |
 | `SET <#channel> MLOCK [modes]` | done | Validated against the original letter set and applied at once |
 | `SET <#channel> PASSWORD <password>` | done | Hashed; `IDENTIFY` accepts only the new one |

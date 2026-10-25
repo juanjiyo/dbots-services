@@ -1209,6 +1209,119 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, sprintf('Candado de modo de canal %s cambiado a %s.', $channel->value, $mlock));
     }
 
+    /**
+     * The mode reactor: it re-imposes `MLOCK`, takes back `+q` from anyone who is
+     * not the founder, and, when the channel asks for it, removes `+o`/`+h` from
+     * members who do not reach the level the table requires.
+     *
+     * @param list<string> $params
+     */
+    public function onChannelModeChanged(
+        string $source,
+        string $channel,
+        string $changes,
+        array $params,
+        NetworkState $state,
+    ): void {
+        // Our own changes would loop: every -o we send raises another event.
+        if ($source === $this->serviceUid) {
+            return;
+        }
+
+        try {
+            $registered = $this->channels->find(new ChannelName($channel));
+        } catch (InvalidArgumentException) {
+            return;
+        }
+
+        if (null === $registered || $registered->isSuspended()) {
+            return;
+        }
+
+        $name = $registered->name->value;
+        $adding = true;
+        $index = 0;
+        $removed = [];
+
+        foreach (str_split($changes) as $mode) {
+            if ('+' === $mode) {
+                $adding = true;
+
+                continue;
+            }
+
+            if ('-' === $mode) {
+                $adding = false;
+
+                continue;
+            }
+
+            if (!in_array($mode, ['q', 'a', 'o', 'h', 'v'], true)) {
+                if (in_array($mode, ['b', 'e', 'I', 'k'], true)) {
+                    ++$index;
+                }
+
+                if (!$adding) {
+                    $removed[] = $mode;
+                }
+
+                continue;
+            }
+
+            $target = $params[$index] ?? null;
+            ++$index;
+
+            if (!$adding || null === $target) {
+                continue;
+            }
+
+            $this->checkRank($registered, $target, $mode, $state);
+        }
+
+        $this->reimposeMlock($registered, $removed);
+    }
+
+    private function checkRank(Channel $channel, string $target, string $mode, NetworkState $state): void
+    {
+        $authority = $this->authority($target, $state->accountOf($target), $channel, $state);
+
+        if ($authority >= 500) {
+            return;
+        }
+
+        $take = match ($mode) {
+            // Only the founder may hold +q, as ch.mrc enforces on every +q.
+            'q' => true,
+            'o' => $this->options->isEnabled($channel->name, ChannelOption::SecureOps)
+                && $authority < $this->levels->threshold($channel->name, ChannelLevel::AutoOp),
+            'h' => $this->options->isEnabled($channel->name, ChannelOption::SecureHalfOps)
+                && $authority < $this->levels->threshold($channel->name, ChannelLevel::AutoHalfOp),
+            default => false,
+        };
+
+        if ($take) {
+            $this->actions->mode($channel->name->value, sprintf('-%s', $mode), $target);
+        }
+    }
+
+    /** @param list<string> $removed */
+    private function reimposeMlock(Channel $channel, array $removed): void
+    {
+        $lock = $this->options->optionsFor($channel->name)['MLOCK'] ?? '';
+
+        if ('' === $lock) {
+            return;
+        }
+
+        foreach (str_split($lock) as $mode) {
+            if (in_array($mode, $removed, true)) {
+                $this->actions->channelModes($channel->name->value, $lock);
+
+                return;
+            }
+        }
+    }
+
     /** The channel exists, or the sender is told it does not. */
     private function registeredChannel(string $uid, string $channel): ?Channel
     {

@@ -110,6 +110,13 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S58** — Every channel mode change is checked: `+q` is taken back unless the
+  holder is the founder, and `+o`/`+h` are taken back when `SECUREOPS` or
+  `SECUREHALFOPS` is on and the holder does not reach `AUTOOP`/`AUTOHALFOP`.
+- **S59** — A level of 500 (IRCop or founder) is exempt from the mode reactor.
+- **S60** — If a change removes a mode that `MLOCK` holds, the lock is re-imposed.
+- **S61** — The reactor ignores changes whose source is ChanServ itself, or every
+  correction would raise a new event and loop.
 - **S54** — On join, a registered non-suspended channel greets with its entry
   message, then: an akicked account is banned and kicked with
   `(setter) -> reason`; a user below `NOJOIN` is banned and kicked; otherwise the
@@ -217,7 +224,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   bits. `NAME` does not exist in `ch.mrc`'s `SET`; `ESPECIAL` was dropped.
 - **T17a** (S54-S57) — **done**. The join reactor: entry message, akick,
   `NOJOIN` and the rank the table grants.
-- **T17b** — The mode reactor: re-apply `MLOCK`, `SECUREOPS`/`SECUREHALFOPS`.
+- **T17b** (S58-S61) — **done in code**. The mode reactor: `MLOCK` re-application,
+  `SECUREOPS`, `SECUREHALFOPS` and `+q` reserved for the founder.
 - **T17c** — The topic reactor: `TOPICLOCK` restores, `KEEPTOPIC` remembers.
 
 ## Log
@@ -233,6 +241,11 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L25** — The mode reactor is unit-tested but not live-verified: from 09:33 the
+  IRCd stopped accepting new local clients with `451 You have not registered` and
+  logged no `LOCAL_CLIENT_CONNECT` at all, almost certainly my probe flood
+  exhausting its unknown/handshake pool. Needs `/CLOSE` as an oper or an IRCd
+  restart before the live run.
 - **L24** — The join reactor is now possible because `PERSISTENT` makes a
   registered channel exist while empty, so its joins arrive as `SJOIN`. Live
   verification of the akick path was blocked by the test harness itself: repeated

@@ -287,6 +287,70 @@ final class ChanServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function secureOpsTakesBackOpFromSomebodyBelowTheTable(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('set #test secureops on'), $this->state);
+        $this->joinAs('001BBBBBB', 'bob');
+
+        $this->handler->onChannelModeChanged('001AAAAAAAA', '#test', '+o', ['001BBBBBB'], $this->state);
+
+        self::assertSame(['#test -o 001BBBBBB'], $this->actions->modes);
+    }
+
+    #[Test]
+    public function secureOpsLeavesAnOpTheTableAllows(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 400'), $this->state);
+        $this->handler->handle($this->privmsg('set #test secureops on'), $this->state);
+        $this->joinAs('001CCCCCC', 'carol', 'carol');
+
+        $this->handler->onChannelModeChanged('001AAAAAAAA', '#test', '+o', ['001CCCCCC'], $this->state);
+
+        self::assertSame([], $this->actions->modes);
+    }
+
+    #[Test]
+    public function founderStatusIsTheOnlyWayToKeepOwnerStatus(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 499'), $this->state);
+        $this->joinAs('001CCCCCC', 'carol', 'carol');
+
+        $this->handler->onChannelModeChanged('001AAAAAAAA', '#test', '+q', ['001CCCCCC'], $this->state);
+
+        self::assertSame(['#test -q 001CCCCCC'], $this->actions->modes);
+    }
+
+    #[Test]
+    public function mlockIsReimposedWhenSomebodyRemovesALockedMode(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test mlock nt'), $this->state);
+        $this->actions->channelModeLines = [];
+
+        $this->handler->onChannelModeChanged('001AAAAAAAA', '#test', '-n', [], $this->state);
+
+        self::assertSame(['#test +nt'], $this->actions->channelModeLines);
+    }
+
+    #[Test]
+    public function theReactorIgnoresItsOwnChanges(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test mlock nt'), $this->state);
+        $this->actions->channelModeLines = [];
+
+        $this->handler->onChannelModeChanged('003A00002', '#test', '-n', [], $this->state);
+
+        self::assertSame([], $this->actions->channelModeLines);
+    }
+
+    #[Test]
     public function aRankGrantedByTheTableIsAppliedOnJoin(): void
     {
         $this->channels->seed('#Test', 'alice');

@@ -413,10 +413,16 @@ final readonly class Daemon
 
         if (str_starts_with($target, '#')) {
             // Channel modes name their targets by nick; the state is keyed by UID.
-            $this->state->applyChannelModeChange(
+            $changes = (string) ($message->params[1] ?? '');
+            $members = array_map($this->resolveMember(...), array_slice($message->params, 2));
+
+            $this->state->applyChannelModeChange($target, $changes, $members);
+            $this->chanServ->onChannelModeChanged(
+                (string) $message->source(),
                 $target,
-                (string) ($message->params[1] ?? ''),
-                array_map($this->resolveMember(...), array_slice($message->params, 2)),
+                $changes,
+                $members,
+                $this->state,
             );
 
             return;
