@@ -37,7 +37,7 @@ notified.
 - [x] **T6** (S4) — `SET NOTIFY` command handler.
 - [x] **T7** (S8) — Help text and `docs/commands.md`.
 - [x] **T8** (S9) — Unit tests.
-- [ ] **T9** — Run `composer check`, commit, and push.
+- [x] **T9** — Run `composer check`, commit, and push.
 
 ## Log
 
