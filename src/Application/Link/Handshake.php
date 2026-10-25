@@ -52,14 +52,16 @@ final class Handshake
     private ?string $remoteSid = null;
     private ?string $remoteName = null;
     private ?string $error = null;
+    private ?string $networkName = null;
 
     /** @var list<string> */
     private array $outbound = [];
 
     public function __construct(
         private readonly ServerLink $link,
-        private readonly string $networkName = 'IRC Network',
+        string $networkName = 'IRC Network',
     ) {
+        $this->networkName = $networkName;
     }
 
     /** @return list<string> */
@@ -103,6 +105,7 @@ final class Handshake
         }
 
         if (str_starts_with($line, 'NETINFO')) {
+            $this->networkName = $this->trailing($line) ?? $this->networkName;
             $this->queue(sprintf('NETINFO 0 %d 6100 * 0 0 0 :%s', time(), $this->networkName));
 
             return;

@@ -84,6 +84,19 @@ final class UdbAuthorityTest extends TestCase
     }
 
     #[Test]
+    public function itAnnouncesInventoryWhenPeerSeeksBootstrap(): void
+    {
+        $authority = $this->authority();
+
+        $authority->handle($this->frame(['007', 'HEL', '4', '?', self::EPOCH, 'OCL']));
+
+        self::assertCount(8, $this->written);
+        self::assertStringContainsString('HEL 4 ACK bots.example.org', $this->written[0]);
+        self::assertStringContainsString(' INF ', $this->written[1]);
+        self::assertStringContainsString('HEL 4 ? ', $this->written[7]);
+    }
+
+    #[Test]
     public function itAnnouncesOnlyOnce(): void
     {
         $authority = $this->authority();
@@ -94,6 +107,19 @@ final class UdbAuthorityTest extends TestCase
         $authority->handle($frame);
 
         self::assertSame($count + 1, count($this->written));
+    }
+
+    #[Test]
+    public function itUsesANonZeroRoundIdDerivedFromTheClock(): void
+    {
+        $authority = $this->authority();
+        $before = time();
+
+        $authority->handle($this->frame(['007', 'HEL', '4', 'bots.example.org', self::EPOCH, 'OCL']));
+        $round = $this->extractRoundId($this->written[1]);
+
+        self::assertGreaterThan(0, $round);
+        self::assertGreaterThanOrEqual($before, $round);
     }
 
     #[Test]
@@ -154,5 +180,14 @@ final class UdbAuthorityTest extends TestCase
     private function frame(array $params): IrcMessage
     {
         return new IrcMessage('001', 'DB', $params, null);
+    }
+
+    private function extractRoundId(string $line): int
+    {
+        if (1 !== preg_match('/ INF (\d+) /', $line, $matches)) {
+            self::fail('No round id found in: ' . $line);
+        }
+
+        return (int) $matches[1];
     }
 }

@@ -42,6 +42,7 @@ final class UdbAuthority
     private int $sequence = 0;
     private int $round = 0;
     private bool $announced = false;
+    private bool $inventoryOffered = false;
     private ?string $peerSid = null;
 
     public function __construct(
@@ -155,8 +156,8 @@ final class UdbAuthority
             $this->epoch,
         ));
 
-        if (!$this->announced && $selector === $this->serverName) {
-            $this->announced = true;
+        if (!$this->inventoryOffered && ('?' === $selector || $selector === $this->serverName)) {
+            $this->inventoryOffered = true;
             $this->announceInventory();
         }
     }
@@ -197,9 +198,10 @@ final class UdbAuthority
 
     private function announceInventory(): void
     {
-        // A round identifier has to be non-zero and distinct per round; the
-        // reference implementation derives it from the clock.
-        $this->round = max(1, time());
+        // A round identifier has to be non-zero and distinct per round. The
+        // reference implementation derives it from the clock, but we also keep
+        // a local counter so two reconnects in the same second cannot collide.
+        $this->round = max($this->round + 1, time());
 
         foreach (self::BLOCKS as $block) {
             $records = $this->blocks->records($block);

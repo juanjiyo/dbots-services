@@ -54,11 +54,24 @@ final class HandshakeTest extends TestCase
     }
 
     #[Test]
-    public function itAnswersNetinfoWithItsOwnNetworkName(): void
+    public function itEchoesTheRemoteNetworkNameInNetinfo(): void
     {
         $this->handshake->start();
 
         $this->handshake->consume('NETINFO 1 1700000000 6100 SHA256:aa 0 0 0 :ExampleNet');
+
+        $lines = $this->handshake->flush();
+
+        self::assertCount(1, $lines);
+        self::assertMatchesRegularExpression('/^NETINFO 0 \d+ 6100 \* 0 0 0 :ExampleNet$/', $lines[0]);
+    }
+
+    #[Test]
+    public function itFallsBackToItsOwnNetworkNameWhenNetinfoHasNoTrailing(): void
+    {
+        $this->handshake->start();
+
+        $this->handshake->consume('NETINFO 1 1700000000 6100 SHA256:aa 0 0 0');
 
         $lines = $this->handshake->flush();
 
