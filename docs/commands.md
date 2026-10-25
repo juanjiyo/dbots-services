@@ -135,6 +135,20 @@ at first.
 | `CREDITOS` | done | The dBoTs authors |
 | anything else | done | `Comando desconocido <cmd>`, as the original |
 
+## Modules
+
+A bot that is not a network service lives in `modules/<Name>/` with a
+`module.json` (`class`, `nick`, `description`, `enabled_by_default`) and a class
+implementing `Dbots\Module\ModuleInterface`. The daemon introduces its nick as a
+pseudo-client and hands it every parsed message, so a contributor can add a bot in
+PHP instead of running another daemon.
+
+`CeNTeR MODULO LIST|LOAD|UNLOAD` will manage them; until then the state lives in
+the `modules` table and a change applies on the next restart.
+
+**A module is trusted code, not a sandbox.** It runs inside the services process
+with its privileges.
+
 ## Services that do not exist yet
 
 | Bot | Command surface |

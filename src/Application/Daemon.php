@@ -18,10 +18,14 @@ use Dbots\Irc\Application\DebugEvents;
 use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
+use Dbots\Module\ModuleContext;
+use Dbots\Module\ModuleInterface;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\Udb\UdbAuthority;
+use Throwable;
 
+use function array_keys;
 use function array_map;
 use function array_slice;
 use function explode;
@@ -29,6 +33,7 @@ use function in_array;
 use function preg_match;
 use function sprintf;
 use function str_contains;
+use function strlen;
 use function strpos;
 use function strtoupper;
 use function substr;
@@ -58,6 +63,8 @@ final readonly class Daemon
         private string $debugChannel = '',
         private ?AccountResolver $accounts = null,
         private ?MemoAnnouncer $memoAnnouncer = null,
+        /** @var list<ModuleInterface> */
+        private array $modules = [],
     ) {
     }
 
@@ -83,6 +90,12 @@ final readonly class Daemon
         $this->runner->close();
     }
 
+    /** Module pseudo-clients live above the built-in service range. */
+    private function moduleUid(int $index): string
+    {
+        return sprintf('%sA001%02d', $this->sid, $index);
+    }
+
     private function introduceServices(): void
     {
         $services = [
@@ -96,6 +109,10 @@ final readonly class Daemon
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
             $services[] = ['DeBuG', sprintf('%sA00005', $this->sid), 'Network Debug Relay'];
+        }
+
+        foreach ($this->modules as $index => $module) {
+            $services[] = [$module->nick(), $this->moduleUid($index), $module->description()];
         }
 
         foreach ($services as [$nick, $uid, $realname]) {
@@ -236,7 +253,13 @@ final readonly class Daemon
             return;
         }
 
-        foreach (['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007'] as $suffix) {
+        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007'];
+
+        foreach (array_keys($this->modules) as $index) {
+            $suffixes[] = substr($this->moduleUid($index), strlen($this->sid));
+        }
+
+        foreach ($suffixes as $suffix) {
             $uid = sprintf('%s%s', $this->sid, $suffix);
 
             $this->transport->writeLine(sprintf(':%s JOIN %s', $uid, $this->debugChannel));
@@ -457,6 +480,19 @@ final readonly class Daemon
         $this->operServ->handle($message, $this->state);
         $this->cregServ->handle($message, $this->state);
         $this->helpServ->handle($message, $this->state);
+
+        foreach ($this->modules as $index => $module) {
+            try {
+                $module->handle($message, $this->state, new ModuleContext(
+                    $this->moduleUid($index),
+                    $this->sid,
+                    $this->transport,
+                ));
+            } catch (Throwable $error) {
+                // A broken module must not take the link down.
+                fwrite(STDERR, sprintf("module %s failed: %s\n", $module->nick(), $error->getMessage()));
+            }
+        }
 
 
     }

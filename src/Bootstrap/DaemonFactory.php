@@ -38,6 +38,7 @@ use Dbots\MemoServ\Application\Help\MemoServHelp;
 use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
+use Dbots\Module\ModuleRegistry;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
@@ -79,6 +80,7 @@ final readonly class DaemonFactory
         private ChannelAkickRepositoryInterface $channelAkicks,
         private ChannelForbidRepositoryInterface $channelForbids,
         private ChannelOptionRepositoryInterface $channelOptions,
+        private ModuleRegistry $modules,
         private ChannelRequestRepositoryInterface $channelRequests,
         private MemoRepositoryInterface $memos,
         private SpamRuleRepositoryInterface $spamRules,
@@ -235,6 +237,7 @@ final readonly class DaemonFactory
             $this->debugChannel,
             new AccountResolver($this->accounts),
             new MemoAnnouncer($memoServ),
+            $this->modules->enabled(),
         );
     }
 }

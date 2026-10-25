@@ -20,7 +20,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Dbots\\": "src/"
+            "Dbots\\": "src/",
+            "Modules\\": "modules/"
         }
     },
     "autoload-dev": {

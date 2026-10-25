@@ -1,0 +1,6 @@
+{
+    "class": "Modules\\Ping\\PingModule",
+    "nick": "PiNG",
+    "description": "Responde PING con PONG. Modulo de ejemplo del sistema de modulos.",
+    "enabled_by_default": true
+}

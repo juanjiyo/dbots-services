@@ -54,6 +54,12 @@ services:
 
     Dbots\Application\Port\Out\LinkTransportInterface: '@Dbots\Adapter\Out\Transport\TlsStreamTransport'
 
+    Dbots\Module\ModuleStateRepositoryInterface: '@Dbots\Module\Adapter\Out\Persistence\SqliteModuleStateRepository'
+
+    Dbots\Module\ModuleRegistry:
+        arguments:
+            $directory: '%kernel.project_dir%/modules'
+
     Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface: '@Dbots\NickServ\Adapter\Out\Persistence\SqliteAccountRepository'
     Dbots\NickServ\Application\Port\Out\AccountProjectionInterface: '@Dbots\Udb\UdbAccountProjection'
 
