@@ -85,6 +85,16 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   `Solo el fundador puede hacer eso.` otherwise.
 - **S21** — `KICK` is dropped from the equation, by explicit decision: the
   reference has no `KICK` key and the network kicks with native `+o`.
+- **S22** — A user's level in a channel is 500 for an IRCop, the founder by
+  account, or a session identified with the channel password; otherwise the
+  access entry, defaulting to 0.
+- **S23** — `ACCESS LIST` requires `ACC-LIST` and `ACCESS ADD|DEL` requires
+  `ACC-CHANGE`, both read from the channel table. Denial is `Permiso denegado.`
+- **S24** — `ACCESS ADD <nick> <level>` takes -1..499, because 500 belongs to the
+  founder. Non-numeric answers `El nivel del registro debe de ser un número.`,
+  out of range answers `El nivel de registro debe estar comprendido entre -1 y 499.`
+- **S25** — The level is a services-only value: UDB records the access entry as
+  `C::<channel>::access::<nick>` with no level field.
 
 ## Tasks (this stage)
 
@@ -96,7 +106,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
 
 - **T11** (S16-S21) — **done**. `ChannelLevel` enum with the reference defaults,
   `SqliteChannelLevelRepository`, `LEVELS LIST|SET|RESET`.
-- **T12** — `ACCESS` with levels, `DELACCESS`.
+- **T12** (S22-S25) — **done**. Levels on access entries, table-driven gates, and
+  the `authority()` calculation later commands reuse.
 - **T13** — `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`, `KICK`, `INVITE`,
   `UNBAN`, `CLEAR`.
 - **T14** — `AKICK`.
@@ -122,6 +133,10 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L14** — `ACCESS` now scores against the table, so the levels bite. The gate
+  moved from "are you the founder" to "is your level enough", which is the whole
+  point: a channel can hand `ACC-CHANGE` to a 499 user without making them founder.
+  Existing entries migrate with level 0.
 - **L13** — Adopted the reference table as option B minus `KICK`: ChatHispano's
   values plus `AUTOHALFOP` and `HALFOPDEHALFOP`, because SitioChat's PREFIX has
   `h` and a halfop with no level would be ungoverned. `KICK` is gone from both

@@ -87,7 +87,7 @@ final class ChanServCommandHandler
             'DROP' => $this->onDrop($sender, $account, $parts),
             'INFO' => $this->onInfo($sender, $parts),
             'IDENTIFY' => $this->onIdentify($sender, $parts),
-            'ACCESS' => $this->onAccess($sender, $account, $parts),
+            'ACCESS' => $this->onAccess($sender, $account, $parts, $state),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
             'SET' => $this->onSet($sender, $account, $parts),
             'LEVELS' => $this->onLevels($sender, $account, $parts),
@@ -236,85 +236,193 @@ final class ChanServCommandHandler
     }
 
     /** @param list<string> $args */
-    private function onAccess(string $uid, ?string $account, array $args): void
+    /** @param list<string> $args */
+    private function onAccess(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $action = strtoupper((string) ($args[0] ?? ''));
         $channel = (string) ($args[1] ?? '');
-        $nick = (string) ($args[2] ?? '');
 
-        if ('' === $channel) {
-            $this->reply->reply($uid, 'Syntax: ACCESS LIST|ADD|DEL <#channel> [nick]');
+        if ('' === $channel || !in_array($action, ['LIST', 'ADD', 'DEL', 'DELETE'], true)) {
+            $this->reply->reply($uid, 'Error de Sintaxis: ACCESS <canal> {ADD|DEL|LIST} <nick> <nivel>');
 
             return;
         }
 
-        $registered = $this->ownedChannel($uid, $account, $channel);
+        $registered = $this->registeredChannel($uid, $channel);
 
         if (null === $registered) {
             return;
         }
 
         match ($action) {
-            'LIST' => $this->onAccessList($uid, $registered),
-            'ADD' => $this->onAccessAdd($uid, $registered, $nick),
-            'DEL', 'DELETE' => $this->onAccessDel($uid, $registered, $nick),
-            default => $this->reply->reply($uid, 'Syntax: ACCESS LIST|ADD|DEL <#channel> [nick]'),
+            'LIST' => $this->onAccessList($uid, $registered, $account, $state),
+            'ADD' => $this->onAccessAdd(
+                $uid,
+                $registered,
+                (string) ($args[2] ?? ''),
+                (string) ($args[3] ?? ''),
+                $account,
+                $state,
+            ),
+            'DEL', 'DELETE' => $this->onAccessDel($uid, $registered, (string) ($args[2] ?? ''), $account, $state),
         };
     }
 
-    private function onAccessList(string $uid, Channel $channel): void
+    private function onAccessList(string $uid, Channel $channel, ?string $account, NetworkState $state): void
     {
-        $entries = $this->access->forChannel($channel->name->value);
+        if (!$this->requireLevel($uid, $channel, ChannelLevel::AccList, $this->authority($uid, $account, $channel, $state))) {
+            return;
+        }
+
+        $entries = $this->access->entries($channel->name->value);
+
+        $this->reply->reply($uid, sprintf('Lista de acceso de %s:', $channel->name->value));
 
         if ([] === $entries) {
-            $this->reply->reply($uid, sprintf('%s has no access list entries.', $channel->name->value));
+            $this->reply->reply($uid, 'Lista vacía.');
 
             return;
         }
 
-        $this->reply->reply($uid, sprintf('Access list for %s: %s.', $channel->name->value, implode(', ', $entries)));
+        foreach ($entries as $nick => $level) {
+            $this->reply->reply($uid, sprintf('Nick: %s - Nivel: %d', $nick, $level));
+        }
+
+        $this->reply->reply($uid, 'Fin de la lista.');
     }
 
-    private function onAccessAdd(string $uid, Channel $channel, string $nick): void
-    {
-        if ('' === $nick) {
-            $this->reply->reply($uid, 'Syntax: ACCESS ADD <#channel> <nick>');
+    private function onAccessAdd(
+        string $uid,
+        Channel $channel,
+        string $nick,
+        string $rawLevel,
+        ?string $account,
+        NetworkState $state,
+    ): void {
+        if (!$this->requireLevel($uid, $channel, ChannelLevel::AccChange, $this->authority($uid, $account, $channel, $state))) {
+            return;
+        }
+
+        if ('' === $nick || '' === $rawLevel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: ACCESS <canal> ADD <nick> <nivel>');
+
+            return;
+        }
+
+        if (1 !== preg_match('/^-?\d+$/', $rawLevel)) {
+            $this->reply->reply($uid, 'El nivel del registro debe de ser un número.');
+
+            return;
+        }
+
+        $level = (int) $rawLevel;
+
+        if ($level < -1 || $level > 499) {
+            $this->reply->reply($uid, 'El nivel de registro debe estar comprendido entre -1 y 499.');
 
             return;
         }
 
         try {
-            $account = (new Nick($nick))->value;
+            $target = (new Nick($nick))->value;
         } catch (InvalidArgumentException) {
-            $this->reply->reply($uid, 'That nickname cannot hold access.');
+            $this->reply->reply($uid, 'Ese nick no puede tener acceso.');
 
             return;
         }
 
-        $this->access->add($channel->name->value, $account);
-        $this->projection->publishAccess($channel->name->value, $account);
-        $this->reply->reply($uid, sprintf('%s now has access to %s.', $account, $channel->name->value));
+        $this->access->add($channel->name->value, $target, $level);
+        $this->projection->publishAccess($channel->name->value, $target);
+        $this->reply->reply($uid, sprintf(
+            '%s agregado a la lista de acceso de %s con nivel %d.',
+            $target,
+            $channel->name->value,
+            $level,
+        ));
     }
 
-    private function onAccessDel(string $uid, Channel $channel, string $nick): void
-    {
+    private function onAccessDel(
+        string $uid,
+        Channel $channel,
+        string $nick,
+        ?string $account,
+        NetworkState $state,
+    ): void {
+        if (!$this->requireLevel($uid, $channel, ChannelLevel::AccChange, $this->authority($uid, $account, $channel, $state))) {
+            return;
+        }
+
         if ('' === $nick) {
-            $this->reply->reply($uid, 'Syntax: ACCESS DEL <#channel> <nick>');
+            $this->reply->reply($uid, 'Error de Sintaxis: ACCESS <canal> DEL <nick>');
 
             return;
         }
 
-        $removed = $this->access->remove($channel->name->value, $nick);
+        if (!$this->access->remove($channel->name->value, $nick)) {
+            $this->reply->reply($uid, sprintf('%s no fue encontrado en la lista de acceso de %s.', $nick, $channel->name->value));
 
-        if ($removed) {
-            $this->projection->removeAccess($channel->name->value, $nick);
+            return;
         }
 
-        $this->reply->reply($uid, $removed
-            ? sprintf('%s no longer has access to %s.', $nick, $channel->name->value)
-            : sprintf('%s is not on the access list of %s.', $nick, $channel->name->value));
+        $this->projection->removeAccess($channel->name->value, $nick);
+        $this->reply->reply($uid, sprintf('%s borrado de la lista de acceso de %s.', $nick, $channel->name->value));
     }
 
+    /** The channel exists, or the sender is told it does not. */
+    private function registeredChannel(string $uid, string $channel): ?Channel
+    {
+        try {
+            $registered = $this->channels->find(new ChannelName($channel));
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'Ese nombre de canal no es válido.');
+
+            return null;
+        }
+
+        if (null === $registered) {
+            $this->reply->reply($uid, sprintf('%s no está registrado.', $channel));
+        }
+
+        return $registered;
+    }
+
+    /**
+     * The level the sender holds in the channel: 500 for an IRCop, the founder by
+     * account, or a session identified with the channel password; otherwise
+     * whatever the access list grants, defaulting to 0.
+     */
+    private function authority(string $uid, ?string $account, Channel $channel, NetworkState $state): int
+    {
+        if ($state->hasMode($uid, 'o')) {
+            return 500;
+        }
+
+        if (null !== $account && $channel->isFoundedBy($account)) {
+            return 500;
+        }
+
+        if ($this->isIdentifiedFounder($uid, $channel->name->value)) {
+            return 500;
+        }
+
+        return null === $account ? 0 : ($this->access->levelOf($channel->name->value, $account) ?? 0);
+    }
+
+    private function requireLevel(string $uid, Channel $channel, ChannelLevel $key, int $authority): bool
+    {
+        if ($authority >= $this->levels->threshold($channel->name, $key)) {
+            return true;
+        }
+
+        $this->reply->reply($uid, 'Permiso denegado.');
+
+        return false;
+    }
+
+    /**
+     * `chanserv.c.r` notices the entry message when somebody joins, replacing
+     * `<nick>` with their nick. It needs no permission: it is a greeting.
+     */
     /**
      * `LEVELS <#channel> LIST|SET|RESET`, the per-channel threshold table.
      *

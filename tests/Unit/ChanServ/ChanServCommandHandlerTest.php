@@ -132,14 +132,20 @@ final class ChanServCommandHandlerTest extends TestCase
     {
         $this->channels->seed('#Test', 'alice');
 
-        $this->handler->handle($this->privmsg('access add #test bob'), $this->state);
+        $this->handler->handle($this->privmsg('access add #test bob 400'), $this->state);
         self::assertSame(['#test:bob'], $this->projection->accessAdded);
+        self::assertSame(
+            ['001AAAAAA: bob agregado a la lista de acceso de #test con nivel 400.'],
+            $this->irc->replies,
+        );
 
         $this->handler->handle($this->privmsg('access list #test'), $this->state);
-        self::assertStringContainsString('bob', end($this->irc->replies));
+        self::assertContains('001AAAAAA: Nick: bob - Nivel: 400', $this->irc->replies);
+        self::assertSame('001AAAAAA: Fin de la lista.', end($this->irc->replies));
 
         $this->handler->handle($this->privmsg('access del #test bob'), $this->state);
         self::assertSame(['#test:bob'], $this->projection->accessRemoved);
+        self::assertSame('001AAAAAA: bob borrado de la lista de acceso de #test.', end($this->irc->replies));
     }
 
     #[Test]
@@ -149,10 +155,10 @@ final class ChanServCommandHandlerTest extends TestCase
         $state = new NetworkState();
         $state->introduceUser('001BBBBBB', 'bob', null, 'r');
 
-        $this->handler->handle($this->privmsg('access add #test bob', '001BBBBBB'), $state);
+        $this->handler->handle($this->privmsg('access add #test bob 400', '001BBBBBB'), $state);
 
         self::assertSame([], $this->projection->accessAdded);
-        self::assertSame(['001BBBBBB: Solo el fundador puede hacer eso.'], $this->irc->replies);
+        self::assertSame(['001BBBBBB: Permiso denegado.'], $this->irc->replies);
     }
 
     #[Test]
@@ -282,6 +288,56 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->handler->announceEntry('001AAAAAA', '#sinRegistrar', $this->state);
 
         self::assertSame([], $this->irc->replies);
+    }
+
+    #[Test]
+    public function accessLevelsFollowTheTable(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 450'), $this->state);
+        $state = new NetworkState();
+        $state->introduceUser('001CCCCCC', 'carol', 'carol', 'r');
+        $this->irc->replies = [];
+
+        // ACC-CHANGE is 499, so 450 is not enough to change the list...
+        $this->handler->handle($this->privmsg('access add #test bob 400', '001CCCCCC'), $state);
+
+        self::assertSame(['001CCCCCC: Permiso denegado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function accessLevelsComeFromTheChannelTable(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('carol'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test carol 400'), $this->state);
+        $this->handler->handle($this->privmsg('levels #test set acc-list 400'), $this->state);
+        $this->irc->replies = [];
+        $state = new NetworkState();
+        $state->introduceUser('001CCCCCC', 'carol', 'carol', 'r');
+
+        // ACC-LIST now accepts 400, so carol can list without being founder.
+        $this->handler->handle($this->privmsg('access list #test', '001CCCCCC'), $state);
+
+        self::assertSame('001CCCCCC: Lista de acceso de #test:', $this->irc->replies[0]);
+        self::assertContains('001CCCCCC: Nick: carol - Nivel: 400', $this->irc->replies);
+    }
+
+    #[Test]
+    public function accessRejectsLevelsOutsideTheRange(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('access add #test bob 500'), $this->state);
+        $this->handler->handle($this->privmsg('access add #test bob mucho'), $this->state);
+        $this->handler->handle($this->privmsg('access add #test bob'), $this->state);
+
+        self::assertSame([
+            '001AAAAAA: El nivel de registro debe estar comprendido entre -1 y 499.',
+            '001AAAAAA: El nivel del registro debe de ser un número.',
+            '001AAAAAA: Error de Sintaxis: ACCESS <canal> ADD <nick> <nivel>',
+        ], $this->irc->replies);
     }
 
     #[Test]

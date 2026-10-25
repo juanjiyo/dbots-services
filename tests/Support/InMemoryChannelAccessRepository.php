@@ -8,12 +8,22 @@ use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 
 final class InMemoryChannelAccessRepository implements ChannelAccessRepositoryInterface
 {
-    /** @var array<string, array<string, true>> */
+    /** @var array<string, array<string, int>> */
     private array $entries = [];
 
-    public function add(string $channel, string $nick): void
+    public function add(string $channel, string $nick, int $level): void
     {
-        $this->entries[$channel][strtolower($nick)] = true;
+        $this->entries[$channel][strtolower($nick)] = $level;
+    }
+
+    public function entries(string $channel): array
+    {
+        return $this->entries[$channel] ?? [];
+    }
+
+    public function levelOf(string $channel, string $nick): ?int
+    {
+        return $this->entries[$channel][strtolower($nick)] ?? null;
     }
 
     public function remove(string $channel, string $nick): bool
