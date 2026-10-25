@@ -7,7 +7,6 @@ namespace Dbots\Tests\Unit\ChanServ;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
-use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Domain\Account\Account;
@@ -41,7 +40,6 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->irc = new RecordingIrc();
         $this->projection = new RecordingChannelProjection();
         $this->handler = new ChanServCommandHandler(
-            new RegisterChannelHandler($this->channels),
             new DropChannelHandler($this->channels, new InMemoryChannelAccessRepository()),
             $this->channels,
             new InMemoryChannelAccessRepository(),

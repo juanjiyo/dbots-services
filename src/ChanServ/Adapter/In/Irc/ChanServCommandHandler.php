@@ -9,8 +9,6 @@ use Dbots\ChanServ\Application\DropChannel\DropChannelResult;
 use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
-use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
-use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelResult;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
 use Dbots\Domain\Channel\Channel;
@@ -38,7 +36,6 @@ final class ChanServCommandHandler
     private array $identified = [];
 
     public function __construct(
-        private RegisterChannelHandler $register,
         private DropChannelHandler $drop,
         private ChannelRepositoryInterface $channels,
         private ChannelAccessRepositoryInterface $access,
@@ -87,31 +84,6 @@ final class ChanServCommandHandler
             'TOPIC' => $this->onTopic($sender, $account, $parts),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
-        };
-    }
-
-    /** @param list<string> $args */
-    private function onRegister(string $uid, ?string $account, array $args): void
-    {
-        $channel = $args[0] ?? null;
-
-        if (null === $channel) {
-            $this->reply->reply($uid, 'Syntax: REGISTER <#channel>');
-
-            return;
-        }
-
-        $result = ($this->register)($channel, $account);
-
-        if (RegisterChannelResult::Registered === $result) {
-            $this->projection->publishRegistered($channel);
-        }
-
-        match ($result) {
-            RegisterChannelResult::Registered => $this->reply->reply($uid, sprintf('%s is now registered to you.', $channel)),
-            RegisterChannelResult::AlreadyRegistered => $this->reply->reply($uid, sprintf('%s is already registered.', $channel)),
-            RegisterChannelResult::InvalidChannel => $this->reply->reply($uid, 'That channel name cannot be registered.'),
-            RegisterChannelResult::NotIdentified => $this->reply->reply($uid, 'You must be identified to register a channel.'),
         };
     }
 

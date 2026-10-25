@@ -33,7 +33,7 @@ dbots publishes and applies the account and `+r` itself.
 | MeMo `SEND` / `LIST` / `READ` / `READ LAST` / `DELETE`, unread notice on identify | Working, verified live |
 | OPeR `KILL` / `KICK` / `OP` / `DEOP` / `MODE` / `GLINE` / `UNGLINE` / `RENAME` / `DROPNDB` / `APODERA` / `LISTCLONES` / `KILLCLONES` / `BLOCK` / `LIMPIA` / `SETTIME` / `ROOT` / `STATS` / `IRCOPS` | Working, verified live |
 | Per-service `HELP` / `AYUDA` with index and per-command pages | Working, verified live |
-| OperServ `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |
+| OPeR `SPAM ADD/LIST/DEL` | Working, verified live (dynamic Spamfilter via UDB K block) |
 
 ## Documentation
 
@@ -132,7 +132,7 @@ src/
 ├── ChanServ/
 │   ├── Adapter/In/Irc/     ChanServCommandHandler
 │   ├── Adapter/Out/        SQLite channels
-│   └── Application/        RegisterChannel, DropChannel + ports
+│   └── Application/        DropChannel + ports
 ├── OperServ/
 │   ├── Adapter/In/Irc/     OperServCommandHandler
 │   ├── Adapter/Out/Irc/    KILL / SAKICK enforcement
@@ -145,6 +145,13 @@ src/
 │   ├── Adapter/In/Irc/     NickServCommandHandler
 │   ├── Adapter/Out/        SQLite accounts, SVSLOGIN, NOTICEs
 │   └── Application/        RegisterNick, Identify + ports
+├── CRegServ/
+│   ├── Adapter/In/Irc/     CRegServCommandHandler
+│   ├── Adapter/Out/        SQLite channel requests
+│   └── Application/        Request, Approve, Deny, Cancel + ports
+├── HeLPServ/
+│   ├── Adapter/In/Irc/     HeLPServCommandHandler
+│   └── Application/Help/   the help pages he.mrc serves
 └── Udb/
     ├── NativeDigest.php    canonical block digest (port of the module reference)
     ├── UdbAuthority.php    HEL/INF/RES/BEGIN/PUT/END + live INS

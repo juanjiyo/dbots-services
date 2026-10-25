@@ -22,7 +22,6 @@ use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
-use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\Domain\Link\ServerLink;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
@@ -132,7 +131,6 @@ final readonly class DaemonFactory
         );
 
         $chanServ = new ChanServCommandHandler(
-            new RegisterChannelHandler($this->channels),
             new DropChannelHandler($this->channels, $this->channelAccess),
             $this->channels,
             $this->channelAccess,

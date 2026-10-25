@@ -235,7 +235,7 @@ grep -E "SERVER_SYNCED|UDB_HEL_CONFIRMED" /opt/unrealircd/logs/ircd.log | tail -
 #    if it is refused: "UDB initialization pending" -> the round did not finish
 
 # 3. from IRC, register an account
-/msg NickServ REGISTER <password>
+/msg NiCK REGISTRA <password>
 
 # 4. from a NEW connection, identify natively
 /NICK <nick>:<password>

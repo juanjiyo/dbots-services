@@ -2,7 +2,7 @@
 
 dbots is a daemon, not a web application: it links to an IRCd as a server,
 replicates the network user database and answers IRC commands from pseudo-clients
-called NickServ, ChanServ, MemoServ and OperServ.
+called `NiCK`, `CHaN`, `MeMo`, `OPeR`, `CReG` and `HeLP`.
 
 ## Why a daemon and not client bots
 
@@ -19,7 +19,7 @@ natively, with no IDENTIFY command in the middle.
 ## Layers
 
 ```text
-Adapter/In/Irc      IRC command handlers (NickServ, ChanServ, MemoServ, OperServ)
+Adapter/In/Irc      IRC command handlers, one directory per service
 Application         use cases: register, drop, send memo, suspend...
 Domain              entities and value objects: Nick, Password, Channel, Memo, SpamRule
 Adapter/Out         SQLite repositories, S2S enforcement, UDB projection
@@ -64,10 +64,10 @@ and pushes live mutations. Blocks it publishes:
 
 | Block | Owner | Content |
 |---|---|---|
-| `N` | NickServ | account password, forbid, suspend, swhois, vhost |
-| `C` | ChanServ | channel founder, topic, access list |
-| `K` | OperServ | dynamic spamfilter profiles |
-| `S` | NickServ | the service mask so notices come from NickServ |
+| `N` | `NiCK` | account password, forbid, suspend, swhois, vhost |
+| `C` | `CHaN` | channel founder, topic, access list |
+| `K` | `OPeR` | dynamic spamfilter profiles |
+| `S` | `NiCK` | the service mask, so notices come from a service nick |
 | `I`, `L` | — | empty for now |
 
 `NativeDigest` computes the canonical block digest. It is a byte-for-byte port

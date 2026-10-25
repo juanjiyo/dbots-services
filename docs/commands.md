@@ -128,8 +128,8 @@ at first.
 | **NoServ** (`no.mrc`) | `MOTD`, `REPRESENTANTES`, `ALTA`/`BAJA` |
 | **PreOpServ** (`pr.mrc`) | `IGNORA`, `MSG`, `MODE` for pre-operators |
 
-Absolute counts: OperServ is complete against its reference; NickServ is about a
-third; ChanServ less than that; MemoServ roughly half.
+Relative completeness: OPeR, CReG and HeLP cover their reference; NiCK is about a
+third; CHaN and MeMo less than that.
 
 ## Debug relay
 
