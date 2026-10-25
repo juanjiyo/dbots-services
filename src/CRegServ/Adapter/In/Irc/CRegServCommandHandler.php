@@ -91,7 +91,6 @@ final readonly class CRegServCommandHandler
             'LIBERA' => $this->onRelease($sender, $parts, $staff),
             'LISTA', 'PENDIENTES' => $this->onList($sender, $parts, $staff),
             'INFO' => $this->onInfo($sender, $parts, $staff),
-            'MARCA' => $this->onMark($sender, $parts, $state, $staff),
             'ADMIN' => $this->onAdmin($sender, $parts, $staff),
             'OFICIAL' => $this->onSpecial($sender, $parts, $staff, ChannelKind::Official),
             'COMERCIAL' => $this->onSpecial($sender, $parts, $staff, ChannelKind::Commercial),
@@ -298,37 +297,8 @@ final readonly class CRegServCommandHandler
         $this->reply->reply($uid, sprintf('Estado: %s', $request->status->value));
         $this->reply->reply($uid, sprintf('Descripción: %s', $request->description));
 
-        foreach ($this->requests->marksOf($request->channel) as $mark) {
-            $this->reply->reply($uid, 'Marca: ' . $mark);
-        }
     }
 
-    /** @param list<string> $args */
-    private function onMark(string $uid, array $args, NetworkState $state, bool $staff): void
-    {
-        if (!$this->requireStaff($uid, $staff)) {
-            return;
-        }
-
-        $action = strtoupper((string) array_shift($args));
-        $channel = array_shift($args);
-        $text = implode(' ', array_values($args));
-
-        if ('ADD' !== $action || null === $channel || '' === $text) {
-            $this->reply->reply($uid, 'Sintaxis: MARCA ADD <#canal> <texto>');
-
-            return;
-        }
-
-        if (null === $this->requests->find($channel)) {
-            $this->reply->reply($uid, sprintf('%s no existe en CReG.', $channel));
-
-            return;
-        }
-
-        $this->requests->addMark($channel, $text, $state->nickOf($uid) ?? 'staff');
-        $this->reply->reply($uid, sprintf('Marca añadida a %s.', $channel));
-    }
 
     /** @param list<string> $args */
     private function onAdmin(string $uid, array $args, bool $staff): void

@@ -82,7 +82,7 @@ approval flow — you request, staff approve. The original *supports* stage
 
 | Bot | Command surface |
 |---|---|
-| **CReG** (`cr.mrc`) | **Implemented**: `REGISTRA`, `ESTADO`, `CANCELA`, `LISTA`, `INFO`, `ACEPTA`, `DENIEGA`, `LIBERA`, `MARCA`, `ADMIN`, `OFICIAL`, `COMERCIAL`, `AYUDA` |
+| **CReG** (`cr.mrc`) | **Implemented**: `REGISTRA`, `ESTADO`, `CANCELA`, `LISTA`, `INFO`, `ACEPTA`, `DENIEGA`, `LIBERA`, `ADMIN`, `OFICIAL`, `COMERCIAL`, `AYUDA` |
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
 | **GlobalServ** (`gl.mrc`) | `GLOBAL`, network-wide announcements |
 | **HelpServ** (`he.mrc`) | `BOT`, `CANAL`, `CMODES`, `UMODES`, credits |
@@ -102,7 +102,9 @@ sees the whole stream, and keeps it narrower on purpose:
 DBOTS_DEBUG_CHANNEL=#DeBuG
 ```
 
-When set, a pseudo-client nicknamed `DeBuG` joins that channel. The `<DeBuG>`
+When set, every service — `NickServ`, `ChanServ`, `MemoServ`, `OperServ`, `CReG`
+and the `DeBuG` relay — joins that channel with operator status, the way the
+original services sat in the debug channel. `DeBuG` is the one that writes to it. The `<DeBuG>`
 you see is its nickname, and the timestamp is your client's: the message body
 carries neither.
 

@@ -188,16 +188,25 @@ final readonly class Daemon
         }
     }
 
-    /** The relay only speaks if it is actually sitting in the channel. */
+    /**
+     * The services sit in the debug channel, the way the original ones did: an
+     * operator watching the network expects to find them there and to be able to
+     * message them without hunting for the nick.
+     */
     private function joinDebugChannel(): void
     {
         if (null === $this->debug || !$this->debug->isEnabled()) {
             return;
         }
 
-        $uid = sprintf('%sA00005', $this->sid);
-        $this->transport->writeLine(sprintf(':%s JOIN %s', $uid, $this->debugChannel));
-        $this->transport->writeLine(sprintf(':%s MODE %s +o %s', $this->sid, $this->debugChannel, $uid));
+        foreach (['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006'] as $suffix) {
+            $uid = sprintf('%s%s', $this->sid, $suffix);
+
+            $this->transport->writeLine(sprintf(':%s JOIN %s', $uid, $this->debugChannel));
+            // SAMODE: a server MODE carries a channel timestamp, and we do not own
+            // the channel's clock.
+            $this->transport->writeLine(sprintf(':%s SAMODE %s +o %s', $this->sid, $this->debugChannel, $uid));
+        }
     }
 
     private function onLine(string $line): null

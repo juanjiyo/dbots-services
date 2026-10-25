@@ -32,10 +32,6 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
             )
             SQL);
 
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS channel_marks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT NOT NULL, text TEXT NOT NULL,
-            author TEXT NOT NULL, added_at TEXT NOT NULL)');
-
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS creg_admins (nick TEXT PRIMARY KEY COLLATE NOCASE)');
     }
 
@@ -73,7 +69,7 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
 
     public function delete(string $channel): void
     {
-        foreach (['channel_requests', 'channel_marks'] as $table) {
+        foreach (['channel_requests'] as $table) {
             $statement = $this->pdo->prepare(sprintf('DELETE FROM %s WHERE channel = :channel', $table));
             $statement->execute(['channel' => $channel]);
         }
@@ -93,26 +89,6 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
     }
 
 
-    public function addMark(string $channel, string $text, string $author): void
-    {
-        $statement = $this->pdo->prepare(
-            'INSERT INTO channel_marks (channel, text, author, added_at) VALUES (:channel, :text, :author, :at)'
-        );
-        $statement->execute([
-            'channel' => $channel,
-            'text' => $text,
-            'author' => $author,
-            'at' => (new DateTimeImmutable())->format('c'),
-        ]);
-    }
-
-    public function marksOf(string $channel): array
-    {
-        $statement = $this->pdo->prepare('SELECT text FROM channel_marks WHERE channel = :channel ORDER BY id');
-        $statement->execute(['channel' => $channel]);
-
-        return array_map(static fn (array $row): string => (string) $row['text'], $statement->fetchAll(PDO::FETCH_ASSOC));
-    }
 
     public function addAdmin(string $nick): void
     {

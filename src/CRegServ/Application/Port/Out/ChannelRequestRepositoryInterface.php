@@ -21,11 +21,6 @@ interface ChannelRequestRepositoryInterface
     /** @return list<ChannelRequest> */
     public function all(): array;
 
-    public function addMark(string $channel, string $text, string $author): void;
-
-    /** @return list<string> */
-    public function marksOf(string $channel): array;
-
     public function addAdmin(string $nick): void;
 
     public function removeAdmin(string $nick): bool;

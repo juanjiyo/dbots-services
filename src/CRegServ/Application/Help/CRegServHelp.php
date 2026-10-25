@@ -20,7 +20,6 @@ final class CRegServHelp
             new HelpEntry('ACEPTA', 'ACEPTA <#canal>', 'Aprueba la solicitud y registra el canal.', '/msg CReG ACEPTA #miCanal', operOnly: true),
             new HelpEntry('DENIEGA', 'DENIEGA <#canal> [motivo]', 'Deniega una solicitud pendiente.', '/msg CReG DENIEGA #miCanal no procede', operOnly: true),
             new HelpEntry('LIBERA', 'LIBERA <#canal>', 'Borra una solicitud denegada para que pueda volver a pedirse.', '/msg CReG LIBERA #miCanal', operOnly: true),
-            new HelpEntry('MARCA', 'MARCA ADD <#canal> <texto>', 'Añade una anotación interna al canal.', '/msg CReG MARCA ADD #miCanal revisado', operOnly: true),
             new HelpEntry('ADMIN', 'ADMIN ADD|DEL|LIST [nick]', 'Gestiona quién puede aprobar registros.', '/msg CReG ADMIN ADD JuanJo', operOnly: true),
             new HelpEntry('OFICIAL', 'OFICIAL <#canal> [descripción]', 'Registra un canal oficial de la red.', '/msg CReG OFICIAL #SitioChat', operOnly: true),
             new HelpEntry('COMERCIAL', 'COMERCIAL <#canal> <fundador> [descripción]', 'Registra un canal comercial a nombre de otro.', '/msg CReG COMERCIAL #tienda JuanJo', operOnly: true),

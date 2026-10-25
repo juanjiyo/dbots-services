@@ -177,9 +177,6 @@ final class InMemoryChannelRequestRepository implements \Dbots\CRegServ\Applicat
     /** @var array<string, \Dbots\Domain\Registration\ChannelRequest> */
     private array $requests = [];
 
-    /** @var array<string, list<string>> */
-    private array $marks = [];
-
     /** @var list<string> */
     private array $admins = [];
 
@@ -208,15 +205,6 @@ final class InMemoryChannelRequestRepository implements \Dbots\CRegServ\Applicat
         return array_values($this->requests);
     }
 
-    public function addMark(string $channel, string $text, string $author): void
-    {
-        $this->marks[$channel][] = $text;
-    }
-
-    public function marksOf(string $channel): array
-    {
-        return $this->marks[$channel] ?? [];
-    }
 
     public function addAdmin(string $nick): void
     {
