@@ -13,6 +13,7 @@ use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use Dbots\MemoServ\Application\ReadMemo\ReadMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoHandler;
 use Dbots\MemoServ\Application\SendMemo\SendMemoResult;
+use Dbots\Irc\Application\Help\IrcFormat;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 
 use function array_filter;
@@ -27,6 +28,8 @@ use function ltrim;
 use function sprintf;
 use function strcasecmp;
 use function strpos;
+use function str_contains;
+use function trim;
 use function strtoupper;
 use function substr;
 
@@ -131,16 +134,19 @@ final readonly class MemoServCommandHandler
 
     private function onRead(string $uid, ?string $account, string $rest): void
     {
-        $id = $this->identifier($rest);
-
-        if (null === $id) {
-            $this->reply->reply($uid, 'Syntax: READ <number>');
+        if (null === $account) {
+            $this->reply->reply($uid, 'Debes estar identificado para leer tus memos.');
 
             return;
         }
 
-        if (null === $account) {
-            $this->reply->reply($uid, 'You must be identified to read your memos.');
+        // LAST is the newest memo, the way the original spells it.
+        $id = 'LAST' === strtoupper(trim($rest)) ? $this->memos->lastIdFor($account) : $this->identifier($rest);
+
+        if (null === $id) {
+            $this->reply->reply($uid, str_contains(strtoupper($rest), 'LAST')
+                ? 'No tienes memos.'
+                : 'Sintaxis: READ <número>|LAST');
 
             return;
         }
@@ -148,13 +154,34 @@ final readonly class MemoServCommandHandler
         $memo = ($this->read)($id, $account);
 
         if (null === $memo) {
-            $this->reply->reply($uid, sprintf('You have no memo #%d.', $id));
+            $this->reply->reply($uid, sprintf('No tienes el memo %d.', $id));
 
             return;
         }
 
-        $this->reply->reply($uid, sprintf('Memo #%d from %s (%s):', $id, $memo->sender, $memo->sentAt->format('Y-m-d H:i')));
+        $this->reply->reply($uid, sprintf(
+            'Mensaje %s de %s (%s). Para borrarlo, escriba %s',
+            IrcFormat::paint(IrcFormat::COMMAND, (string) $id),
+            IrcFormat::paint(IrcFormat::COMMAND, $memo->sender),
+            IrcFormat::paint(IrcFormat::COMMAND, $memo->sentAt->format('H:i:s d/M/Y')),
+            IrcFormat::paint(IrcFormat::COMMAND, sprintf('/msg MeMo DEL %d', $id)),
+        ));
         $this->reply->reply($uid, $memo->body);
+    }
+
+    /** Announces unread memos when someone identifies, as the original does. */
+    public function notifyPending(string $uid, string $account): void
+    {
+        $unread = $this->memos->unreadFor($account);
+
+        foreach ($unread as $memo) {
+            $this->reply->reply($uid, sprintf(
+                'Tienes un mensaje nuevo de %s. Mensaje número %s. Escribe %s para leerlo.',
+                IrcFormat::paint(IrcFormat::COMMAND, $memo->sender),
+                IrcFormat::paint(IrcFormat::COMMAND, (string) $memo->id),
+                IrcFormat::paint(IrcFormat::COMMAND, '/msg MeMo READ LAST'),
+            ));
+        }
     }
 
     private function onDelete(string $uid, ?string $account, string $rest): void

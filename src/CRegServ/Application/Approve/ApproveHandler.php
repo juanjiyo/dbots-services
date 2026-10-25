@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Dbots\CRegServ\Application\Approve;
 
 use DateTimeImmutable;
+
+use function sprintf;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Registration\ChannelRequest;
+use Dbots\Domain\Memo\Memo;
 use Dbots\Domain\Registration\RequestStatus;
+use Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface;
 use InvalidArgumentException;
 
 final readonly class ApproveHandler
@@ -20,6 +24,7 @@ final readonly class ApproveHandler
         private ChannelRequestRepositoryInterface $requests,
         private ChannelRepositoryInterface $channels,
         private ChannelProjectionInterface $projection,
+        private MemoRepositoryInterface $memos,
     ) {
     }
 
@@ -41,7 +46,7 @@ final readonly class ApproveHandler
             return ApproveResult::AlreadyRegistered;
         }
 
-        $this->channels->save(new Channel($name, $request->requester, new DateTimeImmutable()));
+        $this->channels->save(new Channel($name, $request->requester, new DateTimeImmutable(), null, $request->passwordHash));
         $this->projection->publishRegistered($name->value);
 
         $this->requests->save(new ChannelRequest(
@@ -54,6 +59,17 @@ final readonly class ApproveHandler
             confirmation: $request->confirmation,
             decidedBy: $staff,
             decidedAt: new DateTimeImmutable(),
+        ));
+
+        $this->memos->save(new Memo(
+            null,
+            $request->requester,
+            'CReG',
+            sprintf(
+                'Tu canal %s ha sido ACEPTADO: Recuerda que si el canal incumple alguna norma de la red será borrado AUTOMÁTICAMENTE y sin previo aviso.',
+                $request->channel,
+            ),
+            new DateTimeImmutable(),
         ));
 
         return ApproveResult::Approved;

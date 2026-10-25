@@ -112,9 +112,10 @@ final readonly class CRegServCommandHandler
     private function onRequest(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = array_shift($args);
+        $password = array_shift($args);
 
-        if (null === $channel) {
-            $this->reply->reply($uid, 'Sintaxis: REGISTRA <#canal> [descripción]');
+        if (null === $channel || null === $password) {
+            $this->reply->reply($uid, 'Sintaxis: REGISTRA <#canal> <contraseña> [descripción]');
 
             return;
         }
@@ -122,12 +123,13 @@ final readonly class CRegServCommandHandler
         $operatorInChannel = null !== $account && $this->stateOperatorIn($channel, $uid, $state);
         $description = implode(' ', array_values($args));
 
-        match (($this->request)($channel, $description, $account, $operatorInChannel)) {
+        match (($this->request)($channel, $password, $description, $account, $operatorInChannel)) {
             // The original answers twice: accepted for registration, then that it
             // waits for the network staff.
             RequestRegistrationResult::Requested => $this->registered($uid, $channel),
             RequestRegistrationResult::NotIdentified => $this->reply->reply($uid, 'Debes estar identificado para solicitar un canal.'),
             RequestRegistrationResult::NotChannelOperator => $this->reply->reply($uid, sprintf('Debes tener @ en %s para pedir su registro.', $channel)),
+            RequestRegistrationResult::WeakPassword => $this->reply->reply($uid, 'La contraseña debe tener al menos 6 caracteres.'),
             RequestRegistrationResult::InvalidChannel => $this->reply->reply($uid, 'Ese nombre de canal no es válido.'),
             RequestRegistrationResult::AlreadyRegistered => $this->reply->reply($uid, sprintf('%s ya está registrado.', $channel)),
             RequestRegistrationResult::DuplicateRequest => $this->reply->reply($uid, sprintf('Ya hay una solicitud pendiente para %s.', $channel)),

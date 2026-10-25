@@ -20,4 +20,9 @@ interface MemoRepositoryInterface
     public function delete(int $id, string $account): bool;
 
     public function countUnread(string $account): int;
+
+    public function lastIdFor(string $account): ?int;
+
+    /** @return list<Memo> */
+    public function unreadFor(string $account): array;
 }

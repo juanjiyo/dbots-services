@@ -12,6 +12,7 @@ use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelHandler;
 use Dbots\ChanServ\Application\RegisterChannel\RegisterChannelResult;
 use Dbots\Domain\Account\Nick;
+use Dbots\Domain\Account\Password;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Adapter\In\IrcMessage;
@@ -31,8 +32,11 @@ use function sprintf;
 use function strcasecmp;
 use function strtoupper;
 
-final readonly class ChanServCommandHandler
+final class ChanServCommandHandler
 {
+    /** @var array<string, array<string, true>> channel => uid => identified */
+    private array $identified = [];
+
     public function __construct(
         private RegisterChannelHandler $register,
         private DropChannelHandler $drop,
@@ -78,6 +82,7 @@ final readonly class ChanServCommandHandler
             'REGISTER', 'REGISTRA' => $this->reply->reply($sender, 'El registro de canales se solicita a CReG: /msg CReG REGISTRA <#canal>'),
             'DROP' => $this->onDrop($sender, $account, $parts),
             'INFO' => $this->onInfo($sender, $parts),
+            'IDENTIFY' => $this->onIdentify($sender, $parts),
             'ACCESS' => $this->onAccess($sender, $account, $parts),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
@@ -166,6 +171,55 @@ final readonly class ChanServCommandHandler
             $registered->founder,
             $registered->createdAt->format('Y-m-d'),
         ));
+    }
+
+    /** The channel password identifies its founder, as the original does. */
+    private function onIdentify(string $uid, array $args): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $password = (string) ($args[1] ?? '');
+
+        if ('' === $channel || '' === $password) {
+            $this->reply->reply($uid, 'Sintaxis: IDENTIFY <#canal> <contraseña>');
+
+            return;
+        }
+
+        try {
+            $registered = $this->channels->find(new ChannelName($channel));
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'Ese nombre de canal no es válido.');
+
+            return;
+        }
+
+        if (null === $registered || null === $registered->passwordHash) {
+            $this->reply->reply($uid, sprintf('%s no tiene contraseña de fundador.', $channel));
+
+            return;
+        }
+
+        try {
+            $secret = Password::fromPlain($password);
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'Contraseña incorrecta.');
+
+            return;
+        }
+
+        if (!$registered->authenticatesWith($secret)) {
+            $this->reply->reply($uid, 'Contraseña incorrecta.');
+
+            return;
+        }
+
+        $this->identified[$registered->name->value][$uid] = true;
+        $this->reply->reply($uid, sprintf('Estás identificado como fundador de %s.', $registered->name->value));
+    }
+
+    private function isIdentifiedFounder(string $uid, string $channel): bool
+    {
+        return isset($this->identified[$channel][$uid]);
     }
 
     /** @param list<string> $args */
@@ -289,8 +343,10 @@ final readonly class ChanServCommandHandler
             return null;
         }
 
-        if (null === $account || !$registered->isFoundedBy($account)) {
-            $this->reply->reply($uid, 'Only the founder can do that.');
+        $isFounder = null !== $account && $registered->isFoundedBy($account);
+
+        if (!$isFounder && !$this->isIdentifiedFounder($uid, $registered->name->value)) {
+            $this->reply->reply($uid, 'Solo el fundador puede hacer eso.');
 
             return null;
         }

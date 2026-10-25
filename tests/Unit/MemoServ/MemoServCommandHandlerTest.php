@@ -106,7 +106,8 @@ final class MemoServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('read 1', '001BBBBBB'), $this->state);
 
-        self::assertStringContainsString('Memo #1 from alice', $this->irc->replies[0]);
+        $plain = \Dbots\Irc\Application\Help\IrcFormat::strip($this->irc->replies[0]);
+        self::assertStringContainsString('Mensaje 1 de alice', $plain);
         self::assertSame('001BBBBBB: the body', $this->irc->replies[1]);
         self::assertSame(0, $this->memos->countUnread('bob'));
     }
@@ -119,7 +120,7 @@ final class MemoServCommandHandlerTest extends TestCase
 
         $this->handler->handle($this->privmsg('read 1', '001AAAAAA'), $this->state);
 
-        self::assertSame(['001AAAAAA: You have no memo #1.'], $this->irc->replies);
+        self::assertSame(['001AAAAAA: No tienes el memo 1.'], $this->irc->replies);
         self::assertSame(1, $this->memos->countUnread('bob'));
     }
 
@@ -143,7 +144,7 @@ final class MemoServCommandHandlerTest extends TestCase
     {
         $this->handler->handle($this->privmsg('read banana'), $this->state);
 
-        self::assertSame(['001AAAAAA: Syntax: READ <number>'], $this->irc->replies);
+        self::assertSame(['001AAAAAA: Sintaxis: READ <número>|LAST'], $this->irc->replies);
     }
 
     #[Test]

@@ -44,8 +44,8 @@ final class InMemoryChannelRepository implements ChannelRepositoryInterface
         return array_values($this->channels);
     }
 
-    public function seed(string $name, string $founder): void
+    public function seed(string $name, string $founder, ?string $passwordHash = null): void
     {
-        $this->channels[strtolower($name)] = new Channel(new ChannelName($name), $founder, new DateTimeImmutable());
+        $this->channels[strtolower($name)] = new Channel(new ChannelName($name), $founder, new DateTimeImmutable(), null, $passwordHash);
     }
 }

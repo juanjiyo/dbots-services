@@ -29,11 +29,15 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
         if (!in_array('topic', array_column($columns, 'name'), true)) {
             $this->pdo->exec('ALTER TABLE channels ADD COLUMN topic TEXT NULL');
         }
+
+        if (!in_array('password_hash', array_column($columns, 'name'), true)) {
+            $this->pdo->exec('ALTER TABLE channels ADD COLUMN password_hash TEXT NULL');
+        }
     }
 
     public function find(ChannelName $name): ?Channel
     {
-        $statement = $this->pdo->prepare('SELECT name, founder, created_at, topic FROM channels WHERE name = :name');
+        $statement = $this->pdo->prepare('SELECT name, founder, created_at, topic, password_hash FROM channels WHERE name = :name');
         $statement->execute(['name' => $name->value]);
 
         $row = $statement->fetch(PDO::FETCH_ASSOC);
@@ -44,7 +48,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
     public function save(Channel $channel): void
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO channels (name, founder, created_at, topic) VALUES (:name, :founder, :created, :topic)'
+            'INSERT INTO channels (name, founder, created_at, topic, password_hash) VALUES (:name, :founder, :created, :topic, :hash)'
         );
 
         $statement->execute([
@@ -52,6 +56,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             'founder' => $channel->founder,
             'created' => $channel->createdAt->format('c'),
             'topic' => $channel->topic,
+            'hash' => $channel->passwordHash,
         ]);
     }
 
@@ -97,6 +102,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             (string) $row['founder'],
             new DateTimeImmutable((string) $row['created_at']),
             null === ($row['topic'] ?? null) ? null : (string) $row['topic'],
+            null === ($row['password_hash'] ?? null) ? null : (string) $row['password_hash'],
         );
     }
 }

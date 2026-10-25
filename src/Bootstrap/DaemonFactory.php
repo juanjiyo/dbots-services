@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dbots\Bootstrap;
 
 use Dbots\Application\Daemon;
+use Dbots\Application\MemoAnnouncer;
 use Dbots\Application\Link\LinkRunner;
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
@@ -156,8 +157,8 @@ final readonly class DaemonFactory
 
         $cregServ = new CRegServCommandHandler(
             new RequestRegistrationHandler($this->channelRequests, $this->channels),
-            new ApproveHandler($this->channelRequests, $this->channels, $channelProjection),
-            new DenyHandler($this->channelRequests),
+            new ApproveHandler($this->channelRequests, $this->channels, $channelProjection, $this->memos),
+            new DenyHandler($this->channelRequests, $this->memos),
             new CancelHandler($this->channelRequests),
             $this->channelRequests,
             $this->channels,
@@ -202,6 +203,8 @@ final readonly class DaemonFactory
             $authority,
             $debug,
             $this->debugChannel,
+            new AccountResolver($this->accounts),
+            new MemoAnnouncer($memoServ),
         );
     }
 }

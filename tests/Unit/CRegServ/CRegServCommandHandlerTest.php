@@ -44,8 +44,8 @@ final class CRegServCommandHandlerTest extends TestCase
 
         $this->handler = new CRegServCommandHandler(
             new RequestRegistrationHandler($this->requests, $this->channels),
-            new ApproveHandler($this->requests, $this->channels, new RecordingChannelProjection()),
-            new DenyHandler($this->requests),
+            new ApproveHandler($this->requests, $this->channels, new RecordingChannelProjection(), new \Dbots\Tests\Support\InMemoryMemoRepository()),
+            new DenyHandler($this->requests, new \Dbots\Tests\Support\InMemoryMemoRepository()),
             new CancelHandler($this->requests),
             $this->requests,
             $this->channels,
@@ -67,7 +67,7 @@ final class CRegServCommandHandlerTest extends TestCase
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
 
-        $this->handler->handle($this->privmsg('REGISTRA #pedido mi canal'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123 mi canal'), $this->state);
 
         self::assertSame('001AAAAAA: El canal #pedido ha sido aceptado para el registro.', $this->irc->replies[0]);
         self::assertStringContainsString('a la espera de aprobación', $this->irc->replies[1]);
@@ -79,7 +79,7 @@ final class CRegServCommandHandlerTest extends TestCase
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'v');
 
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
 
         self::assertStringContainsString('@ en #pedido', $this->irc->replies[0]);
         self::assertNull($this->requests->find('#pedido'));
@@ -89,7 +89,7 @@ final class CRegServCommandHandlerTest extends TestCase
     public function staffApproveAndTheChannelIsRegistered(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         $this->handler->handle($this->privmsg('ACEPTA #pedido', '001BBBBBB'), $this->state);
@@ -102,7 +102,7 @@ final class CRegServCommandHandlerTest extends TestCase
     public function aPlainOperCanDecideWithoutBeingACregAdmin(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         // The staff user carries +o and is not in the CReG admin list: level 5.
@@ -110,7 +110,7 @@ final class CRegServCommandHandlerTest extends TestCase
         self::assertSame(['001BBBBBB: El canal #pedido ha sido registrado.'], $this->irc->replies);
 
         $this->state->joinChannel('#otro', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #otro'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #otro clave123'), $this->state);
         $this->irc->replies = [];
         $this->handler->handle($this->privmsg('DENIEGA #otro no', '001BBBBBB'), $this->state);
         self::assertStringContainsString('ha sido denegado', $this->irc->replies[0]);
@@ -121,7 +121,7 @@ final class CRegServCommandHandlerTest extends TestCase
     {
         $this->requests->addAdmin('alice');
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         $this->handler->handle($this->privmsg('ACEPTA #pedido', '001AAAAAA'), $this->state);
@@ -133,7 +133,7 @@ final class CRegServCommandHandlerTest extends TestCase
     public function aNormalUserCannotApprove(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         $this->handler->handle($this->privmsg('ACEPTA #pedido'), $this->state);
@@ -145,7 +145,7 @@ final class CRegServCommandHandlerTest extends TestCase
     public function denyingKeepsTheReason(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         $this->handler->handle($this->privmsg('DENIEGA #pedido no cumple', '001BBBBBB'), $this->state);
@@ -160,7 +160,7 @@ final class CRegServCommandHandlerTest extends TestCase
         $this->channels->seed('#tomado', 'alice');
         $this->state->joinChannel('#tomado', ['001AAAAAA'], 'o');
 
-        $this->handler->handle($this->privmsg('REGISTRA #tomado'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #tomado clave123'), $this->state);
 
         self::assertStringContainsString('ya está registrado', $this->irc->replies[0]);
     }
@@ -169,7 +169,7 @@ final class CRegServCommandHandlerTest extends TestCase
     public function theRequesterCanCancelTheirOwnRequest(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         $this->handler->handle($this->privmsg('CANCELA #pedido'), $this->state);
@@ -181,7 +181,7 @@ final class CRegServCommandHandlerTest extends TestCase
     public function statusIsVisibleToAnyone(): void
     {
         $this->state->joinChannel('#pedido', ['001AAAAAA'], 'o');
-        $this->handler->handle($this->privmsg('REGISTRA #pedido'), $this->state);
+        $this->handler->handle($this->privmsg('REGISTRA #pedido clave123'), $this->state);
         $this->irc->replies = [];
 
         $this->handler->handle($this->privmsg('ESTADO #pedido'), $this->state);

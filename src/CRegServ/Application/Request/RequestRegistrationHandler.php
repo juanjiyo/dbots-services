@@ -7,6 +7,7 @@ namespace Dbots\CRegServ\Application\Request;
 use DateTimeImmutable;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
+use Dbots\Domain\Account\Password;
 use Dbots\Domain\Channel\ChannelName;
 use Dbots\Domain\Registration\ChannelRequest;
 use Dbots\Domain\Registration\RequestStatus;
@@ -20,7 +21,7 @@ final readonly class RequestRegistrationHandler
     ) {
     }
 
-    public function __invoke(string $channel, string $description, ?string $account, bool $operatorInChannel): RequestRegistrationResult
+    public function __invoke(string $channel, string $password, string $description, ?string $account, bool $operatorInChannel): RequestRegistrationResult
     {
         if (null === $account) {
             return RequestRegistrationResult::NotIdentified;
@@ -34,6 +35,12 @@ final readonly class RequestRegistrationHandler
 
         if (null !== $this->channels->find($name)) {
             return RequestRegistrationResult::AlreadyRegistered;
+        }
+
+        try {
+            $secret = Password::fromPlain($password);
+        } catch (InvalidArgumentException) {
+            return RequestRegistrationResult::WeakPassword;
         }
 
         $existing = $this->requests->find($name->value);
@@ -58,6 +65,7 @@ final readonly class RequestRegistrationHandler
             '' === $description ? 'Sin descripción' : $description,
             RequestStatus::Pending,
             new DateTimeImmutable(),
+            passwordHash: $secret->hash(),
         ));
 
         return RequestRegistrationResult::Requested;

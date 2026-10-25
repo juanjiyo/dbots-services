@@ -12,6 +12,7 @@ use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
+use Dbots\Domain\Account\Password;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
@@ -150,7 +151,35 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('access add #test bob', '001BBBBBB'), $state);
 
         self::assertSame([], $this->projection->accessAdded);
-        self::assertSame(['001BBBBBB: Only the founder can do that.'], $this->irc->replies);
+        self::assertSame(['001BBBBBB: Solo el fundador puede hacer eso.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function theChannelPasswordIdentifiesTheFounder(): void
+    {
+        $this->channels->seed('#Test', 'alice', Password::fromPlain('claveCanal123')->hash());
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, '');
+
+        $this->handler->handle($this->privmsg('identify #test claveCanal123', '001BBBBBB'), $state);
+        $this->handler->handle($this->privmsg('topic #test hola', '001BBBBBB'), $state);
+
+        self::assertSame(['001BBBBBB: Estás identificado como fundador de #test.'], [$this->irc->replies[0]]);
+        self::assertSame(['#test'], $this->projection->topics);
+    }
+
+    #[Test]
+    public function aWrongChannelPasswordDoesNotIdentify(): void
+    {
+        $this->channels->seed('#Test', 'alice', Password::fromPlain('claveCanal123')->hash());
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, '');
+
+        $this->handler->handle($this->privmsg('identify #test otraClave', '001BBBBBB'), $state);
+        $this->handler->handle($this->privmsg('topic #test hola', '001BBBBBB'), $state);
+
+        self::assertSame(['001BBBBBB: Contraseña incorrecta.'], [$this->irc->replies[0]]);
+        self::assertSame([], $this->projection->topics);
     }
 
     #[Test]

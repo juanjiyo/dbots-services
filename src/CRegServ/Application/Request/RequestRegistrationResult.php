@@ -13,4 +13,5 @@ enum RequestRegistrationResult
     case DuplicateRequest;
     case PreviouslyDenied;
     case NotChannelOperator;
+    case WeakPassword;
 }

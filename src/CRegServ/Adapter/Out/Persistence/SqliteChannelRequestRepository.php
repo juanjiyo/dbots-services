@@ -28,9 +28,17 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
                 confirmation TEXT NOT NULL DEFAULT '',
                 decided_by TEXT NULL,
                 decided_at TEXT NULL,
-                reason TEXT NULL
+                reason TEXT NULL,
+                password_hash TEXT NULL
             )
             SQL);
+
+        // Older databases predate the password column; add it in place.
+        $columns = $this->pdo->query('PRAGMA table_info(channel_requests)')->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!in_array('password_hash', array_column($columns, 'name'), true)) {
+            $this->pdo->exec('ALTER TABLE channel_requests ADD COLUMN password_hash TEXT NULL');
+        }
 
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS creg_admins (nick TEXT PRIMARY KEY COLLATE NOCASE)');
     }
@@ -49,8 +57,8 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
     {
         $statement = $this->pdo->prepare(
             'INSERT OR REPLACE INTO channel_requests
-             (channel, requester, description, status, requested_at, kind, confirmation, decided_by, decided_at, reason)
-             VALUES (:channel, :requester, :description, :status, :requested, :kind, :confirmation, :decidedBy, :decidedAt, :reason)'
+             (channel, requester, description, status, requested_at, kind, confirmation, decided_by, decided_at, reason, password_hash)
+             VALUES (:channel, :requester, :description, :status, :requested, :kind, :confirmation, :decidedBy, :decidedAt, :reason, :hash)'
         );
 
         $statement->execute([
@@ -64,6 +72,7 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
             'decidedBy' => $request->decidedBy,
             'decidedAt' => $request->decidedAt?->format('c'),
             'reason' => $request->reason,
+            'hash' => $request->passwordHash,
         ]);
     }
 
@@ -143,6 +152,7 @@ final readonly class SqliteChannelRequestRepository implements ChannelRequestRep
             null === $row['decided_by'] ? null : (string) $row['decided_by'],
             null === $row['decided_at'] ? null : new DateTimeImmutable((string) $row['decided_at']),
             null === $row['reason'] ? null : (string) $row['reason'],
+            null === ($row['password_hash'] ?? null) ? null : (string) $row['password_hash'],
         );
     }
 }

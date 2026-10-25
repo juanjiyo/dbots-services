@@ -28,6 +28,7 @@ final readonly class ChannelRequest
         public ?string $decidedBy = null,
         public ?DateTimeImmutable $decidedAt = null,
         public ?string $reason = null,
+        public ?string $passwordHash = null,
     ) {
     }
 

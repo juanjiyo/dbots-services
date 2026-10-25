@@ -10,6 +10,7 @@ use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\DebugEvents;
+use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
@@ -50,6 +51,8 @@ final readonly class Daemon
         private ?UdbAuthority $udb = null,
         private ?DebugRelay $debug = null,
         private string $debugChannel = '',
+        private ?AccountResolver $accounts = null,
+        private ?MemoAnnouncer $memoAnnouncer = null,
     ) {
     }
 
@@ -234,7 +237,7 @@ final readonly class Daemon
             'DB' => $this->onDbFrame($message, $line),
             'PRIVMSG' => $this->onPrivmsg($message),
             'ACCOUNT' => $this->state->setAccount($this->resolveUid($message->source()), $message->params[0] ?? null),
-            'UMODE2' => $this->state->applyModeChange($this->resolveUid($message->source()), $message->params[0] ?? ''),
+            'UMODE2' => $this->onUmode2($message),
             'MODE' => $this->onMode($message),
             'SERVER' => $this->onServer($message),
             'SJOIN' => $this->onSjoin($message),
@@ -263,6 +266,30 @@ final readonly class Daemon
         if (str_contains($line, ' INS ') || str_contains($line, ' DEL ')) {
             $this->relayToDebug($line);
         }
+    }
+
+    /**
+     * Identification arrives as `:nick UMODE2 +r`; that is the moment the user
+     * gets told about memos waiting for them.
+     */
+    private function onUmode2(IrcMessage $message): void
+    {
+        $uid = $this->resolveUid($message->source());
+        $modes = (string) ($message->params[0] ?? '');
+
+        $this->state->applyModeChange($uid, $modes);
+
+        if (!str_contains($modes, '+r')) {
+            return;
+        }
+
+        $account = $this->accounts?->resolve($uid, $this->state);
+
+        if (null === $account) {
+            return;
+        }
+
+        $this->memoAnnouncer?->announce($uid, $account);
     }
 
     /** UID to nickname, SID to server name, anything else untouched. */

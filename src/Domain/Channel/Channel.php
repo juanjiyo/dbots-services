@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dbots\Domain\Channel;
 
 use DateTimeImmutable;
+use Dbots\Domain\Account\Password;
 
 /**
  * A registered channel.
@@ -19,7 +20,14 @@ final readonly class Channel
         public string $founder,
         public DateTimeImmutable $createdAt,
         public ?string $topic = null,
+        public ?string $passwordHash = null,
     ) {
+    }
+
+    /** The channel password identifies its founder, as in the original CReG. */
+    public function authenticatesWith(Password $password): bool
+    {
+        return null !== $this->passwordHash && $password->matches($this->passwordHash);
     }
 
     public function isFoundedBy(string $nick): bool

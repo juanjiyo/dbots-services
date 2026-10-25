@@ -12,7 +12,7 @@ final class CRegServHelp
     public static function create(): HelpCatalog
     {
         return new HelpCatalog('CReG', [
-            new HelpEntry('REGISTRA', 'REGISTRA <#canal> [descripción]', 'Solicita registrar un canal. Debes tener @ en el canal y estar identificado.', '/msg CReG REGISTRA #miCanal Mi canal', ['REGISTER']),
+            new HelpEntry('REGISTRA', 'REGISTRA <#canal> <contraseña> [descripción]', 'Solicita registrar un canal. La contraseña te identifica como fundador. Debes tener @ en el canal.', '/msg CReG REGISTRA #miCanal miClave Mi canal', ['REGISTER']),
             new HelpEntry('ESTADO', 'ESTADO <#canal>', 'Estado de la solicitud: pendiente, aceptada o denegada.', '/msg CReG ESTADO #miCanal'),
             new HelpEntry('CANCELA', 'CANCELA <#canal>', 'Retira tu solicitud pendiente.', '/msg CReG CANCELA #miCanal'),
             new HelpEntry('LISTA', 'LISTA [estado]', 'Lista las solicitudes.', '/msg CReG LISTA PENDIENTE', operOnly: true),

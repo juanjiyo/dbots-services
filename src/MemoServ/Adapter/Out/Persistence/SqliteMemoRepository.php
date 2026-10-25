@@ -99,6 +99,33 @@ final readonly class SqliteMemoRepository implements MemoRepositoryInterface
         return (int) $statement->fetchColumn();
     }
 
+    public function lastIdFor(string $account): ?int
+    {
+        $statement = $this->pdo->prepare('SELECT MAX(id) FROM memos WHERE recipient = :account');
+        $statement->execute(['account' => $account]);
+
+        $id = $statement->fetchColumn();
+
+        return false === $id || null === $id ? null : (int) $id;
+    }
+
+    public function unreadFor(string $account): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id, recipient, sender, body, sent_at, read_at FROM memos
+             WHERE recipient = :account AND read_at IS NULL ORDER BY id'
+        );
+        $statement->execute(['account' => $account]);
+
+        $memos = [];
+
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $memos[] = $this->hydrate($row);
+        }
+
+        return $memos;
+    }
+
     /** @param array<string, mixed> $row */
     private function hydrate(array $row): Memo
     {

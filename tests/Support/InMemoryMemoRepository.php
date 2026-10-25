@@ -59,6 +59,21 @@ final class InMemoryMemoRepository implements MemoRepositoryInterface
         return true;
     }
 
+    public function lastIdFor(string $account): ?int
+    {
+        $ids = array_map(static fn (Memo $memo): int => (int) $memo->id, $this->forRecipient($account));
+
+        return [] === $ids ? null : max($ids);
+    }
+
+    public function unreadFor(string $account): array
+    {
+        return array_values(array_filter(
+            $this->forRecipient($account),
+            static fn (Memo $memo): bool => $memo->isUnread(),
+        ));
+    }
+
     public function countUnread(string $account): int
     {
         return count(array_filter(
