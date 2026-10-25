@@ -33,3 +33,78 @@ founder keeps `+q` and the channel carries `+r`.
 - **L5** — Debug lines are gated behind `DBOTS_DEBUG=1` so the unit stays quiet.
 - **L6** — Added `ACCESS LIST|ADD|DEL` and `TOPIC`. Access exports `#channel::access::nick` (UDB's JOIN hook only checks the child exists and the user has +r) and the topic exports `#channel::topic`. Dropping a channel also removes its access rows and topic record.
 - **L7** — Verified live: `ACCESS ADD`/`LIST`/`TOPIC` reply correctly and `channel.get` reports topic "Bienvenidos al canal" set by ChanServ with modes `nrt`.
+
+---
+
+# ch.mrc parity (second stage)
+
+Objective: bring CHaN up to the original `ch.mrc` surface, starting with the
+channel settings the founder can change. The reference is
+`sitiochat/sistema/ch.mrc` (2171 lines); its dispatch table is `chanserv.procesa`
+on line 290 and `SET` is `chanserv.set` on line 900.
+
+## Specs (this stage)
+
+- **S8** — `SET` requires a registered, non-suspended channel whose sender is the
+  founder by account, or identified with the channel password, or an IRCop.
+  Denial is `Solo el fundador puede hacer eso.`
+- **S9** — `SET <#channel> DESC <text>` stores the description. Without text the
+  answer is `Error de Sintaxis: SET <canal> DESC <texto>`; on success,
+  `La Descripción de <canal> ha sido cambiada a <texto>.`
+- **S10** — `SET <#channel> URL [url]` with no url answers
+  `URL para <canal> deshabilitada.`; otherwise it stores the url and answers
+  `URL para <canal> cambiada a <url>.`
+- **S11** — `SET <#channel> EMAIL [address]` follows S10 with
+  `Dirección de E-Mail para <canal> deshabilitada.` and
+  `Dirección de E-Mail para <canal> cambiada a <address>.`
+- **S12** — `SET <#channel> ENTRYMSG [text]` with no text answers
+  `Mensaje de entrada para <canal> deshabilitado.`; otherwise it stores the text
+  and answers `Mensaje de entrada para <canal> cambiado.`
+- **S13** — `SET <#channel> PASSWORD <password>` stores a hash, never the
+  plaintext, and the new password replaces the old one for `CHaN IDENTIFY`.
+  Deliberate deviation: the answer is `Contraseña de <canal> cambiada.` instead
+  of the original's `contraseña cambiada a <pass>`, because a NOTICE is kept by
+  the client and by any relay.
+- **S14** — `INFO <#channel>` shows whichever of description, url, email and
+  entry message are set.
+- **S15** — Settings live in SQLite only. UDB 4 has no record for them: a channel
+  key is native `+k` inside `C::<channel>::modes`, so nothing is published for
+  these fields.
+
+## Tasks (this stage)
+
+- **T9** (S8, S9, S10, S11, S12, S14, S15) — channel settings fields, migration,
+  `SET` command, `INFO` output.
+- **T10** (S13) — `SET PASSWORD` and its effect on `IDENTIFY`.
+
+## Remaining ch.mrc work (specs not written yet)
+
+- **T11** — `LEVELS` and the per-command level table (`acc`, `akick`, `autoop`,
+  `autodeop`, `autohalfop`, `autovoice`, `clear`, `halfopdehalfop`, `invite`,
+  `kick`, `memo`, `nojoin`, `opdeop`, `set`, `unban`, `voicedevoice`).
+- **T12** — `ACCESS` with levels, `DELACCESS`.
+- **T13** — `OP`/`DEOP`/`HALFOP`/`DEHALFOP`/`VOICE`/`DEVOICE`, `KICK`, `INVITE`,
+  `UNBAN`, `CLEAR`.
+- **T14** — `AKICK`.
+- **T15** — `SUSPEND`/`UNSUSPEND`/`LISTSUSPEND`, `FORBID`/`UNFORBID`/`LISTFORBID`,
+  `LIST`, `GETPASS`, `ESPECIAL`, `BFOUNDER`.
+- **T16** — `SET` options that drive the reactor: `MLOCK`, `TOPICLOCK`,
+  `KEEPTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PRIVATE`, `SECURE`,
+  `RESTRICTED`, `PBANS`, `PMODE`, `NOEXPIRE`, `DEBUG`, `NAME`, `DEFTOPIC`.
+- **T17** — the `ch.mrc` event reactor: `on JOIN` (entry message, `+o` from
+  levels), `on MODE` (mlock re-application, secureops, deop outside levels),
+  `on TOPIC` (topiclock), `on PART`/`on KICK` bookkeeping.
+
+## Log
+
+- **L8** — Picked `SET` first because it is the only part of ch.mrc whose
+  behaviour the existing `INFO`, `TOPIC` and founder model already support; the
+  rest needs the level table.
+- **L9** — Read the module reference before touching the password: UDB 4 has no
+  `C::<channel>::P` record, so the channel password stays a services-only secret
+  and no block change is needed.
+- **L10** — Verified live: `SET DESC/URL/ENTRYMSG` answer with the original
+  wording, `INFO` lists them, and `SET PASSWORD` makes `IDENTIFY` accept only the
+  new secret. The four columns were added in place to the running database.
+- **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
+  and the C block iterate channels. Fixed while touching the same query.

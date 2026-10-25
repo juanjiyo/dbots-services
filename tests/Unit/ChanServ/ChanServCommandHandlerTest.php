@@ -12,6 +12,7 @@ use Dbots\Irc\Application\NetworkState;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
+use Dbots\Domain\Channel\ChannelName;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryChannelAccessRepository;
@@ -189,6 +190,73 @@ final class ChanServCommandHandlerTest extends TestCase
 
         self::assertSame(['#test'], $this->projection->topics);
         self::assertSame('welcome home', $this->channels->find(new \Dbots\Domain\Channel\ChannelName('#test'))?->topic);
+    }
+
+    #[Test]
+    public function theFounderCanDescribeTheChannel(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test desc Canal de pruebas'), $this->state);
+
+        self::assertSame(
+            ['001AAAAAA: La Descripción de #test ha sido cambiada a Canal de pruebas.'],
+            $this->irc->replies,
+        );
+        self::assertSame(
+            'Canal de pruebas',
+            $this->channels->find(new ChannelName('#test'))?->description,
+        );
+    }
+
+    #[Test]
+    public function infoShowsTheSettingsThatAreSet(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test url https://example.org'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('info #test'), $this->state);
+
+        self::assertSame(['001AAAAAA: URL: https://example.org'], array_slice($this->irc->replies, 1));
+    }
+
+    #[Test]
+    public function aValueLessSettingIsDisabled(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test email alice@example.org'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('set #test email'), $this->state);
+
+        self::assertSame(['001AAAAAA: Dirección de E-Mail para #test deshabilitada.'], $this->irc->replies);
+        self::assertNull($this->channels->find(new ChannelName('#test'))?->email);
+    }
+
+    #[Test]
+    public function aStrangerCannotChangeTheSettings(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, 'r');
+
+        $this->handler->handle($this->privmsg('set #test desc robado', '001BBBBBB'), $state);
+
+        self::assertSame(['001BBBBBB: Solo el fundador puede hacer eso.'], $this->irc->replies);
+        self::assertNull($this->channels->find(new ChannelName('#test'))?->description);
+    }
+
+    #[Test]
+    public function settingThePasswordReplacesTheOneIdentifyAccepts(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->handler->handle($this->privmsg('set #test password claveNueva123'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('identify #test claveNueva123'), $this->state);
+
+        self::assertSame(['001AAAAAA: Estás identificado como fundador de #test.'], $this->irc->replies);
     }
 
     #[Test]

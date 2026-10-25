@@ -26,7 +26,7 @@ dbots publishes and applies the account and `+r` itself.
 | UDB 4 authority (HEL/INF/RES/BEGIN/PUT/END) | Working, verified live |
 | Canonical block digests | Verified byte-for-byte against the module reference |
 | NiCK `REGISTER` / `IDENTIFY` / `INFO` / `SET PASSWORD` / `DROP` | Working |
-| CHaN `INFO` / `DROP` / `ACCESS` / `TOPIC` / `IDENTIFY` | Working, verified live |
+| CHaN `INFO` / `DROP` / `ACCESS` / `TOPIC` / `IDENTIFY` / `SET` | Working, verified live |
 | CReG `REGISTRA` / `ESTADO` / `CANCELA` / `ACEPTA` / `DENIEGA` / `LIBERA` / `ADMIN` / `OFICIAL` / `COMERCIAL` | Working, verified live |
 | HeLP `AYUDA` / `UMODES` / `CMODES` / `BOTS` / `NICK` / `CANAL` / `CREDITOS` | Working, verified live |
 | Native login (`NICK nick:password`) | Working, verified live |

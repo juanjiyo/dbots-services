@@ -56,6 +56,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `INFO <#channel>`, `DROP <#channel>` | done | Founder only for `DROP` |
 | `ACCESS LIST\|ADD\|DEL <#channel> [nick]` | done | UDB `C::<channel>::access::<nick>` |
 | `TOPIC <#channel> <text>` | done | UDB `C::<channel>::topic` |
+| `SET <#channel> DESC\|URL\|EMAIL\|ENTRYMSG [value]` | done | Services-only settings; no UDB record exists for them |
+| `SET <#channel> PASSWORD <password>` | done | Hashed; `IDENTIFY` accepts only the new one |
 | `OP` / `DEOP` / `HALFOP` / `DEHALFOP` / `VOICE` / `DEVOICE`, `KICK`, `INVITE`, `UNBAN`, `CLEAR` | todo | Channel-level actions for the founder |
 | `AKICK`, `LEVELS`, `DELACCESS`, `SECUREOPS`… | todo | The rank model |
 | `SET *` (founder, successor, entrymsg, mlock, topiclock…), `SUSPEND`, `FORBID`, `GETPASS`, `BFOUNDER`, `ESPECIAL`, `LIST` | todo | |

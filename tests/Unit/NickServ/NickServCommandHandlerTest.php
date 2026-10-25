@@ -14,6 +14,7 @@ use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
+use Dbots\Domain\Channel\ChannelSetting;
 use Dbots\Irc\Application\AccountResolver;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
@@ -316,6 +317,8 @@ final class NoChannels implements ChannelRepositoryInterface
     public function updateTopic(Channel $channel): void {}
 
     public function updateFounder(Channel $channel): void {}
+
+    public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void {}
 
     public function delete(ChannelName $name): void {}
 

@@ -13,6 +13,7 @@ use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
+use Dbots\Domain\Channel\ChannelSetting;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
@@ -82,6 +83,7 @@ final class ChanServCommandHandler
             'IDENTIFY' => $this->onIdentify($sender, $parts),
             'ACCESS' => $this->onAccess($sender, $account, $parts),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
+            'SET' => $this->onSet($sender, $account, $parts),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -143,6 +145,17 @@ final class ChanServCommandHandler
             $registered->founder,
             $registered->createdAt->format('Y-m-d'),
         ));
+
+        foreach ([
+            'Description' => $registered->description,
+            'URL' => $registered->url,
+            'Email' => $registered->email,
+            'Entry message' => $registered->entryMessage,
+        ] as $label => $value) {
+            if (null !== $value && '' !== $value) {
+                $this->reply->reply($uid, sprintf('%s: %s', $label, $value));
+            }
+        }
     }
 
     /** The channel password identifies its founder, as the original does. */
@@ -272,6 +285,115 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, $removed
             ? sprintf('%s no longer has access to %s.', $nick, $channel->name->value)
             : sprintf('%s is not on the access list of %s.', $nick, $channel->name->value));
+    }
+
+    /**
+     * `SET <#channel> <option> [value]`, the subset of `chanserv.set` that does
+     * not depend on the level table yet.
+     *
+     * @param list<string> $args
+     */
+    private function onSet(string $uid, ?string $account, array $args): void
+    {
+        $channel = (string) ($args[0] ?? '');
+        $option = strtoupper((string) ($args[1] ?? ''));
+        $value = implode(' ', array_slice($args, 2));
+
+        if ('' === $channel || '' === $option) {
+            $this->reply->reply($uid, 'Sintaxis: SET <#canal> <opción> [valor]');
+
+            return;
+        }
+
+        $registered = $this->ownedChannel($uid, $account, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        match ($option) {
+            'DESC', 'DESCRIPTION' => $this->setDescription($uid, $registered->name, $value),
+            'URL' => $this->setUrl($uid, $registered->name, $value),
+            'EMAIL' => $this->setEmail($uid, $registered->name, $value),
+            'ENTRYMSG' => $this->setEntryMessage($uid, $registered->name, $value),
+            'PASSWORD' => $this->setPassword($uid, $registered->name, $value),
+            default => $this->reply->reply($uid, sprintf('Opción desconocida %s. Usa AYUDA SET.', $option)),
+        };
+    }
+
+    private function setDescription(string $uid, ChannelName $channel, string $value): void
+    {
+        if ('' === $value) {
+            $this->reply->reply($uid, 'Error de Sintaxis: SET <canal> DESC <texto>');
+
+            return;
+        }
+
+        $this->channels->updateSetting($channel, ChannelSetting::Description, $value);
+        $this->reply->reply($uid, sprintf('La Descripción de %s ha sido cambiada a %s.', $channel->value, $value));
+    }
+
+    private function setUrl(string $uid, ChannelName $channel, string $value): void
+    {
+        if ('' === $value) {
+            $this->channels->updateSetting($channel, ChannelSetting::Url, null);
+            $this->reply->reply($uid, sprintf('URL para %s deshabilitada.', $channel->value));
+
+            return;
+        }
+
+        $this->channels->updateSetting($channel, ChannelSetting::Url, $value);
+        $this->reply->reply($uid, sprintf('URL para %s cambiada a %s.', $channel->value, $value));
+    }
+
+    private function setEmail(string $uid, ChannelName $channel, string $value): void
+    {
+        if ('' === $value) {
+            $this->channels->updateSetting($channel, ChannelSetting::Email, null);
+            $this->reply->reply($uid, sprintf('Dirección de E-Mail para %s deshabilitada.', $channel->value));
+
+            return;
+        }
+
+        $this->channels->updateSetting($channel, ChannelSetting::Email, $value);
+        $this->reply->reply($uid, sprintf('Dirección de E-Mail para %s cambiada a %s.', $channel->value, $value));
+    }
+
+    private function setEntryMessage(string $uid, ChannelName $channel, string $value): void
+    {
+        if ('' === $value) {
+            $this->channels->updateSetting($channel, ChannelSetting::EntryMessage, null);
+            $this->reply->reply($uid, sprintf('Mensaje de entrada para %s deshabilitado.', $channel->value));
+
+            return;
+        }
+
+        $this->channels->updateSetting($channel, ChannelSetting::EntryMessage, $value);
+        $this->reply->reply($uid, sprintf('Mensaje de entrada para %s cambiado.', $channel->value));
+    }
+
+    /**
+     * The original answers with the new password in clear. We do not: a NOTICE is
+     * logged by clients, so the reply only confirms the change.
+     */
+    private function setPassword(string $uid, ChannelName $channel, string $value): void
+    {
+        if ('' === $value) {
+            $this->reply->reply($uid, 'Error de Sintaxis: SET <canal> PASSWORD <contraseña>');
+
+            return;
+        }
+
+        try {
+            $secret = Password::fromPlain($value);
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'La contraseña debe tener al menos 6 caracteres.');
+
+            return;
+        }
+
+        $this->channels->updateSetting($channel, ChannelSetting::Password, $secret->hash());
+        $this->reply->reply($uid, sprintf('Contraseña de %s cambiada.', $channel->value));
     }
 
     /** @param list<string> $args */

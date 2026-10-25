@@ -6,6 +6,7 @@ namespace Dbots\ChanServ\Application\Port\Out;
 
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelName;
+use Dbots\Domain\Channel\ChannelSetting;
 
 interface ChannelRepositoryInterface
 {
@@ -16,6 +17,9 @@ interface ChannelRepositoryInterface
     public function updateTopic(Channel $channel): void;
 
     public function updateFounder(Channel $channel): void;
+
+    /** Writes one `SET` value; null clears it. */
+    public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void;
 
     public function delete(ChannelName $name): void;
 

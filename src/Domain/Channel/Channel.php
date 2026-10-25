@@ -21,6 +21,10 @@ final readonly class Channel
         public DateTimeImmutable $createdAt,
         public ?string $topic = null,
         public ?string $passwordHash = null,
+        public ?string $description = null,
+        public ?string $url = null,
+        public ?string $email = null,
+        public ?string $entryMessage = null,
     ) {
     }
 
