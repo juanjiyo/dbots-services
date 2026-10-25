@@ -10,6 +10,7 @@ use Dbots\ChanServ\Application\Port\Out\ChannelAccessRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelActionsInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelAkickRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelForbidRepositoryInterface;
+use Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
@@ -19,6 +20,7 @@ use Dbots\Domain\Channel\Akick;
 use Dbots\Domain\Channel\Channel;
 use Dbots\Domain\Channel\ChannelLevel;
 use Dbots\Domain\Channel\ChannelName;
+use Dbots\Domain\Channel\ChannelOption;
 use Dbots\Domain\Channel\ChannelSetting;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\Help\HelpCatalog;
@@ -42,6 +44,8 @@ use function preg_quote;
 use function sprintf;
 use function strcasecmp;
 use function str_replace;
+use function str_contains;
+use function str_split;
 use function strtoupper;
 
 final class ChanServCommandHandler
@@ -57,6 +61,7 @@ final class ChanServCommandHandler
         private ChannelActionsInterface $actions,
         private ChannelAkickRepositoryInterface $akicks,
         private ChannelForbidRepositoryInterface $forbids,
+        private ChannelOptionRepositoryInterface $options,
         private AccountRepositoryInterface $accountStore,
         private ChannelProjectionInterface $projection,
         private AccountResolver $accounts,
@@ -1077,6 +1082,82 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, sprintf('Borrada la entrada FOUNDER del canal %s en el UDB.', $registered->name->value));
     }
 
+    /** `SET <#channel> <OPTION> ON|OFF`, the switches the reactor will honour. */
+    private function setOptionFlag(string $uid, ChannelName $channel, string $option, string $value): void
+    {
+        $flag = ChannelOption::fromName($option);
+
+        if (null === $flag) {
+            $this->reply->reply($uid, sprintf('Opción desconocida %s. Usa AYUDA SET.', $option));
+
+            return;
+        }
+
+        $normalised = strtoupper($value);
+
+        if (!in_array($normalised, ['ON', 'OFF'], true)) {
+            $this->reply->reply($uid, sprintf('Error de Sintaxis: SET <canal> %s {ON|OFF}', $flag->value));
+
+            return;
+        }
+
+        $enabled = 'ON' === $normalised;
+
+        $this->options->set($channel, $flag, $enabled ? 'on' : 'off');
+        $this->reply->reply($uid, $flag->message($channel->value, $enabled));
+    }
+
+    /**
+     * `SET <#channel> MLOCK <modes>`. The modes are applied now and remembered
+     * for the reactor to re-impose after somebody changes them.
+     */
+    private function setMlock(string $uid, ChannelName $channel, string $value): void
+    {
+        if ('' === $value) {
+            $this->options->set($channel, ChannelOption::Mlock, '');
+            $this->reply->reply($uid, sprintf('Candado de modo de canal %s borrado.', $channel->value));
+
+            return;
+        }
+
+        // The set `ch.mrc` accepts, so an unknown letter is reported, not applied.
+        $allowed = 'psmntikRcaOAQSKVMGCuzNTl';
+        $modes = [];
+        $seen = [];
+
+        foreach (str_split($value) as $char) {
+            if ('+' === $char || '-' === $char) {
+                continue;
+            }
+
+            if (!str_contains($allowed, $char)) {
+                $this->reply->reply($uid, sprintf('Modo %s es desconocido e ignorado.', $char));
+
+                continue;
+            }
+
+            if (isset($seen[$char])) {
+                $this->reply->reply($uid, sprintf('Modo %s duplicado.', $char));
+
+                continue;
+            }
+
+            $seen[$char] = true;
+            $modes[] = $char;
+        }
+
+        if ([] === $modes) {
+            return;
+        }
+
+        $mlock = '+'.implode('', $modes);
+
+        $this->options->set($channel, ChannelOption::Mlock, $mlock);
+        $this->actions->channelModes($channel->value, $mlock);
+
+        $this->reply->reply($uid, sprintf('Candado de modo de canal %s cambiado a %s.', $channel->value, $mlock));
+    }
+
     /** The channel exists, or the sender is told it does not. */
     private function registeredChannel(string $uid, string $channel): ?Channel
     {
@@ -1252,7 +1333,8 @@ final class ChanServCommandHandler
             'EMAIL' => $this->setEmail($uid, $registered->name, $value),
             'ENTRYMSG' => $this->setEntryMessage($uid, $registered->name, $value),
             'PASSWORD' => $this->setPassword($uid, $registered->name, $value),
-            default => $this->reply->reply($uid, sprintf('Opción desconocida %s. Usa AYUDA SET.', $option)),
+            'MLOCK' => $this->setMlock($uid, $registered->name, $value),
+            default => $this->setOptionFlag($uid, $registered->name, $option, $value),
         };
     }
 

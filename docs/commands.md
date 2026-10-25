@@ -58,6 +58,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `TOPIC <#channel> <text>` | done | UDB `C::<channel>::topic` |
 | `LEVELS <#channel> LIST\|SET\|RESET [key] [level]` | done | Thresholds -1..500 per command; 500 is founder or IRCop. Only a founder-level user changes it |
 | `SET <#channel> DESC\|URL\|EMAIL\|ENTRYMSG [value]` | done | Services-only settings; the entry message greets on join with `<nick>` replaced |
+| `SET <#channel> <OPTION> ON\|OFF` | done | `TOPICLOCK`, `KEEPTOPIC`, `DEFTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PBANS`, `PMODE`, `PRIVATE`, `SECURE`, `RESTRICTED`, `NOEXPIRE`, `DEBUG` |
+| `SET <#channel> MLOCK [modes]` | done | Validated against the original letter set and applied at once |
 | `SET <#channel> PASSWORD <password>` | done | Hashed; `IDENTIFY` accepts only the new one |
 | `OP` / `DEOP` / `HALFOP` / `DEHALFOP` / `VOICE` / `DEVOICE <#channel> <nick>` | done | Threshold per rank from the table; removing also needs standing above the holder |
 | `INVITE <#channel>`, `UNBAN <#channel>` | done | `UNBAN` sends `-b <nick>`, so it only lifts a ban written as the bare nick |
@@ -69,7 +71,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `FORBID <#channel> <reason>`, `UNFORBID`, `LISTFORBID` | done | Oper only; drops the profile and publishes `C::<channel>::forbid` |
 | `LIST <pattern>`, `GETPASS <#channel>`, `BFOUNDER <#channel>` | done | Oper only; `GETPASS` reports the hash instead of the secret |
 | `ESPECIAL` | dropped | It drives a pool of eleven entry bots that this daemon does not run |
-| `SET *` (successor, mlock, topiclock…) | todo | |
+| `SET FOUNDER\|SUCCESSOR` | todo | Changing the founder needs a policy decision |
 
 ## MeMo
 

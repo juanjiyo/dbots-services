@@ -20,6 +20,7 @@ use Dbots\Tests\Support\RecordingChannelActions;
 use Dbots\Tests\Support\RecordingChannelProjection;
 use Dbots\Tests\Support\InMemoryChannelAkickRepository;
 use Dbots\Tests\Support\InMemoryChannelForbidRepository;
+use Dbots\Tests\Support\InMemoryChannelOptionRepository;
 use Dbots\Tests\Support\InMemoryChannelLevelRepository;
 use Dbots\Tests\Support\InMemoryChannelRepository;
 use Dbots\Tests\Support\RecordingIrc;
@@ -54,6 +55,7 @@ final class ChanServCommandHandlerTest extends TestCase
             $this->actions,
             new InMemoryChannelAkickRepository(),
             new InMemoryChannelForbidRepository(),
+            new InMemoryChannelOptionRepository(),
             $this->accounts,
             $this->projection,
             new AccountResolver($this->accounts),
@@ -361,6 +363,56 @@ final class ChanServCommandHandlerTest extends TestCase
         self::assertSame(['#test 001AAAAAA'], $this->actions->invites);
         self::assertContains('#test -b alice', $this->actions->modes);
         self::assertContains('001AAAAAA: Has sido desbaneado de #test.', $this->irc->replies);
+    }
+
+    #[Test]
+    public function setStoresTheSwitchesWithTheirOwnWording(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test topiclock on'), $this->state);
+        $this->handler->handle($this->privmsg('set #test secureops on'), $this->state);
+        $this->handler->handle($this->privmsg('set #test autolimit on'), $this->state);
+        $this->handler->handle($this->privmsg('set #test noexpire off'), $this->state);
+        $this->handler->handle($this->privmsg('set #test pbans on'), $this->state);
+
+        self::assertSame([
+            '001AAAAAA: Opción de candado de tópico activada.',
+            '001AAAAAA: Opción de Secure Ops activada.',
+            '001AAAAAA: El canal #test será auto-limitado.',
+            '001AAAAAA: El canal #test expirará si no es usado.',
+            '001AAAAAA: Protección de bans activada para el canal #test',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function setRejectsAValueThatIsNotOnOrOff(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test topiclock si'), $this->state);
+        $this->handler->handle($this->privmsg('set #test inventada on'), $this->state);
+
+        self::assertSame([
+            '001AAAAAA: Error de Sintaxis: SET <canal> TOPICLOCK {ON|OFF}',
+            '001AAAAAA: Opción desconocida INVENTADA. Usa AYUDA SET.',
+        ], $this->irc->replies);
+    }
+
+    #[Test]
+    public function setMlockAppliesAndRemembersTheModes(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test mlock ntx'), $this->state);
+        $this->handler->handle($this->privmsg('set #test mlock'), $this->state);
+
+        self::assertSame([
+            '001AAAAAA: Modo x es desconocido e ignorado.',
+            '001AAAAAA: Candado de modo de canal #test cambiado a +nt.',
+            '001AAAAAA: Candado de modo de canal #test borrado.',
+        ], $this->irc->replies);
+        self::assertSame(['#test +nt'], $this->actions->channelModeLines);
     }
 
     #[Test]

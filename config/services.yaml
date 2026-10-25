@@ -62,6 +62,7 @@ services:
     Dbots\ChanServ\Application\Port\Out\ChannelLevelRepositoryInterface: '@Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelLevelRepository'
     Dbots\ChanServ\Application\Port\Out\ChannelAkickRepositoryInterface: '@Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelAkickRepository'
     Dbots\ChanServ\Application\Port\Out\ChannelForbidRepositoryInterface: '@Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelForbidRepository'
+    Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface: '@Dbots\ChanServ\Adapter\Out\Persistence\SqliteChannelOptionRepository'
     Dbots\ChanServ\Application\Port\Out\ChannelProjectionInterface: '@Dbots\Udb\UdbChannelProjection'
 
     Dbots\MemoServ\Application\Port\Out\MemoRepositoryInterface: '@Dbots\MemoServ\Adapter\Out\Persistence\SqliteMemoRepository'

@@ -110,6 +110,19 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   IRCop counts as 500, so nobody deops an oper.
 - **S28** — After a rank change or an invite, ChanServ says it in the channel:
   `<sender> hace <COMMAND> a <nick>.` and `<sender> se invita al canal.`
+- **S50** — `SET <#channel> <OPTION> ON|OFF` stores the switch and answers with
+  that option's own sentence, which differs per option
+  (`Opción de Secure Ops activada.`, `El canal <channel> será auto-limitado.`,
+  `Protección de bans activada para el canal <channel>`).
+- **S51** — `SET <#channel> MLOCK <modes>` keeps only the letters `ch.mrc`
+  accepts, reports unknown and duplicated ones, applies the surviving set at
+  once, and answers `Candado de modo de canal <channel> cambiado a <modes>.` With
+  no value it clears the lock.
+- **S52** — `C::<channel>::options` carries `PERSISTENT` always and `SECURE_OPS`
+  when `SET SECUREOPS ON`, so the IRCd enforces that only `+q` grants ranks. The
+  rest of the switches are services-only until the reactor reads them.
+- **S53** — The switches do not appear in `INFO`: fourteen lines would bury the
+  fields that people actually read.
 - **S46** — `LIST <pattern>` is oper-only and answers
   `Lista de Canales que satisfacen <pattern>:`, one
   `<channel> - ACTIVO|SUSPENDIDO (BDD)` per match, capped at 50, then
@@ -190,9 +203,8 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   numbered entry bots (`1..11`) that join a channel on demand, and this daemon
   runs no such bots. Porting the command would mean inventing a registry for
   clients we do not have.
-- **T16** — `SET` options that drive the reactor: `MLOCK`, `TOPICLOCK`,
-  `KEEPTOPIC`, `SECUREOPS`, `SECUREHALFOPS`, `AUTOLIMIT`, `PRIVATE`, `SECURE`,
-  `RESTRICTED`, `PBANS`, `PMODE`, `NOEXPIRE`, `DEBUG`, `NAME`, `DEFTOPIC`.
+- **T16** (S50-S53) — **done**. `SET` switches, `MLOCK`, and the two UDB option
+  bits. `NAME` does not exist in `ch.mrc`'s `SET`; `ESPECIAL` was dropped.
 - **T17** — the `ch.mrc` event reactor: `on JOIN` (entry message, `+o` from
   levels), `on MODE` (mlock re-application, secureops, deop outside levels),
   `on TOPIC` (topiclock), `on PART`/`on KICK` bookkeeping.
@@ -210,6 +222,9 @@ on line 290 and `SET` is `chanserv.set` on line 900.
   new secret. The four columns were added in place to the running database.
 - **L11** — `all()` never selected `password_hash`; it only mattered once `INFO`
   and the C block iterate channels. Fixed while touching the same query.
+- **L23** — Catches on T16: `NAME` is not a `SET` option in `ch.mrc` (the earlier
+  grep list was wrong), and `MLOCK` needs its own validation because the original
+  only accepts a fixed letter set and reports the rest instead of applying them.
 - **L22** — Two findings while wiring `PERSISTENT`. First, publishing access ranks
   to UDB locked channels to their access list: the module uses
   `C::<channel>::access` as a join allowlist (refusing with 448), not as ranks, so

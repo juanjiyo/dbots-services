@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Dbots\Udb;
 
+use Dbots\ChanServ\Application\Port\Out\ChannelOptionRepositoryInterface;
 use Dbots\ChanServ\Application\Port\Out\ChannelRepositoryInterface;
+use Dbots\Domain\Channel\ChannelOption;
 
 use function sprintf;
 
@@ -20,9 +22,25 @@ final readonly class ChannelBlockProvider implements BlockProviderInterface
     /** UDB `C::options` bit: keep the channel alive with no members. */
     public const int PERSISTENT = 0x08;
 
+    /** UDB `C::options` bit: only +q grants ranks. */
+    public const int SECURE_OPS = 0x20;
+
     public function __construct(
         private ChannelRepositoryInterface $channels,
+        private ChannelOptionRepositoryInterface $options,
     ) {}
+
+    /** The option bits UDB understands, derived from the channel switches. */
+    private function optionsMask(\Dbots\Domain\Channel\ChannelName $channel): int
+    {
+        $mask = self::PERSISTENT;
+
+        if ($this->options->isEnabled($channel, ChannelOption::SecureOps)) {
+            $mask |= self::SECURE_OPS;
+        }
+
+        return $mask;
+    }
 
     public function records(string $block): array
     {
@@ -37,7 +55,7 @@ final readonly class ChannelBlockProvider implements BlockProviderInterface
 
             // A registered channel must survive being empty: otherwise the IRCd
             // destroys it and the first join of the next visitor sends no event.
-            $records[sprintf('%s::options', $channel->name->value)] = self::PERSISTENT;
+            $records[sprintf('%s::options', $channel->name->value)] = self::optionsMask($channel->name);
 
             if ($channel->isSuspended()) {
                 $records[sprintf('%s::suspend', $channel->name->value)] = $channel->suspendReason;

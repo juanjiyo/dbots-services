@@ -38,7 +38,7 @@ final class ChanServHelp
             new HelpEntry('INVITE', 'INVITE <#canal>', 'Te invita al canal. Nivel INVITE.', '/msg CHaN INVITE #miCanal'),
             new HelpEntry('UNBAN', 'UNBAN <#canal>', 'Levanta tu ban en el canal. Nivel UNBAN.', '/msg CHaN UNBAN #miCanal'),
             new HelpEntry('LEVELS', 'LEVELS <#canal> LIST|SET|RESET [clave] [nivel]', 'Niveles que exige cada comando del canal. Van de -1 a 500; 500 es el fundador. Solo el fundador.', '/msg CHaN LEVELS #miCanal SET AUTOOP 300'),
-            new HelpEntry('SET', 'SET <#canal> <opción> [valor]', 'Cambia la configuración del canal. Opciones: DESC, URL, EMAIL, ENTRYMSG y PASSWORD. Solo el fundador.', '/msg CHaN SET #miCanal ENTRYMSG Bienvenidos al canal'),
+            new HelpEntry('SET', 'SET <#canal> <opción> [valor]', 'Configuración del canal: DESC, URL, EMAIL, ENTRYMSG, PASSWORD, MLOCK y los interruptores ON|OFF (TOPICLOCK, KEEPTOPIC, SECUREOPS, SECUREHALFOPS, AUTOLIMIT, PBANS, PMODE, PRIVATE, SECURE, RESTRICTED, NOEXPIRE, DEBUG). Solo el fundador.', '/msg CHaN SET #miCanal TOPICLOCK ON'),
         ]);
     }
 }
