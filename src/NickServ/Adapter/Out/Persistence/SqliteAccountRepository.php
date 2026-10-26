@@ -31,7 +31,12 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
                 suspend_reason TEXT NULL,
                 swhois TEXT NULL,
                 vhost TEXT NULL,
-                noexpire INTEGER NOT NULL DEFAULT 0
+                noexpire INTEGER NOT NULL DEFAULT 0,
+                url TEXT NULL,
+                quit_visible INTEGER NOT NULL DEFAULT 0,
+                private INTEGER NOT NULL DEFAULT 0,
+                kill TEXT NULL,
+                automode TEXT NULL
             )'
         );
 
@@ -43,6 +48,11 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
             'swhois' => 'TEXT NULL',
             'vhost' => 'TEXT NULL',
             'noexpire' => 'INTEGER NOT NULL DEFAULT 0',
+            'url' => 'TEXT NULL',
+            'quit_visible' => 'INTEGER NOT NULL DEFAULT 0',
+            'private' => 'INTEGER NOT NULL DEFAULT 0',
+            'kill' => 'TEXT NULL',
+            'automode' => 'TEXT NULL',
         ] as $column => $definition) {
             if (!in_array($column, $columns, true)) {
                 $this->pdo->exec(sprintf('ALTER TABLE accounts ADD COLUMN %s %s', $column, $definition));
@@ -87,7 +97,8 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
     {
         $statement = $this->pdo->prepare(
             'UPDATE accounts SET password_hash = :hash, email = :email, forbid_reason = :forbid,
-                suspend_reason = :suspend, swhois = :swhois, vhost = :vhost, noexpire = :noexpire
+                suspend_reason = :suspend, swhois = :swhois, vhost = :vhost, noexpire = :noexpire,
+                url = :url, quit_visible = :quit_visible, private = :private, kill = :kill, automode = :automode
              WHERE nick = :nick'
         );
 
@@ -100,6 +111,11 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
             'swhois' => $account->swhois,
             'vhost' => $account->vhost,
             'noexpire' => $account->noexpire ? 1 : 0,
+            'url' => $account->url,
+            'quit_visible' => $account->quitVisible ? 1 : 0,
+            'private' => $account->private ? 1 : 0,
+            'kill' => $account->kill,
+            'automode' => $account->automode,
         ]);
     }
 
@@ -116,6 +132,11 @@ final readonly class SqliteAccountRepository implements AccountRepositoryInterfa
             null === ($row['swhois'] ?? null) ? null : (string) $row['swhois'],
             null === ($row['vhost'] ?? null) ? null : (string) $row['vhost'],
             1 === (int) ($row['noexpire'] ?? 0),
+            null === ($row['url'] ?? null) ? null : (string) $row['url'],
+            1 === (int) ($row['quit_visible'] ?? 0),
+            1 === (int) ($row['private'] ?? 0),
+            null === ($row['kill'] ?? null) ? null : (string) $row['kill'],
+            null === ($row['automode'] ?? null) ? null : (string) $row['automode'],
         );
     }
 

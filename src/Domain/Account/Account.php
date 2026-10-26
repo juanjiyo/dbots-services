@@ -18,6 +18,11 @@ final readonly class Account
         public ?string $swhois = null,
         public ?string $vhost = null,
         public bool $noexpire = false,
+        public ?string $url = null,
+        public bool $quitVisible = false,
+        public bool $private = false,
+        public ?string $kill = null,
+        public ?string $automode = null,
     ) {
     }
 

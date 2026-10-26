@@ -16,7 +16,7 @@ final class NickServHelp
             new HelpEntry('IDENTIFY', 'IDENTIFY <contraseña>', 'Comprueba tu contraseña. Para identificarte de verdad, reconecta con /NICK nick:contraseña.', '/msg NiCK IDENTIFY miClave', ['IDENTIFICA']),
             new HelpEntry('INFO', 'INFO <nick>', 'Muestra los datos de una cuenta.', '/msg NiCK INFO JuanJo'),
             new HelpEntry('STATUS', 'STATUS [nick]', 'Estado de la cuenta: alta, prohibición, suspensión y NOEXPIRE.', '/msg NiCK STATUS JuanJo', ['ESTADO']),
-            new HelpEntry('SET', 'SET PASSWORD <actual> <nueva>', 'Cambia la contraseña de tu cuenta.', '/msg NiCK SET PASSWORD miClave otraClave'),
+            new HelpEntry('SET', 'SET PASSWORD <actual> <nueva> | SET EMAIL|URL|QUIT|PRIVATE|KILL|AUTOMODE <valor>', 'Cambia la contraseña y otras opciones de tu cuenta.', '/msg NiCK SET EMAIL correo@ejemplo.org'),
             new HelpEntry('DROP', 'DROP <contraseña>', 'Borra tu cuenta. Antes hay que soltar los canales que fundaste.', '/msg NiCK DROP miClave'),
             new HelpEntry('SUSPEND', 'SUSPEND <nick> [motivo]', 'Suspende una cuenta: podrá entrar, pero sin cuenta ni +r.', '/msg NiCK SUSPEND JuanJo abuso', operOnly: true),
             new HelpEntry('UNSUSPEND', 'UNSUSPEND <nick>', 'Levanta la suspensión.', '/msg NiCK UNSUSPEND JuanJo', operOnly: true),

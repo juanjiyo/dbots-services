@@ -47,6 +47,14 @@ final readonly class AccountInfoHandler
             null === $account->email
                 ? 'No email address is set.'
                 : sprintf('Email: %s.', $account->email),
+            null === $account->url
+                ? 'No URL is set.'
+                : sprintf('URL: %s.', $account->url),
+            sprintf('Private: %s.', $account->private ? 'yes' : 'no'),
+            sprintf('Kill protection: %s.', $account->kill ?? 'off'),
+            null === $account->automode
+                ? 'No automode is set.'
+                : sprintf('Automode: %s.', $account->automode),
             [] === $founded
                 ? 'No channels are registered to this account.'
                 : sprintf('Channels: %s.', implode(', ', $founded)),

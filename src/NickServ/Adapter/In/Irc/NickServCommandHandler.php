@@ -24,6 +24,8 @@ use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordResult;
+use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
+use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingResult;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -45,6 +47,7 @@ final readonly class NickServCommandHandler
         private ChangePasswordHandler $changePassword,
         private DropNickHandler $dropNick,
         private SendPasswordHandler $sendPassword,
+        private UpdateAccountSettingHandler $updateSetting,
         private AccountResolver $identity,
         private AccountInfoHandler $info,
         private AccountRepositoryInterface $accounts,
@@ -176,12 +179,16 @@ final readonly class NickServCommandHandler
     {
         $option = strtoupper((string) ($args[0] ?? ''));
 
-        if ('PASSWORD' !== $option) {
-            $this->reply->reply($uid, 'Syntax: SET PASSWORD <current> <new>');
+        match ($option) {
+            'PASSWORD' => $this->onSetPassword($uid, $args, $state),
+            'EMAIL', 'URL', 'QUIT', 'PRIVATE', 'KILL', 'AUTOMODE' => $this->onSetAccountOption($uid, $option, $args, $state),
+            default => $this->reply->reply($uid, 'Syntax: SET PASSWORD <current> <new> | SET EMAIL|URL|QUIT|PRIVATE|KILL|AUTOMODE <value>'),
+        };
+    }
 
-            return;
-        }
-
+    /** @param list<string> $args */
+    private function onSetPassword(string $uid, array $args, NetworkState $state): void
+    {
         $current = (string) ($args[1] ?? '');
         $new = (string) ($args[2] ?? '');
 
@@ -198,6 +205,32 @@ final readonly class NickServCommandHandler
             ChangePasswordResult::NotRegistered => $this->reply->reply($uid, 'That nickname is not registered.'),
             ChangePasswordResult::NotIdentified => $this->reply->reply($uid, 'You must be identified to change your password.'),
         };
+    }
+
+    /** @param list<string> $args */
+    private function onSetAccountOption(string $uid, string $option, array $args, NetworkState $state): void
+    {
+        $value = implode(' ', array_slice($args, 1));
+
+        $result = $this->updateSetting->__invoke($this->identity->resolve($uid, $state), $option, $value);
+
+        match ($result->status) {
+            UpdateAccountSettingResult::CHANGED => $this->onSettingChanged($uid, $state, $option),
+            UpdateAccountSettingResult::NOT_IDENTIFIED => $this->reply->reply($uid, 'You must be identified to change your settings.'),
+            UpdateAccountSettingResult::INVALID_VALUE => $this->reply->reply($uid, (string) $result->error),
+            default => $this->reply->reply($uid, 'The setting could not be changed.'),
+        };
+    }
+
+    private function onSettingChanged(string $uid, NetworkState $state, string $option): void
+    {
+        $account = $this->identity->resolve($uid, $state);
+
+        if (null !== $account) {
+            $this->projection->publish($account);
+        }
+
+        $this->reply->reply($uid, sprintf('%s setting updated.', $option));
     }
 
     private function onPasswordChanged(string $uid, NetworkState $state): void
@@ -324,6 +357,11 @@ final readonly class NickServCommandHandler
             $account->swhois,
             $account->vhost,
             $account->noexpire,
+            $account->url,
+            $account->quitVisible,
+            $account->private,
+            $account->kill,
+            $account->automode,
         ));
 
         $this->projection->publish($account->nick->value);
@@ -363,6 +401,11 @@ final readonly class NickServCommandHandler
             $account->swhois,
             $account->vhost,
             $account->noexpire,
+            $account->url,
+            $account->quitVisible,
+            $account->private,
+            $account->kill,
+            $account->automode,
         ));
 
         $this->projection->publish($account->nick->value);
@@ -425,6 +468,11 @@ final readonly class NickServCommandHandler
             '' === $text ? null : $text,
             $account->vhost,
             $account->noexpire,
+            $account->url,
+            $account->quitVisible,
+            $account->private,
+            $account->kill,
+            $account->automode,
         ));
 
         $this->projection->publish($account->nick->value);
@@ -464,6 +512,11 @@ final readonly class NickServCommandHandler
             $account->swhois,
             $account->vhost,
             !$account->noexpire,
+            $account->url,
+            $account->quitVisible,
+            $account->private,
+            $account->kill,
+            $account->automode,
         ));
 
         $this->projection->publish($account->nick->value);

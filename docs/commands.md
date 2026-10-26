@@ -36,7 +36,7 @@ the original; **todo** is not implemented.
 | `FORBID <nick> [reason]`, `UNFORBID`, `LISTFORBID` | done | Operator only; UDB `N::<nick>::forbid` |
 | `SWHOIS <nick> <text>` | done | Operator only; UDB `N::<nick>::swhois` |
 | `NOEXPIRE <nick>` | done | Operator only; toggles the flag |
-| `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, AUTOMODE…) | todo | |
+| `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, AUTOMODE…) | done | |
 | `SENDPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it via memo |
 | `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
 | `VIEWIP` | todo | Will move to a future `HostServ`; `VHOST` / `DROPVHOST` deliberately live there, not in NiCK |

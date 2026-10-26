@@ -52,6 +52,11 @@ final readonly class SendPasswordHandler
             $account->swhois,
             $account->vhost,
             $account->noexpire,
+            $account->url,
+            $account->quitVisible,
+            $account->private,
+            $account->kill,
+            $account->automode,
         ));
 
         $this->memos->save(new Memo(

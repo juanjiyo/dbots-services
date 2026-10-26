@@ -20,6 +20,7 @@ use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
+use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryMemoRepository;
 use Dbots\Tests\Support\RecordingIrc;
@@ -51,6 +52,7 @@ final class NickServCommandHandlerTest extends TestCase
             new ChangePasswordHandler($accounts),
             new DropNickHandler($accounts, new NoChannels()),
             new SendPasswordHandler($accounts, $this->memos),
+            new UpdateAccountSettingHandler($accounts),
             new AccountResolver($accounts),
             new AccountInfoHandler($accounts, new NoChannels(), $this->memos),
             $accounts,
@@ -231,6 +233,7 @@ final class NickServCommandHandlerTest extends TestCase
             new ChangePasswordHandler($this->accounts),
             new DropNickHandler($this->accounts, $channels),
             new SendPasswordHandler($this->accounts, $this->memos),
+            new UpdateAccountSettingHandler($this->accounts),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $channels, $this->memos),
             $this->accounts,
@@ -339,6 +342,66 @@ final class NickServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('SENDPASS Nobody', '001AAAAAA'), $oper);
 
         self::assertSame(['001AAAAAA: Nobody is not registered.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itSetsAndClearsEmail(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SET EMAIL new@example.org'), $this->state);
+
+        self::assertSame('new@example.org', $this->accounts->findByNick(new Nick('JuanJo'))?->email);
+        self::assertSame(['001AAAAAA: EMAIL setting updated.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itSetsAutomode(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SET AUTOMODE +x'), $this->state);
+
+        self::assertSame('+x', $this->accounts->findByNick(new Nick('JuanJo'))?->automode);
+    }
+
+    #[Test]
+    public function itSetsKillProtection(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+
+        $this->handler->handle($this->privmsg('SET KILL QUICK'), $this->state);
+
+        self::assertSame('QUICK', $this->accounts->findByNick(new Nick('JuanJo'))?->kill);
+    }
+
+    #[Test]
+    public function itRejectsAnInvalidKillValue(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SET KILL MAYBE'), $this->state);
+
+        self::assertNull($this->accounts->findByNick(new Nick('JuanJo'))?->kill);
+        self::assertSame(['001AAAAAA: Syntax: SET KILL ON|QUICK|OFF'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function setRequiresIdentification(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SET URL https://example.org'), $this->state);
+
+        self::assertSame(['001AAAAAA: You must be identified to change your settings.'], $this->irc->replies);
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage

@@ -46,7 +46,22 @@ final readonly class ChangePasswordHandler
             return ChangePasswordResult::WeakPassword;
         }
 
-        $this->accounts->update(new Account($stored->nick, $newPassword->hash(), $stored->email, $stored->createdAt));
+        $this->accounts->update(new Account(
+            $stored->nick,
+            $newPassword->hash(),
+            $stored->email,
+            $stored->createdAt,
+            $stored->forbidReason,
+            $stored->suspendReason,
+            $stored->swhois,
+            $stored->vhost,
+            $stored->noexpire,
+            $stored->url,
+            $stored->quitVisible,
+            $stored->private,
+            $stored->kill,
+            $stored->automode,
+        ));
 
         return ChangePasswordResult::Changed;
     }

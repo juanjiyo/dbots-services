@@ -51,6 +51,26 @@ final readonly class AccountBlockProvider implements BlockProviderInterface
             $records[sprintf('%s::vhost', $nick)] = $account->vhost;
         }
 
+        if (null !== $account->url) {
+            $records[sprintf('%s::url', $nick)] = $account->url;
+        }
+
+        if ($account->quitVisible) {
+            $records[sprintf('%s::quit_visible', $nick)] = 'on';
+        }
+
+        if ($account->private) {
+            $records[sprintf('%s::private', $nick)] = 'on';
+        }
+
+        if (null !== $account->kill) {
+            $records[sprintf('%s::kill', $nick)] = $account->kill;
+        }
+
+        if (null !== $account->automode) {
+            $records[sprintf('%s::automode', $nick)] = $account->automode;
+        }
+
         return $records;
     }
 
