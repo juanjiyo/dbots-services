@@ -185,6 +185,22 @@ every mutation rewrites the UnrealIRCd `allow` include and signals the IRCd.
 | `INFO [IP\|host]` | done | Without argument, shows the host linked to the caller's nick |
 | `LIST` | done | Lists active permanent and temporary exceptions |
 
+## GlobalServ
+
+Network-wide announcements, ported from `gl.mrc`. The service gate is **Administrador**;
+commands that originally required Root keep that requirement.
+
+| Command | Status | Notes |
+|---|---|---|
+| `GLOBAL <mensaje>` | done | Sends a two-line message to every connected user |
+| `NICK <nick> <mensaje>` | done | Introduces a temporary pseudo-client, broadcasts, then quits it |
+| `CHAN <#canal> <mensaje>` | done | Sends the message to every member of the channel |
+| `JOIN <#canal> <motivo>` | done | Root only; `SVSJOIN`s every user, then broadcasts |
+| `PRE-OPER <mensaje>` | done | Administrador; reaches Pre-Operador and above |
+| `OPER <mensaje>` | done | Administrador; reaches Operador and above |
+| `CO-ADMIN <mensaje>` | done | Root; reaches Administrador and above |
+| `ADMIN <mensaje>` | done | Root; reaches Administrador only |
+
 ## Modules
 
 A bot that is not a network service lives in `modules/<Name>/` with a
@@ -204,7 +220,6 @@ with its privileges.
 | Bot | Command surface |
 |---|---|
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
-| **GlobalServ** (`gl.mrc`) | `GLOBAL`, network-wide announcements |
 | **NoServ** (`no.mrc`) | `MOTD`, `REPRESENTANTES`, `ALTA`/`BAJA` |
 | **PreOpServ** (`pr.mrc`) | `IGNORA`, `MSG`, `MODE` for pre-operators |
 

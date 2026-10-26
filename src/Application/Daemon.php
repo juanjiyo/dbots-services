@@ -11,6 +11,7 @@ use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ClonesServ\Adapter\In\Irc\ClonesServCommandHandler;
 use Dbots\CRegServ\Adapter\In\Irc\CRegServCommandHandler;
 use Dbots\Domain\Link\LinkState;
+use Dbots\GlobalServ\Adapter\In\Irc\GlobalServCommandHandler;
 use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
@@ -58,6 +59,7 @@ final readonly class Daemon
         private HeLPServCommandHandler $helpServ,
         private CenTeRServCommandHandler $centerServ,
         private ClonesServCommandHandler $clonesServ,
+        private GlobalServCommandHandler $globalServ,
         private ServiceUidFormatter $uidFormatter,
         private EnforcementInterface $enforcement,
         private string $sid,
@@ -116,6 +118,7 @@ final readonly class Daemon
             ['HeLP', sprintf('%sA00007', $this->sid), 'Network Help Services'],
             ['CeNTeR', sprintf('%sA00008', $this->sid), 'Network Control Services'],
             ['CLoNeS', sprintf('%sA00009', $this->sid), 'Clone exceptions manager'],
+            ['GlobalServ', sprintf('%sA00010', $this->sid), 'Network Global Announcement Services'],
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
@@ -275,7 +278,7 @@ final readonly class Daemon
             return;
         }
 
-        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008', 'A00009'];
+        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008', 'A00009', 'A00010'];
 
         foreach ($suffixes as $suffix) {
             $uid = sprintf('%s%s', $this->sid, $suffix);
@@ -446,6 +449,8 @@ final readonly class Daemon
             sprintf('%sA00003', $this->sid) => 'MeMo',
             sprintf('%sA00004', $this->sid) => 'OPeR',
             sprintf('%sA00009', $this->sid) => 'CLoNeS',
+            sprintf('%sA00010', $this->sid) => 'GlobalServ',
+            'GlobalServ' => 'GlobalServ',
         ];
 
         return $known[$target] ?? (in_array($target, $known, true) ? $target : null);
@@ -523,6 +528,7 @@ final readonly class Daemon
         $this->helpServ->handle($message, $this->state);
         $this->centerServ->handle($message, $this->state);
         $this->clonesServ->handle($message, $this->state);
+        $this->globalServ->handle($message, $this->state);
 
         foreach ($this->modules->loaded() as $module) {
             try {

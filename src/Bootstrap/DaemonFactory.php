@@ -35,6 +35,8 @@ use Dbots\CRegServ\Application\Help\CRegServHelp;
 use Dbots\CRegServ\Application\Port\Out\ChannelRequestRepositoryInterface;
 use Dbots\CRegServ\Application\Request\RequestRegistrationHandler;
 use Dbots\Domain\Link\ServerLink;
+use Dbots\GlobalServ\Adapter\In\Irc\GlobalServCommandHandler;
+use Dbots\GlobalServ\Application\Help\GlobalServHelp;
 use Dbots\HeLPServ\Adapter\In\Irc\HeLPServCommandHandler;
 use Dbots\Irc\Adapter\In\IrcMessageParser;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
@@ -284,6 +286,7 @@ final readonly class DaemonFactory
                 'CReG' => 'Registro de canales.',
                 'HeLP' => 'Ayuda global de la red.',
                 'CLoNeS' => 'Gestión de excepciones de clones.',
+                'GlobalServ' => 'Anuncios globales de la red.',
             ],
         );
 
@@ -351,6 +354,21 @@ final readonly class DaemonFactory
             $clonesServUid,
         );
 
+        $globalServUid = sprintf('%sA00010', $sid);
+
+        $globalServ = new GlobalServCommandHandler(
+            $this->transport,
+            new IrcReplySender($this->transport, $globalServUid),
+            $this->staff,
+            $this->accounts,
+            $enforcement,
+            'GlobalServ',
+            $globalServUid,
+            $host,
+            GlobalServHelp::create(),
+            $debug,
+        );
+
         return new Daemon(
             new LinkRunner($this->link, $this->transport, $this->syncTimeoutSeconds),
             $this->transport,
@@ -364,6 +382,7 @@ final readonly class DaemonFactory
             $helpServ,
             $centerServ,
             $clonesServ,
+            $globalServ,
             new ServiceUidFormatter($sid),
             $enforcement,
             $sid,
