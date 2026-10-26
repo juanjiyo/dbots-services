@@ -75,7 +75,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `FORBID <#channel> <reason>`, `UNFORBID`, `LISTFORBID` | done | Oper only; drops the profile and publishes `C::<channel>::forbid` |
 | `LIST <pattern>`, `GETPASS <#channel>` | done | Oper only; `GETPASS` reports the hash instead of the secret |
 | `ESPECIAL` | dropped | It drives a pool of eleven entry bots that this daemon does not run |
-| `SET FOUNDER\|SUCCESSOR` | todo | Changing the founder needs a policy decision |
+| `SET FOUNDER\|SUCCESSOR` | done | Founder transfer and successor assignment |
 
 ## MeMo
 

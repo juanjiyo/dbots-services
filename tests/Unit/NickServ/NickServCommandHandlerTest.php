@@ -442,6 +442,10 @@ final class NoChannels implements ChannelRepositoryInterface
     {
     }
 
+    public function updateSuccessor(Channel $channel): void
+    {
+    }
+
     public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void
     {
     }

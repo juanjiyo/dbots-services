@@ -29,16 +29,32 @@ final readonly class UdbChannelProjection implements ChannelProjectionInterface
             return;
         }
 
-        $this->authority->insert(
-            'C',
-            sprintf('%s::founder', $registered->name->value),
-            $registered->founder,
-        );
+        $this->publishFounderRecord($registered);
 
         $this->authority->insert(
             'C',
             sprintf('%s::options', $registered->name->value),
             ChannelBlockProvider::PERSISTENT,
+        );
+    }
+
+    public function publishFounder(string $channel): void
+    {
+        $registered = $this->channels->find(new ChannelName($channel));
+
+        if (null === $registered) {
+            return;
+        }
+
+        $this->publishFounderRecord($registered);
+    }
+
+    private function publishFounderRecord(\Dbots\Domain\Channel\Channel $registered): void
+    {
+        $this->authority->insert(
+            'C',
+            sprintf('%s::founder', $registered->name->value),
+            $registered->founder,
         );
     }
 

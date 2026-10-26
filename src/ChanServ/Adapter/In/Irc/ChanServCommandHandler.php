@@ -108,7 +108,7 @@ final class ChanServCommandHandler
             'IDENTIFY' => $this->onIdentify($sender, $parts),
             'ACCESS' => $this->onAccess($sender, $account, $parts, $state),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
-            'SET' => $this->onSet($sender, $account, $parts),
+            'SET' => $this->onSet($sender, $account, $parts, $state),
             'LEVELS' => $this->onLevels($sender, $account, $parts),
             'OP', 'DEOP', 'HALFOP', 'DEHALFOP', 'VOICE', 'DEVOICE' => $this->onRank($command, $sender, $account, $parts, $state),
             'INVITE' => $this->onInvite($sender, $account, $parts, $state),
@@ -839,6 +839,7 @@ final class ChanServCommandHandler
             $reason,
             $state->nickOf($uid),
             new DateTimeImmutable(),
+            $registered->successor,
         ));
         $this->projection->publishSuspension($registered->name->value);
 
@@ -884,6 +885,10 @@ final class ChanServCommandHandler
             $registered->url,
             $registered->email,
             $registered->entryMessage,
+            null,
+            null,
+            null,
+            $registered->successor,
         ));
         $this->projection->publishSuspension($registered->name->value);
 
@@ -1335,6 +1340,7 @@ final class ChanServCommandHandler
             $registered->suspendReason,
             $registered->suspendedBy,
             $registered->suspendedAt,
+            $registered->successor,
         ));
         $this->projection->publishTopic($name);
     }
@@ -1490,7 +1496,7 @@ final class ChanServCommandHandler
      *
      * @param list<string> $args
      */
-    private function onSet(string $uid, ?string $account, array $args): void
+    private function onSet(string $uid, ?string $account, array $args, NetworkState $state): void
     {
         $channel = (string) ($args[0] ?? '');
         $option = strtoupper((string) ($args[1] ?? ''));
@@ -1515,6 +1521,9 @@ final class ChanServCommandHandler
             'ENTRYMSG' => $this->setEntryMessage($uid, $registered->name, $value),
             'PASSWORD' => $this->setPassword($uid, $registered->name, $value),
             'MLOCK' => $this->setMlock($uid, $registered->name, $value),
+            // Subcommands documented as 'SET FOUNDER' and 'SET SUCCESSOR'.
+            'FOUNDER' => $this->setFounder($uid, $account, $registered, $value),
+            'SUCCESSOR' => $this->setSuccessor($uid, $account, $registered, $value),
             default => $this->setOptionFlag($uid, $registered->name, $option, $value),
         };
     }
@@ -1594,6 +1603,133 @@ final class ChanServCommandHandler
         $this->reply->reply($uid, sprintf('Contraseña de %s cambiada.', $channel->value));
     }
 
+    private function setFounder(string $uid, ?string $account, Channel $registered, string $value): void
+    {
+        if ('' === $value) {
+            $this->reply->reply($uid, 'Error de Sintaxis: SET <canal> FOUNDER <nick>');
+
+            return;
+        }
+
+        try {
+            $target = new Nick($value);
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'Ese nick no es válido.');
+
+            return;
+        }
+
+        if (null === $this->accountStore->findByNick($target)) {
+            $this->reply->reply($uid, sprintf('El nick %s no está registrado.', $target->value));
+
+            return;
+        }
+
+        if ($registered->isFoundedBy($target->value)) {
+            $this->reply->reply($uid, sprintf('%s ya es el fundador de %s.', $target->value, $registered->name->value));
+
+            return;
+        }
+
+        if (null !== $registered->successor && 0 === strcasecmp($registered->successor, $target->value)) {
+            $this->reply->reply($uid, 'El fundador no puede ser el mismo que el sucesor.');
+
+            return;
+        }
+
+        $this->channels->updateFounder(new Channel(
+            $registered->name,
+            $target->value,
+            $registered->createdAt,
+            $registered->topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+            $registered->suspendReason,
+            $registered->suspendedBy,
+            $registered->suspendedAt,
+            $registered->successor,
+        ));
+        $this->projection->publishFounder($registered->name->value);
+
+        $this->reply->reply($uid, sprintf('El Fundador de %s cambiado a %s.', $registered->name->value, $target->value));
+    }
+
+    private function setSuccessor(string $uid, ?string $account, Channel $registered, string $value): void
+    {
+        if ('' === $value) {
+            if (null === $registered->successor) {
+                $this->reply->reply($uid, sprintf('El canal %s no tiene sucesor.', $registered->name->value));
+
+                return;
+            }
+
+            $this->channels->updateSuccessor(new Channel(
+                $registered->name,
+                $registered->founder,
+                $registered->createdAt,
+                $registered->topic,
+                $registered->passwordHash,
+                $registered->description,
+                $registered->url,
+                $registered->email,
+                $registered->entryMessage,
+                $registered->suspendReason,
+                $registered->suspendedBy,
+                $registered->suspendedAt,
+                null,
+            ));
+            $this->reply->reply($uid, sprintf('El Sucesor para el canal %s ha sido deshabilitado.', $registered->name->value));
+
+            return;
+        }
+
+        try {
+            $target = new Nick($value);
+        } catch (InvalidArgumentException) {
+            $this->reply->reply($uid, 'Ese nick no es válido.');
+
+            return;
+        }
+
+        if (null === $this->accountStore->findByNick($target)) {
+            $this->reply->reply($uid, sprintf('El nick %s no está registrado.', $target->value));
+
+            return;
+        }
+
+        if (null !== $registered->successor && 0 === strcasecmp($registered->successor, $target->value)) {
+            $this->reply->reply($uid, sprintf('%s ya es el sucesor de %s.', $target->value, $registered->name->value));
+
+            return;
+        }
+
+        if ($registered->isFoundedBy($target->value)) {
+            $this->reply->reply($uid, 'El fundador no puede ser el mismo que el sucesor.');
+
+            return;
+        }
+
+        $this->channels->updateSuccessor(new Channel(
+            $registered->name,
+            $registered->founder,
+            $registered->createdAt,
+            $registered->topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+            $registered->suspendReason,
+            $registered->suspendedBy,
+            $registered->suspendedAt,
+            $target->value,
+        ));
+        $this->reply->reply($uid, sprintf('El Sucesor de %s cambiado a %s.', $registered->name->value, $target->value));
+    }
+
     /** @param list<string> $args */
     private function onTopic(string $uid, ?string $account, array $args): void
     {
@@ -1612,7 +1748,21 @@ final class ChanServCommandHandler
         }
 
         $topic = implode(' ', array_slice($args, 1));
-        $this->channels->updateTopic(new Channel($registered->name, $registered->founder, $registered->createdAt, $topic));
+        $this->channels->updateTopic(new Channel(
+            $registered->name,
+            $registered->founder,
+            $registered->createdAt,
+            $topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+            $registered->suspendReason,
+            $registered->suspendedBy,
+            $registered->suspendedAt,
+            $registered->successor,
+        ));
         $this->projection->publishTopic($registered->name->value);
 
         $this->reply->reply($uid, sprintf('Topic for %s updated.', $registered->name->value));

@@ -28,6 +28,7 @@ final readonly class Channel
         public ?string $suspendReason = null,
         public ?string $suspendedBy = null,
         public ?DateTimeImmutable $suspendedAt = null,
+        public ?string $successor = null,
     ) {
     }
 

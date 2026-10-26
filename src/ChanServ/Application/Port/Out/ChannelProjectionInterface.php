@@ -8,6 +8,8 @@ interface ChannelProjectionInterface
 {
     public function publishRegistered(string $channel): void;
 
+    public function publishFounder(string $channel): void;
+
     public function publishDropped(string $channel): void;
 
     public function publishTopic(string $channel): void;

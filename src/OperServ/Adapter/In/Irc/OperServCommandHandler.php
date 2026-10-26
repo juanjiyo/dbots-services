@@ -421,7 +421,21 @@ final class OperServCommandHandler
             return;
         }
 
-        $this->channels->updateFounder(new Channel($registered->name, $founder, $registered->createdAt, $registered->topic));
+        $this->channels->updateFounder(new Channel(
+            $registered->name,
+            $founder,
+            $registered->createdAt,
+            $registered->topic,
+            $registered->passwordHash,
+            $registered->description,
+            $registered->url,
+            $registered->email,
+            $registered->entryMessage,
+            $registered->suspendReason,
+            $registered->suspendedBy,
+            $registered->suspendedAt,
+            $registered->successor,
+        ));
         $this->channelProjection->publishRegistered($registered->name->value);
 
         $this->reply->reply($sender, sprintf('%s now belongs to %s.', $registered->name->value, $founder));

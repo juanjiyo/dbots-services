@@ -18,6 +18,8 @@ interface ChannelRepositoryInterface
 
     public function updateFounder(Channel $channel): void;
 
+    public function updateSuccessor(Channel $channel): void;
+
     /** Writes one `SET` value; null clears it. */
     public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void;
 

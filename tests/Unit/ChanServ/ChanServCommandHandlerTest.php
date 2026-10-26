@@ -1016,6 +1016,117 @@ final class ChanServCommandHandlerTest extends TestCase
         self::assertSame([], $this->irc->replies);
     }
 
+    #[Test]
+    public function theFounderCanTransferOwnership(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test founder bob'), $this->state);
+
+        self::assertSame('bob', $this->channels->find(new ChannelName('#test'))?->founder);
+        self::assertSame(['#test'], $this->projection->founders);
+        self::assertSame(['001AAAAAA: El Fundador de #test cambiado a bob.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function founderTransferRejectsTheCurrentFounder(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test founder alice'), $this->state);
+
+        self::assertSame('alice', $this->channels->find(new ChannelName('#test'))?->founder);
+        self::assertSame(['001AAAAAA: alice ya es el fundador de #test.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function founderTransferRejectsTheCurrentSuccessor(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->channels->updateSuccessor(new \Dbots\Domain\Channel\Channel(
+            new ChannelName('#test'),
+            'alice',
+            new \DateTimeImmutable(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            'bob',
+        ));
+
+        $this->handler->handle($this->privmsg('set #test founder bob'), $this->state);
+
+        self::assertSame('alice', $this->channels->find(new ChannelName('#test'))?->founder);
+        self::assertSame(['001AAAAAA: El fundador no puede ser el mismo que el sucesor.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function founderTransferRejectsAnUnregisteredTarget(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test founder desconocido'), $this->state);
+
+        self::assertSame('alice', $this->channels->find(new ChannelName('#test'))?->founder);
+        self::assertSame(['001AAAAAA: El nick desconocido no está registrado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function theFounderCanSetAndClearASuccessor(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test successor bob'), $this->state);
+
+        self::assertSame('bob', $this->channels->find(new ChannelName('#test'))?->successor);
+        self::assertSame(['001AAAAAA: El Sucesor de #test cambiado a bob.'], $this->irc->replies);
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('set #test successor'), $this->state);
+
+        self::assertNull($this->channels->find(new ChannelName('#test'))?->successor);
+        self::assertSame(['001AAAAAA: El Sucesor para el canal #test ha sido deshabilitado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function clearingANonExistentSuccessorReportsIt(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test successor'), $this->state);
+
+        self::assertSame(['001AAAAAA: El canal #test no tiene sucesor.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function successorRejectsTheCurrentFounder(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+
+        $this->handler->handle($this->privmsg('set #test successor alice'), $this->state);
+
+        self::assertNull($this->channels->find(new ChannelName('#test'))?->successor);
+        self::assertSame(['001AAAAAA: El fundador no puede ser el mismo que el sucesor.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aStrangerCannotChangeTheFounder(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', null, 'r');
+
+        $this->handler->handle($this->privmsg('set #test founder bob', '001BBBBBB'), $state);
+
+        self::assertSame('alice', $this->channels->find(new ChannelName('#test'))?->founder);
+        self::assertSame(['001BBBBBB: Solo el fundador puede hacer eso.'], $this->irc->replies);
+    }
+
     private function joinAs(string $uid, string $nick, ?string $account = null): void
     {
         if (!$this->state->hasNick($nick)) {

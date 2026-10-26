@@ -31,7 +31,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             $this->pdo->exec('ALTER TABLE channels ADD COLUMN topic TEXT NULL');
         }
 
-        foreach (['password_hash', 'description', 'url', 'email', 'entry_message', 'suspend_reason', 'suspended_by', 'suspended_at'] as $column) {
+        foreach (['password_hash', 'description', 'url', 'email', 'entry_message', 'suspend_reason', 'suspended_by', 'suspended_at', 'successor'] as $column) {
             if (!in_array($column, array_column($columns, 'name'), true)) {
                 $this->pdo->exec(sprintf('ALTER TABLE channels ADD COLUMN %s TEXT NULL', $column));
             }
@@ -41,7 +41,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
     public function find(ChannelName $name): ?Channel
     {
         $statement = $this->pdo->prepare('SELECT name, founder, created_at, topic, password_hash, description, url, email, entry_message,
-                    suspend_reason, suspended_by, suspended_at
+                    suspend_reason, suspended_by, suspended_at, successor
              FROM channels WHERE name = :name');
         $statement->execute(['name' => $name->value]);
 
@@ -53,8 +53,8 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
     public function save(Channel $channel): void
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO channels (name, founder, created_at, topic, password_hash, description, url, email, entry_message)
-             VALUES (:name, :founder, :created, :topic, :hash, :description, :url, :email, :entry)'
+            'INSERT INTO channels (name, founder, created_at, topic, password_hash, description, url, email, entry_message, successor)
+             VALUES (:name, :founder, :created, :topic, :hash, :description, :url, :email, :entry, :successor)'
         );
 
         $statement->execute([
@@ -67,6 +67,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             'url' => $channel->url,
             'email' => $channel->email,
             'entry' => $channel->entryMessage,
+            'successor' => $channel->successor,
         ]);
     }
 
@@ -80,6 +81,12 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
     {
         $statement = $this->pdo->prepare('UPDATE channels SET topic = :topic WHERE name = :name');
         $statement->execute(['name' => $channel->name->value, 'topic' => $channel->topic]);
+    }
+
+    public function updateSuccessor(Channel $channel): void
+    {
+        $statement = $this->pdo->prepare('UPDATE channels SET successor = :successor WHERE name = :name');
+        $statement->execute(['name' => $channel->name->value, 'successor' => $channel->successor]);
     }
 
     public function updateSetting(ChannelName $name, ChannelSetting $setting, ?string $value): void
@@ -117,7 +124,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
     public function all(): array
     {
         $statement = $this->pdo->query('SELECT name, founder, created_at, topic, password_hash, description, url, email, entry_message,
-                    suspend_reason, suspended_by, suspended_at
+                    suspend_reason, suspended_by, suspended_at, successor
              FROM channels ORDER BY name');
 
         $channels = [];
@@ -145,6 +152,7 @@ final readonly class SqliteChannelRepository implements ChannelRepositoryInterfa
             null === ($row['suspend_reason'] ?? null) ? null : (string) $row['suspend_reason'],
             null === ($row['suspended_by'] ?? null) ? null : (string) $row['suspended_by'],
             null === ($row['suspended_at'] ?? null) ? null : new DateTimeImmutable((string) $row['suspended_at']),
+            null === ($row['successor'] ?? null) ? null : (string) $row['successor'],
         );
     }
 }

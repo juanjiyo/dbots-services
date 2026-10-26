@@ -37,7 +37,9 @@ final class ChanServHelp
             new HelpEntry('INVITE', 'INVITE <#canal>', 'Te invita al canal. Nivel INVITE.', '/msg CHaN INVITE #miCanal'),
             new HelpEntry('UNBAN', 'UNBAN <#canal>', 'Levanta tu ban en el canal. Nivel UNBAN.', '/msg CHaN UNBAN #miCanal'),
             new HelpEntry('LEVELS', 'LEVELS <#canal> LIST|SET|RESET [clave] [nivel]', 'Niveles que exige cada comando del canal. Van de -1 a 500; 500 es el fundador. Solo el fundador.', '/msg CHaN LEVELS #miCanal SET AUTOOP 300'),
-            new HelpEntry('SET', 'SET <#canal> <opción> [valor]', 'Configuración del canal: DESC, URL, EMAIL, ENTRYMSG, PASSWORD, MLOCK y los interruptores ON|OFF (TOPICLOCK, KEEPTOPIC, SECUREOPS, SECUREHALFOPS, AUTOLIMIT, PBANS, PMODE, PRIVATE, SECURE, RESTRICTED, NOEXPIRE, DEBUG). Solo el fundador.', '/msg CHaN SET #miCanal TOPICLOCK ON'),
+            new HelpEntry('SET', 'SET <#canal> <opción> [valor]', 'Configuración del canal: DESC, URL, EMAIL, ENTRYMSG, PASSWORD, MLOCK, FOUNDER, SUCCESSOR y los interruptores ON|OFF (TOPICLOCK, KEEPTOPIC, SECUREOPS, SECUREHALFOPS, AUTOLIMIT, PBANS, PMODE, PRIVATE, SECURE, RESTRICTED, NOEXPIRE, DEBUG). Solo el fundador.', '/msg CHaN SET #miCanal TOPICLOCK ON'),
+            new HelpEntry('SET FOUNDER', 'SET <#canal> FOUNDER <nick>', 'Transfiere la propiedad del canal a otro nick registrado.', '/msg CHaN SET #miCanal FOUNDER bob'),
+            new HelpEntry('SET SUCCESSOR', 'SET <#canal> SUCCESSOR [nick]', 'Fija o borra el sucesor del canal.', '/msg CHaN SET #miCanal SUCCESSOR bob'),
         ]);
     }
 }
