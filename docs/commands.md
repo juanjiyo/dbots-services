@@ -201,6 +201,22 @@ commands that originally required Root keep that requirement.
 | `CO-ADMIN <mensaje>` | done | Root; reaches Administrador and above |
 | `ADMIN <mensaje>` | done | Root; reaches Administrador only |
 
+## NoServ
+
+Network news service, ported from `no.mrc`. `ALTA`/`BAJA` only require an identified
+nick; every other command requires **Administrador**.
+
+| Command | Status | Notes |
+|---|---|---|
+| `ALTA` | done | Subscribe the caller's account to news |
+| `BAJA` | done | Unsubscribe the caller's account |
+| `EMAIL <mensaje>` | done | Sends the message by e-mail to all subscribers |
+| `MOTD ADD\|DEL\|LIST [mensaje]` | done | User news list; `ADD` broadcasts immediately |
+| `NICK ADD\|DEL\|LIST <nick> [mensaje]` | done | Temporary MOTD pseudo-clients |
+| `REPRESENTANTES ADD\|DEL\|LIST [mensaje]` | done | Staff news list; `ADD` broadcasts to Pre-Operador+ |
+| `NOTICIAS` | done | Fetches `DBOTS_NEWS_URL` and replies with the text |
+| `SERVIDOR <servidor> [mensaje]` | done | Entry message per server; omit message to remove |
+
 ## Modules
 
 A bot that is not a network service lives in `modules/<Name>/` with a
@@ -220,7 +236,6 @@ with its privileges.
 | Bot | Command surface |
 |---|---|
 | **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
-| **NoServ** (`no.mrc`) | `MOTD`, `REPRESENTANTES`, `ALTA`/`BAJA` |
 | **PreOpServ** (`pr.mrc`) | `IGNORA`, `MSG`, `MODE` for pre-operators |
 
 Relative completeness: OPeR, CReG and HeLP cover their reference; NiCK is about a

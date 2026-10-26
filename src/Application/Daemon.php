@@ -24,6 +24,7 @@ use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Application\ApplyAutomode\ApplyAutomode;
+use Dbots\NoServ\Adapter\In\Irc\NoServCommandHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\Udb\UdbAuthority;
@@ -60,6 +61,7 @@ final readonly class Daemon
         private CenTeRServCommandHandler $centerServ,
         private ClonesServCommandHandler $clonesServ,
         private GlobalServCommandHandler $globalServ,
+        private NoServCommandHandler $noServ,
         private ServiceUidFormatter $uidFormatter,
         private EnforcementInterface $enforcement,
         private string $sid,
@@ -119,6 +121,7 @@ final readonly class Daemon
             ['CeNTeR', sprintf('%sA00008', $this->sid), 'Network Control Services'],
             ['CLoNeS', sprintf('%sA00009', $this->sid), 'Clone exceptions manager'],
             ['GlobalServ', sprintf('%sA00010', $this->sid), 'Network Global Announcement Services'],
+            ['NoServ', sprintf('%sA00011', $this->sid), 'Network News Services'],
         ];
 
         if (null !== $this->debug && $this->debug->isEnabled()) {
@@ -278,7 +281,7 @@ final readonly class Daemon
             return;
         }
 
-        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008', 'A00009', 'A00010'];
+        $suffixes = ['A00001', 'A00002', 'A00003', 'A00004', 'A00005', 'A00006', 'A00007', 'A00008', 'A00009', 'A00010', 'A00011'];
 
         foreach ($suffixes as $suffix) {
             $uid = sprintf('%s%s', $this->sid, $suffix);
@@ -450,7 +453,9 @@ final readonly class Daemon
             sprintf('%sA00004', $this->sid) => 'OPeR',
             sprintf('%sA00009', $this->sid) => 'CLoNeS',
             sprintf('%sA00010', $this->sid) => 'GlobalServ',
+            sprintf('%sA00011', $this->sid) => 'NoServ',
             'GlobalServ' => 'GlobalServ',
+            'NoServ' => 'NoServ',
         ];
 
         return $known[$target] ?? (in_array($target, $known, true) ? $target : null);
@@ -529,6 +534,7 @@ final readonly class Daemon
         $this->centerServ->handle($message, $this->state);
         $this->clonesServ->handle($message, $this->state);
         $this->globalServ->handle($message, $this->state);
+        $this->noServ->handle($message, $this->state);
 
         foreach ($this->modules->loaded() as $module) {
             try {

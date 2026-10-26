@@ -71,6 +71,12 @@ use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
 use Dbots\NickServ\Application\ValidateRegistration\ValidateRegistrationHandler;
 use Dbots\NickServ\Application\Vreg\VregHandler;
+use Dbots\NoServ\Adapter\In\Irc\NoServCommandHandler;
+use Dbots\NoServ\Adapter\Out\Persistence\SqliteMotdNickRepository;
+use Dbots\NoServ\Adapter\Out\Persistence\SqliteNewsMessageRepository;
+use Dbots\NoServ\Adapter\Out\Persistence\SqliteNewsSubscriptionRepository;
+use Dbots\NoServ\Adapter\Out\Persistence\SqliteServerEntryMessageRepository;
+use Dbots\NoServ\Application\Help\NoServHelp;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\OperServ\Application\Help\OperServHelp;
@@ -129,6 +135,7 @@ final readonly class DaemonFactory
         private ?ClonesWriterInterface $clonesWriter = null,
         private string $clonesConfigPath = '/home/irc/unrealircd/conf/clones.conf',
         private string $clonesPidFilePath = '/home/irc/unrealircd/data/unrealircd.pid',
+        private ?PDO $pdo = null,
     ) {
         // One epoch per process, not per connection: UDB reads it as this
         // authority's identity, so a new value on every reconnect looks like a
@@ -287,6 +294,7 @@ final readonly class DaemonFactory
                 'HeLP' => 'Ayuda global de la red.',
                 'CLoNeS' => 'Gestión de excepciones de clones.',
                 'GlobalServ' => 'Anuncios globales de la red.',
+                'NoServ' => 'Servicio de noticias de la red.',
             ],
         );
 
@@ -369,6 +377,26 @@ final readonly class DaemonFactory
             $debug,
         );
 
+        $noServUid = sprintf('%sA00011', $sid);
+        $noServPdo = $this->pdo ?? new PDO('sqlite::memory:');
+
+        $noServ = new NoServCommandHandler(
+            new IrcReplySender($this->transport, $noServUid),
+            $this->transport,
+            $this->staff,
+            $this->accounts,
+            new SqliteNewsSubscriptionRepository($noServPdo),
+            new SqliteNewsMessageRepository($noServPdo, 'motd'),
+            new SqliteNewsMessageRepository($noServPdo, 'representantes'),
+            new SqliteServerEntryMessageRepository($noServPdo),
+            new SqliteMotdNickRepository($noServPdo),
+            $emailSender,
+            'NoServ',
+            $noServUid,
+            NoServHelp::create(),
+            ['NiCK', 'CHaN', 'MeMo', 'OPeR', 'CReG', 'HeLP', 'CeNTeR', 'CLoNeS', 'GlobalServ'],
+        );
+
         return new Daemon(
             new LinkRunner($this->link, $this->transport, $this->syncTimeoutSeconds),
             $this->transport,
@@ -383,6 +411,7 @@ final readonly class DaemonFactory
             $centerServ,
             $clonesServ,
             $globalServ,
+            $noServ,
             new ServiceUidFormatter($sid),
             $enforcement,
             $sid,
