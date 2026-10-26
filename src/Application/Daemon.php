@@ -92,13 +92,16 @@ final readonly class Daemon
 
         $lastCleanup = 0;
         $clonesHandler = $this->clonesServ;
-        $tick = static function () use (&$lastCleanup, $clonesHandler): void {
+        $modules = $this->modules;
+        $tick = static function () use (&$lastCleanup, $clonesHandler, $modules): void {
             $now = time();
 
             if ($now - $lastCleanup >= 3600) {
                 $lastCleanup = $now;
                 $clonesHandler->cleanup();
             }
+
+            $modules->tick();
         };
 
         $this->runner->pump($seconds, fn (string $line): null => $this->onLine($line), $tick);

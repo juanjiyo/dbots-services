@@ -228,6 +228,17 @@ PHP instead of running another daemon.
 `CeNTeR MODULO LIST|LOAD|UNLOAD` manages them; the change is applied immediately
 and the module pseudo-client is introduced or quit without restarting the daemon.
 
+### Sumidero
+
+The `Sumidero` module (loaded with `CeNTeR MODULO LOAD Sumidero`) provides an
+anti-spam/anti-clone sink. It joins `#Sumidero` (configurable with
+`DBOTS_SUMIDERO_SINK`) and the configured watched channels, shuns unidentified
+users after a delay, sinks flooders, and issues verification tokens that can be
+released via `PRIVMSG Sumidero :VERIFICAR <token> <ip>` from an authorized bridge.
+Staff commands (`help`, `status`, `release`, `sink`, `ignore`, `unignore`, `spam`)
+are available by messaging the module and are gated by the masks configured in
+`DBOTS_SUMIDERO_ADMINS`.
+
 **A module is trusted code, not a sandbox.** It runs inside the services process
 with its privileges.
 

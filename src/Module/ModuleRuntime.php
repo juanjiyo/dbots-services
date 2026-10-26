@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Dbots\Module;
 
+use Closure;
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
+use PDO;
 use RuntimeException;
 use Throwable;
 
@@ -14,6 +16,8 @@ use function array_key_exists;
 use function array_keys;
 use function array_values;
 use function fwrite;
+use function is_dir;
+use function mkdir;
 use function sprintf;
 
 /**
@@ -30,6 +34,12 @@ final class ModuleRuntime
     /** @var array<string, array{module: ModuleInterface, uid: string}> */
     private array $loaded = [];
 
+    /** @var array<string, PDO> */
+    private array $pdos = [];
+
+    /** @var list<array{due: int, callback: Closure}> */
+    private array $scheduled = [];
+
     private int $nextIndex = 0;
 
     public function __construct(
@@ -40,6 +50,7 @@ final class ModuleRuntime
         private string $sid,
         private string $serviceHost,
         private string $debugChannel,
+        private string $dataDirectory = '',
     ) {
     }
 
@@ -104,9 +115,9 @@ final class ModuleRuntime
     /** Builds a context addressed to one of the loaded modules. */
     public function contextFor(ModuleInterface $module): ModuleContext
     {
-        foreach ($this->loaded as $entry) {
+        foreach ($this->loaded as $name => $entry) {
             if ($entry['module'] === $module) {
-                return new ModuleContext($entry['uid'], $this->sid, $this->transport);
+                return $this->context($name, $entry);
             }
         }
 
@@ -133,6 +144,58 @@ final class ModuleRuntime
         }
     }
 
+    /** Triggers scheduled callbacks whose time has come. */
+    public function tick(): void
+    {
+        $now = time();
+        $due = [];
+        $remaining = [];
+
+        foreach ($this->scheduled as $item) {
+            if ($item['due'] <= $now) {
+                $due[] = $item['callback'];
+
+                continue;
+            }
+
+            $remaining[] = $item;
+        }
+
+        $this->scheduled = $remaining;
+
+        foreach ($due as $callback) {
+            try {
+                $callback();
+            } catch (Throwable $error) {
+                fwrite(STDERR, sprintf("scheduled callback failed: %s\n", $error->getMessage()));
+            }
+        }
+    }
+
+    /** Returns the SQLite PDO for a module, creating the file if needed. */
+    public function pdoFor(string $name): PDO
+    {
+        if (isset($this->pdos[$name])) {
+            return $this->pdos[$name];
+        }
+
+        $path = '' !== $this->dataDirectory
+            ? sprintf('%s/modules/%s.db', $this->dataDirectory, $name)
+            : sprintf('data/modules/%s.db', $name);
+
+        $directory = dirname($path);
+
+        if (!is_dir($directory)) {
+            mkdir($directory, 0o750, true);
+        }
+
+        $pdo = new PDO(sprintf('sqlite:%s', $path));
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->pdos[$name] = $pdo;
+
+        return $pdo;
+    }
+
     private function load(string $name): void
     {
         $module = $this->registry->create($name);
@@ -148,7 +211,7 @@ final class ModuleRuntime
 
         if ($module instanceof ModuleLifecycleInterface) {
             try {
-                $module->onLoad($this->context($entry));
+                $module->onLoad($this->context($name, $entry));
             } catch (Throwable $error) {
                 fwrite(STDERR, sprintf("module %s onLoad failed: %s\n", $module->nick(), $error->getMessage()));
             }
@@ -164,7 +227,7 @@ final class ModuleRuntime
 
         if ($module instanceof ModuleLifecycleInterface) {
             try {
-                $module->onUnload($this->context($entry));
+                $module->onUnload($this->context($name, $entry));
             } catch (Throwable $error) {
                 fwrite(STDERR, sprintf("module %s onUnload failed: %s\n", $module->nick(), $error->getMessage()));
             }
@@ -203,8 +266,20 @@ final class ModuleRuntime
     }
 
     /** @param array{module: ModuleInterface, uid: string} $entry */
-    private function context(array $entry): ModuleContext
+    private function context(string $name, array $entry): ModuleContext
     {
-        return new ModuleContext($entry['uid'], $this->sid, $this->transport);
+        return new ModuleContext(
+            $entry['uid'],
+            $this->sid,
+            $this->transport,
+            $this->enforcement,
+            $this->pdoFor($name),
+            function (int $seconds, Closure $callback): void {
+                $this->scheduled[] = [
+                    'due' => time() + $seconds,
+                    'callback' => $callback,
+                ];
+            },
+        );
     }
 }

@@ -21,10 +21,12 @@ use PHPUnit\Framework\TestCase;
 use function file_put_contents;
 use function glob;
 use function implode;
+use function is_dir;
 use function mkdir;
 use function rmdir;
 use function sys_get_temp_dir;
 use function tempnam;
+use function uniqid;
 use function unlink;
 
 final class FakeEnabledModule implements ModuleInterface
@@ -77,6 +79,7 @@ final class FakeLifecycleModule implements ModuleInterface, ModuleLifecycleInter
 final class ModuleRuntimeTest extends TestCase
 {
     private string $directory;
+    private string $dataDirectory;
     private InMemoryModuleStateRepository $state;
     private RecordingTransport $transport;
     private RecordingEnforcement $enforcement;
@@ -87,6 +90,9 @@ final class ModuleRuntimeTest extends TestCase
         $this->directory = tempnam(sys_get_temp_dir(), 'modules');
         unlink($this->directory);
         mkdir($this->directory);
+
+        $this->dataDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dbots-data-' . uniqid();
+        mkdir($this->dataDirectory);
 
         mkdir($this->directory.'/Enabled');
         file_put_contents(
@@ -113,6 +119,7 @@ final class ModuleRuntimeTest extends TestCase
             '003',
             'bots.sitiochat.es',
             '#debug',
+            $this->dataDirectory,
         );
     }
 
@@ -123,6 +130,15 @@ final class ModuleRuntimeTest extends TestCase
             rmdir($path);
         }
         rmdir($this->directory);
+
+        $modulesDir = $this->dataDirectory.'/modules';
+        foreach (glob($modulesDir.'/*') ?: [] as $path) {
+            unlink($path);
+        }
+        if (is_dir($modulesDir)) {
+            rmdir($modulesDir);
+        }
+        rmdir($this->dataDirectory);
     }
 
     #[Test]

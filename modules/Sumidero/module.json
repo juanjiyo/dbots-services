@@ -1,0 +1,6 @@
+{
+    "class": "Modules\\Sumidero\\SumideroModule",
+    "nick": "Sumidero",
+    "description": "Servicio anti-spam y anti-clon con verificación web.",
+    "enabled_by_default": false
+}

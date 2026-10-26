@@ -9,6 +9,7 @@ parameters:
     env(DBOTS_LINK_DESCRIPTION): 'dbots services'
     env(DBOTS_LINK_TLS_VERIFY): '1'
     env(DBOTS_DATABASE): '%kernel.project_dir%/var/dbots.sqlite'
+    env(DBOTS_DATA_DIR): '%kernel.project_dir%/data'
     env(DBOTS_ROOT_PASSWORD): ''
     env(DBOTS_RECONNECT_DELAY): '5'
     env(DBOTS_DEBUG_CHANNEL): ''
@@ -117,3 +118,4 @@ services:
             $jailChannel: '%env(DBOTS_JAIL_CHANNEL)%'
             $clonesConfigPath: '%env(DBOTS_CLONES_CONF)%'
             $clonesPidFilePath: '%env(DBOTS_CLONES_PID_FILE)%'
+            $dataDirectory: '%env(DBOTS_DATA_DIR)%'

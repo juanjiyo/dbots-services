@@ -21,4 +21,37 @@ final class S2sEnforcementTest extends TestCase
 
         self::assertSame([':003 SQLINE NiCK :Reservado para Servicios'], $transport->written);
     }
+
+    #[Test]
+    public function itSendsAShunCommandWithDurationString(): void
+    {
+        $transport = new RecordingTransport();
+        $enforcement = new S2sEnforcement($transport, '003');
+
+        $enforcement->shun('*@spammer.example.com', 900, 'Sumidero: flood');
+
+        self::assertSame([':003 SHUN +*@spammer.example.com 15m :Sumidero: flood'], $transport->written);
+    }
+
+    #[Test]
+    public function itSendsAnUnshunCommand(): void
+    {
+        $transport = new RecordingTransport();
+        $enforcement = new S2sEnforcement($transport, '003');
+
+        $enforcement->unshun('*@spammer.example.com');
+
+        self::assertSame([':003 SHUN -*@spammer.example.com'], $transport->written);
+    }
+
+    #[Test]
+    public function itFallsBackToSecondsWhenDurationDoesNotDivideNicely(): void
+    {
+        $transport = new RecordingTransport();
+        $enforcement = new S2sEnforcement($transport, '003');
+
+        $enforcement->shun('*@host.example.com', 95, 'test');
+
+        self::assertSame([':003 SHUN +*@host.example.com 95s :test'], $transport->written);
+    }
 }

@@ -138,4 +138,37 @@ final readonly class S2sEnforcement implements EnforcementInterface
             $channel,
         ));
     }
+
+    public function shun(string $hostMask, int $durationSeconds, string $reason): void
+    {
+        $this->transport->writeLine(sprintf(
+            ':%s SHUN +%s %s :%s',
+            $this->sid,
+            $hostMask,
+            self::toDurationString($durationSeconds),
+            $reason,
+        ));
+    }
+
+    public function unshun(string $hostMask): void
+    {
+        $this->transport->writeLine(sprintf(
+            ':%s SHUN -%s',
+            $this->sid,
+            $hostMask,
+        ));
+    }
+
+    private static function toDurationString(int $seconds): string
+    {
+        $seconds = max(30, $seconds);
+
+        foreach (['w' => 604800, 'd' => 86400, 'h' => 3600, 'm' => 60] as $unit => $factor) {
+            if (0 === $seconds % $factor) {
+                return sprintf('%d%s', (int) ($seconds / $factor), $unit);
+            }
+        }
+
+        return sprintf('%ds', $seconds);
+    }
 }

@@ -7,8 +7,10 @@ namespace Dbots\Tests\Unit\Module;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Module\ModuleContext;
+use Dbots\Tests\Support\RecordingEnforcement;
 use Dbots\Tests\Support\RecordingTransport;
 use Modules\Ping\PingModule;
+use PDO;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -23,7 +25,14 @@ final class PingModuleTest extends TestCase
     {
         $this->transport = new RecordingTransport();
         $this->module = new PingModule();
-        $this->context = new ModuleContext('003A00100', '003', $this->transport);
+        $this->context = new ModuleContext(
+            '003A00100',
+            '003',
+            $this->transport,
+            new RecordingEnforcement(),
+            new PDO('sqlite::memory:'),
+            static fn (): null => null,
+        );
         $this->state = new NetworkState();
     }
 

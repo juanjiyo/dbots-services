@@ -50,6 +50,12 @@ final class RecordingEnforcement implements EnforcementInterface
     /** @var list<string> */
     public array $invites = [];
 
+    /** @var list<string> */
+    public array $shuns = [];
+
+    /** @var list<string> */
+    public array $unshuns = [];
+
     public function kill(string $uid, string $reason): void
     {
         $this->kills[] = $uid . '|' . $reason;
@@ -118,5 +124,15 @@ final class RecordingEnforcement implements EnforcementInterface
     public function invite(string $targetNick, string $channel): void
     {
         $this->invites[] = $targetNick . '->' . $channel;
+    }
+
+    public function shun(string $hostMask, int $durationSeconds, string $reason): void
+    {
+        $this->shuns[] = $hostMask . '|' . $durationSeconds . '|' . $reason;
+    }
+
+    public function unshun(string $hostMask): void
+    {
+        $this->unshuns[] = $hostMask;
     }
 }

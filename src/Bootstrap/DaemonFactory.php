@@ -135,6 +135,7 @@ final readonly class DaemonFactory
         private ?ClonesWriterInterface $clonesWriter = null,
         private string $clonesConfigPath = '/home/irc/unrealircd/conf/clones.conf',
         private string $clonesPidFilePath = '/home/irc/unrealircd/data/unrealircd.pid',
+        private string $dataDirectory = '',
         private ?PDO $pdo = null,
     ) {
         // One epoch per process, not per connection: UDB reads it as this
@@ -312,6 +313,7 @@ final readonly class DaemonFactory
             $sid,
             $host,
             $this->debugChannel,
+            $this->dataDirectory,
         );
 
         $centerServ = new CenTeRServCommandHandler(

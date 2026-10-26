@@ -57,4 +57,14 @@ interface EnforcementInterface
      * UnrealIRCd: `:<sid> INVITE <nick> <#channel>`.
      */
     public function invite(string $targetNick, string $channel): void;
+
+    /**
+     * Adds a SHUN to the given host mask.
+     *
+     * UnrealIRCd: `:<sid> SHUN +<hostMask> <duration> :<reason>`.
+     */
+    public function shun(string $hostMask, int $durationSeconds, string $reason): void;
+
+    /** Removes a SHUN from the given host mask. */
+    public function unshun(string $hostMask): void;
 }
