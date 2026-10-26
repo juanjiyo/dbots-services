@@ -39,7 +39,6 @@ the original; **todo** is not implemented.
 | `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, AUTOMODE…) | done | |
 | `SENDPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it via memo |
 | `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
-| `VIEWIP` | todo | Will move to a future `HostServ`; `VHOST` / `DROPVHOST` deliberately live there, not in NiCK |
 | `MARCA` / `MARCADEL` / `MERCADEL` | dropped | dBots-specific mark workflows with no UDB equivalent |
 | `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
 
@@ -102,6 +101,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `CONEXIONES LIST <min>`, `CONEXIONES VIEW <host>` | done | Requires CeNTeR `Administrador` |
 | `LIMPIA <#channel>`, `STATS`, `IRCOPS`, `ROOT`, `SETTIME`, `SPAM LIST\|ADD\|DEL` | done |
 | `INVITE <#channel>` | done | |
+| `VIEWIP <nick>` | todo (shows the user's real IP; moved from NiCK) | |
 | `SET SUFIJO\|NICKSERV\|CHANSERV\|IPSERV\|PASSPROTECT\|PREFIJOS <valor>` | done | IRC-operator only; UDB S block |
 
 ## CReG
