@@ -70,7 +70,8 @@ approval flow — you request, staff approve. The original *supports* stage
 | `CLEAR <#channel> <option>` | done | `MODES`, `BANS`, `OPS`, `HALFOPS`, `VOICES`, `USERS`, `TOPIC`; bounded by what the mode stream has shown us |
 | `KICK` | dropped | By decision: channels kick with native `+o` |
 | `AKICK <#channel> ADD\|DEL\|LIST\|ENFORCE [nick] [reason]` | done | `AKICK-CHANGE` 499, `AKICK-LIST` 300; 50 entries max |
-| `DELACCESS`, `SECUREOPS`… | todo | The rest of the rank model |
+| `DELACCESS` | done | Self-removal from a channel access list |
+| `SECUREOPS`… | done | Part of the SET option switches |
 | `SUSPEND <#channel> <reason>`, `UNSUSPEND <#channel>`, `LISTSUSPEND` | done | Oper only; publishes `C::<channel>::suspend`, so the IRCd enforces it |
 | `FORBID <#channel> <reason>`, `UNFORBID`, `LISTFORBID` | done | Oper only; drops the profile and publishes `C::<channel>::forbid` |
 | `LIST <pattern>`, `GETPASS <#channel>` | done | Oper only; `GETPASS` reports the hash instead of the secret |

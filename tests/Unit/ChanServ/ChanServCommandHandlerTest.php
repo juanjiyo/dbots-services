@@ -30,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 final class ChanServCommandHandlerTest extends TestCase
 {
     private InMemoryChannelRepository $channels;
+    private InMemoryChannelAccessRepository $access;
     private InMemoryAccountRepository $accounts;
     private RecordingIrc $irc;
     private RecordingChannelProjection $projection;
@@ -40,6 +41,7 @@ final class ChanServCommandHandlerTest extends TestCase
     protected function setUp(): void
     {
         $this->channels = new InMemoryChannelRepository();
+        $this->access = new InMemoryChannelAccessRepository();
         $this->accounts = new InMemoryAccountRepository();
         $this->accounts->save(new Account(new Nick('alice'), 'hash', null, new \DateTimeImmutable()));
         $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
@@ -47,9 +49,9 @@ final class ChanServCommandHandlerTest extends TestCase
         $this->projection = new RecordingChannelProjection();
         $this->actions = new RecordingChannelActions();
         $this->handler = new ChanServCommandHandler(
-            new DropChannelHandler($this->channels, new InMemoryChannelAccessRepository()),
+            new DropChannelHandler($this->channels, $this->access),
             $this->channels,
-            new InMemoryChannelAccessRepository(),
+            $this->access,
             new InMemoryChannelLevelRepository(),
             $this->actions,
             new InMemoryChannelAkickRepository(),
@@ -1125,6 +1127,65 @@ final class ChanServCommandHandlerTest extends TestCase
 
         self::assertSame('alice', $this->channels->find(new ChannelName('#test'))?->founder);
         self::assertSame(['001BBBBBB: Solo el fundador puede hacer eso.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aUserCanRemoveThemselvesFromTheAccessList(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test bob 100'), $this->state);
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', 'bob', 'r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('delaccess #test', '001BBBBBB'), $state);
+
+        self::assertNull($this->access->levelOf('#test', 'bob'));
+        self::assertSame(['001BBBBBB: Tu registro ha sido borrado del canal #test.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function delaccessRequiresIdentification(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test bob 100'), $this->state);
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('delaccess #test', '001BBBBBB'), $state);
+
+        self::assertSame(['001BBBBBB: Debes identificarte antes de utilizar el comando DELACCESS.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function delaccessRequiresBeingInTheAccessList(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', 'bob', 'r');
+
+        $this->handler->handle($this->privmsg('delaccess #test', '001BBBBBB'), $state);
+
+        self::assertSame(['001BBBBBB: Tu nick no fue encontrado en la lista de acceso de #test.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function delaccessRejectsRemovingANojoinEntryForNonFounders(): void
+    {
+        $this->channels->seed('#Test', 'alice');
+        $this->accounts->save(new Account(new Nick('bob'), 'hash', null, new \DateTimeImmutable()));
+        $this->handler->handle($this->privmsg('access add #test bob -1'), $this->state);
+        $state = new NetworkState();
+        $state->introduceUser('001BBBBBB', 'bob', 'bob', 'r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('delaccess #test', '001BBBBBB'), $state);
+
+        self::assertSame(-1, $this->access->levelOf('#test', 'bob'));
+        self::assertSame(['001BBBBBB: Permiso denegado.'], $this->irc->replies);
     }
 
     private function joinAs(string $uid, string $nick, ?string $account = null): void

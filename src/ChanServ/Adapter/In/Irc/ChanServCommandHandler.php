@@ -107,6 +107,7 @@ final class ChanServCommandHandler
             'INFO' => $this->onInfo($sender, $parts),
             'IDENTIFY' => $this->onIdentify($sender, $parts),
             'ACCESS' => $this->onAccess($sender, $account, $parts, $state),
+            'DELACCESS' => $this->onDelAccess($sender, $account, $parts, $state),
             'TOPIC' => $this->onTopic($sender, $account, $parts),
             'SET' => $this->onSet($sender, $account, $parts, $state),
             'LEVELS' => $this->onLevels($sender, $account, $parts),
@@ -447,6 +448,53 @@ final class ChanServCommandHandler
         }
 
         $this->reply->reply($uid, sprintf('%s borrado de la lista de acceso de %s.', $nick, $channel->name->value));
+    }
+
+    /** @param list<string> $args */
+    private function onDelAccess(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        $channel = (string) ($args[0] ?? '');
+
+        if ('' === $channel) {
+            $this->reply->reply($uid, 'Error de Sintaxis: DELACCESS <canal>');
+
+            return;
+        }
+
+        $registered = $this->registeredChannel($uid, $channel);
+
+        if (null === $registered) {
+            return;
+        }
+
+        if ($registered->isSuspended()) {
+            $this->reply->reply($uid, sprintf('El canal %s está suspendido.', $registered->name->value));
+
+            return;
+        }
+
+        if (null === $account) {
+            $this->reply->reply($uid, 'Debes identificarte antes de utilizar el comando DELACCESS.');
+
+            return;
+        }
+
+        $level = $this->access->levelOf($registered->name->value, $account);
+
+        if (null === $level) {
+            $this->reply->reply($uid, sprintf('Tu nick no fue encontrado en la lista de acceso de %s.', $registered->name->value));
+
+            return;
+        }
+
+        if (-1 === $level && !$registered->isFoundedBy($account) && !$this->isIdentifiedFounder($uid, $registered->name->value)) {
+            $this->reply->reply($uid, 'Permiso denegado.');
+
+            return;
+        }
+
+        $this->access->remove($registered->name->value, $account);
+        $this->reply->reply($uid, sprintf('Tu registro ha sido borrado del canal %s.', $registered->name->value));
     }
 
     /**
