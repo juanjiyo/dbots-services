@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Dbots\CenTeRServ\Adapter\In\Irc;
 
+use Dbots\Application\Port\Out\LinkTransportInterface;
+use Dbots\CenTeRServ\Application\Port\Out\RawBlocklistRepositoryInterface;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Staff\StaffRank;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Module\ModuleRuntime;
@@ -50,10 +53,13 @@ final class CenTeRServCommandHandler
         private readonly AccountRepositoryInterface $accounts,
         private readonly ModuleRuntime $modules,
         private readonly AccountResolver $resolver,
+        private readonly LinkTransportInterface $transport,
+        private readonly RawBlocklistRepositoryInterface $rawBlocklist,
         private readonly string $serviceNick,
         private readonly string $serviceUid,
         private readonly HelpCatalog $help,
         private readonly string $rootPassword = '',
+        private readonly ?DebugRelay $debug = null,
     ) {
     }
 
@@ -94,6 +100,8 @@ final class CenTeRServCommandHandler
             'ROOT' => $this->onRoot($sender, $account, $parts, $state),
             'REMOPER' => $this->onRemoper($sender, $account, $parts, $state),
             'MODULO' => $this->onModule($sender, $account, $parts, $state),
+            'RAW' => $this->onRaw($sender, $account, $parts, $state),
+            'NORAW' => $this->onNoraw($sender, $account, $parts, $state),
             default => $this->reply->reply($sender, sprintf('Comando desconocido %s. Usa AYUDA.', $command)),
         };
     }
@@ -288,6 +296,114 @@ final class CenTeRServCommandHandler
             $name,
             'LOAD' === $action ? 'cargado' : 'descargado',
         ));
+    }
+
+    /** @param list<string> $args */
+    private function onRaw(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        if (!$this->mayUse($uid, $account, StaffRank::Root, $state)) {
+            return;
+        }
+
+        if ([] === $args) {
+            $this->reply->reply($uid, 'Error de Sintaxis: RAW <linea>');
+
+            return;
+        }
+
+        $line = implode(' ', $args);
+        $command = strtoupper($args[0]);
+
+        if ($this->rawBlocklist->contains($command)) {
+            $this->audit(sprintf(
+                '%s intento enviar %s por RAW -> %s',
+                $state->nickOf($uid) ?? $uid,
+                $command,
+                $line,
+            ));
+            $this->reply->reply($uid, sprintf(
+                'Lo siento, el comando %s está bloqueado y no puede ser enviado por RAW.',
+                $command,
+            ));
+
+            return;
+        }
+
+        $this->transport->writeLine(sprintf(':%s %s', $this->getSid(), $line));
+        $this->audit(sprintf('%s usa RAW para %s.', $state->nickOf($uid) ?? $uid, $line));
+        $this->reply->reply($uid, sprintf('Ejecutado %s.', $line));
+    }
+
+    /** @param list<string> $args */
+    private function onNoraw(string $uid, ?string $account, array $args, NetworkState $state): void
+    {
+        if (!$this->mayUse($uid, $account, StaffRank::Root, $state)) {
+            return;
+        }
+
+        $action = strtoupper((string) ($args[0] ?? ''));
+        $command = (string) ($args[1] ?? '');
+
+        if (!in_array($action, ['ADD', 'DEL', 'LIST'], true)) {
+            $this->reply->reply($uid, 'Error de Sintaxis: NORAW ADD|DEL|LIST <comando>');
+
+            return;
+        }
+
+        if ('LIST' === $action) {
+            $commands = $this->rawBlocklist->all();
+
+            if ([] === $commands) {
+                $this->reply->reply($uid, 'Lista vacia.');
+
+                return;
+            }
+
+            $this->reply->reply($uid, 'Lista de comandos bloqueados para RAW:');
+
+            foreach ($commands as $command) {
+                $this->reply->reply($uid, sprintf(' - %s', $command));
+            }
+
+            $this->reply->reply($uid, 'Fin de la lista.');
+
+            return;
+        }
+
+        if ('' === $command) {
+            $this->reply->reply($uid, 'Error de Sintaxis: NORAW ADD|DEL|LIST <comando>');
+
+            return;
+        }
+
+        if ('ADD' === $action) {
+            $this->rawBlocklist->add($command);
+            $this->reply->reply($uid, sprintf('Bloqueado el comando %s.', strtoupper($command)));
+
+            return;
+        }
+
+        if ($this->rawBlocklist->remove($command)) {
+            $this->reply->reply($uid, sprintf('Liberado el comando %s.', strtoupper($command)));
+
+            return;
+        }
+
+        $this->reply->reply($uid, sprintf('El comando %s no está en la lista.', strtoupper($command)));
+    }
+
+    private function audit(string $message): void
+    {
+        if (null === $this->debug || !$this->debug->isEnabled()) {
+            return;
+        }
+
+        $this->debug->note($message);
+    }
+
+    private function getSid(): string
+    {
+        return substr($this->serviceUid, 0, 3);
     }
 
     /** @param list<string> $args */

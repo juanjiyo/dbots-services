@@ -167,7 +167,8 @@ Root, since nobody holds a rank on a fresh install.
 | `ROOT <password>`, `ROOT ADD\|DEL <nick>` | done | Session gate and Root rank |
 | `MODULO LIST\|LOAD\|UNLOAD [name]` | done | Root; applied immediately |
 | `KILL`, `GLINE`, `CLONES` | not here | They live in OPeR; two doors to one action is a bug factory |
-| `RAW`, `RESTART`, `MODULO` (mIRC side), `TABLA`, `BOT`, `UPDATE`, `OPTIMIZA`… | dropped | They drove the mIRC script loader, the bot's ini database or its process |
+| `RAW <linea>`, `NORAW ADD|DEL|LIST <comando>` | done | Root only; RAW sends a raw line to the IRCd, NORAW blocks dangerous commands |
+| `RESTART`, `MODULO` (mIRC side), `TABLA`, `BOT`, `UPDATE`, `OPTIMIZA`… | dropped | They drove the mIRC script loader, the bot's ini database or its process |
 
 ## CLoNeS
 

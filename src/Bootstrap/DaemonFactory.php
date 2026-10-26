@@ -9,7 +9,9 @@ use Dbots\Application\Link\LinkRunner;
 use Dbots\Application\MemoAnnouncer;
 use Dbots\Application\Port\Out\LinkTransportInterface;
 use Dbots\CenTeRServ\Adapter\In\Irc\CenTeRServCommandHandler;
+use Dbots\CenTeRServ\Adapter\Out\Persistence\SqliteRawBlocklistRepository;
 use Dbots\CenTeRServ\Application\Help\CenTeRServHelp;
+use Dbots\CenTeRServ\Application\Port\Out\RawBlocklistRepositoryInterface;
 use Dbots\ChanServ\Adapter\In\Irc\ChanServCommandHandler;
 use Dbots\ChanServ\Adapter\Out\Irc\IrcChannelActions;
 use Dbots\ChanServ\Application\DropChannel\DropChannelHandler;
@@ -116,6 +118,7 @@ final readonly class DaemonFactory
         private ?\Dbots\NickServ\Application\Port\Out\BlackmailRepositoryInterface $blackmail = null,
         private ?PendingRegistrationRepositoryInterface $pendings = null,
         private ?EmailSenderInterface $emailSender = null,
+        private ?RawBlocklistRepositoryInterface $rawBlocklist = null,
         private string $rootPassword = '',
         private string $debugChannel = '',
         private string $jailChannel = '',
@@ -286,6 +289,8 @@ final readonly class DaemonFactory
 
         $centerServUid = sprintf('%sA00008', $sid);
 
+        $debug = new DebugRelay($this->transport, sprintf('%sA00005', $sid), $this->debugChannel);
+
         $enforcement = new S2sEnforcement($this->transport, $sid);
 
         $moduleRuntime = new ModuleRuntime(
@@ -305,10 +310,13 @@ final readonly class DaemonFactory
             $this->accounts,
             $moduleRuntime,
             new AccountResolver($this->accounts),
+            $this->transport,
+            $this->rawBlocklist ?? new SqliteRawBlocklistRepository(new PDO('sqlite::memory:')),
             'CeNTeR',
             $centerServUid,
             CenTeRServHelp::create(),
             $this->rootPassword,
+            $debug,
         );
 
         $udbSettingsProjection = new UdbSettingsProjection($this->udbSettings, $authority);
@@ -342,8 +350,6 @@ final readonly class DaemonFactory
             'CLoNeS',
             $clonesServUid,
         );
-
-        $debug = new DebugRelay($this->transport, sprintf('%sA00005', $sid), $this->debugChannel);
 
         return new Daemon(
             new LinkRunner($this->link, $this->transport, $this->syncTimeoutSeconds),

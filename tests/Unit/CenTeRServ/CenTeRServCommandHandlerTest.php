@@ -19,6 +19,7 @@ use Dbots\Module\ModuleRuntime;
 use Dbots\Staff\Application\StaffAuthority;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryModuleStateRepository;
+use Dbots\Tests\Support\InMemoryRawBlocklistRepository;
 use Dbots\Tests\Support\InMemoryStaffRankRepository;
 use Dbots\Tests\Support\RecordingEnforcement;
 use Dbots\Tests\Support\RecordingIrc;
@@ -31,6 +32,7 @@ final class CenTeRServCommandHandlerTest extends TestCase
     private InMemoryAccountRepository $accounts;
     private InMemoryStaffRankRepository $ranks;
     private InMemoryModuleStateRepository $moduleState;
+    private InMemoryRawBlocklistRepository $rawBlocklist;
     private RecordingIrc $irc;
     private RecordingTransport $transport;
     private RecordingEnforcement $enforcement;
@@ -46,6 +48,7 @@ final class CenTeRServCommandHandlerTest extends TestCase
 
         $this->ranks = new InMemoryStaffRankRepository();
         $this->moduleState = new InMemoryModuleStateRepository();
+        $this->rawBlocklist = new InMemoryRawBlocklistRepository();
         $this->irc = new RecordingIrc();
         $this->transport = new RecordingTransport();
         $this->enforcement = new RecordingEnforcement();
@@ -68,6 +71,8 @@ final class CenTeRServCommandHandlerTest extends TestCase
             $this->accounts,
             $modules,
             new AccountResolver($this->accounts),
+            $this->transport,
+            $this->rawBlocklist,
             'CeNTeR',
             '003A00008',
             CenTeRServHelp::create(),
@@ -220,6 +225,89 @@ final class CenTeRServCommandHandlerTest extends TestCase
         $this->handler->handle(new IrcMessage('001AAAAAA', 'PRIVMSG', ['CHaN'], 'HELP'), $this->state);
 
         self::assertSame([], $this->irc->replies);
+    }
+
+    #[Test]
+    public function rawIsRootOnly(): void
+    {
+        $this->as('ana', StaffRank::Administrador);
+
+        $this->handler->handle($this->privmsg('RAW MODE #canal +m'), $this->state);
+
+        self::assertSame(['001AAAAAA: Permiso denegado.'], $this->irc->replies);
+        self::assertSame([], $this->transport->written);
+    }
+
+    #[Test]
+    public function rawSendsTheLineToTheIrcd(): void
+    {
+        $this->handler->handle($this->privmsg('ROOT claveRaiz'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('RAW MODE #canal +m'), $this->state);
+
+        self::assertSame(['001AAAAAA: Ejecutado MODE #canal +m.'], $this->irc->replies);
+        self::assertSame([':003 MODE #canal +m'], $this->transport->written);
+    }
+
+    #[Test]
+    public function rawRejectsBlockedCommands(): void
+    {
+        $this->handler->handle($this->privmsg('ROOT claveRaiz'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('RAW SQUIT services.example'), $this->state);
+
+        self::assertStringContainsString('SQUIT está bloqueado', implode("\n", $this->irc->replies));
+        self::assertSame([], $this->transport->written);
+    }
+
+    #[Test]
+    public function rawRequiresArguments(): void
+    {
+        $this->handler->handle($this->privmsg('ROOT claveRaiz'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('RAW'), $this->state);
+
+        self::assertSame(['001AAAAAA: Error de Sintaxis: RAW <linea>'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function norawManagesTheBlocklist(): void
+    {
+        $this->handler->handle($this->privmsg('ROOT claveRaiz'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('NORAW LIST'), $this->state);
+        self::assertStringContainsString('Lista de comandos bloqueados para RAW:', implode("\n", $this->irc->replies));
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('NORAW DEL SQUIT'), $this->state);
+        self::assertSame(['001AAAAAA: Liberado el comando SQUIT.'], $this->irc->replies);
+
+        $this->irc->replies = [];
+        $this->handler->handle($this->privmsg('RAW SQUIT services.example'), $this->state);
+        self::assertSame(['001AAAAAA: Ejecutado SQUIT services.example.'], $this->irc->replies);
+        self::assertSame([':003 SQUIT services.example'], $this->transport->written);
+
+        $this->irc->replies = [];
+        $this->transport->written = [];
+        $this->handler->handle($this->privmsg('NORAW ADD SQUIT'), $this->state);
+        self::assertSame(['001AAAAAA: Bloqueado el comando SQUIT.'], $this->irc->replies);
+
+        $this->handler->handle($this->privmsg('RAW SQUIT services.example'), $this->state);
+        self::assertStringContainsString('SQUIT está bloqueado', implode("\n", $this->irc->replies));
+    }
+
+    #[Test]
+    public function norawIsRootOnly(): void
+    {
+        $this->as('ana', StaffRank::Administrador);
+
+        $this->handler->handle($this->privmsg('NORAW LIST'), $this->state);
+
+        self::assertSame(['001AAAAAA: Permiso denegado.'], $this->irc->replies);
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage

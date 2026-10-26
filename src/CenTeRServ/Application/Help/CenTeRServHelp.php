@@ -18,6 +18,8 @@ final class CenTeRServHelp
             new HelpEntry('REMOPER', 'REMOPER <nick>', 'Quita cualquier rango de la red. Nivel Root.', '/msg CeNTeR REMOPER JuanJo'),
             new HelpEntry('ROOT', 'ROOT <contraseña> | ROOT ADD|DEL <nick>', 'Sin argumentos de rango abre una sesión de Root; con ADD o DEL gestiona el rango Root.', '/msg CeNTeR ROOT miClave'),
             new HelpEntry('MODULO', 'MODULO LIST|LOAD|UNLOAD [nombre]', 'Lista, activa o desactiva los módulos de `modules/`. Nivel Root, porque un módulo corre dentro del daemon.', '/msg CeNTeR MODULO LIST'),
+            new HelpEntry('RAW', 'RAW <linea>', 'Envía una línea cruda al IRCd. Nivel Root; algunos comandos están bloqueados por NORAW.', '/msg CeNTeR RAW MODE #canal +m'),
+            new HelpEntry('NORAW', 'NORAW ADD|DEL|LIST <comando>', 'Gestiona la lista de comandos bloqueados para RAW. Nivel Root.', '/msg CeNTeR NORAW ADD SQUIT'),
         ]);
     }
 }
