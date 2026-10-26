@@ -233,13 +233,18 @@ with its privileges.
 
 ## Services that do not exist yet
 
-| Bot | Command surface |
-|---|---|
-| **CenTeR** (`ce.mrc`) | Administrative console: `KLINE`, `GLINE`, `RAW`, `RESTART`, `MODULO`, `CLONES`, `SAJOIN`… |
-| **PreOpServ** (`pr.mrc`) | `IGNORA`, `MSG`, `MODE` for pre-operators |
+Ninguno. Todos los servicios planificados están implementados o han sido
+descartados:
 
-Relative completeness: OPeR, CReG and HeLP cover their reference; NiCK is about a
-third; CHaN and MeMo less than that.
+- **CeNTeR** (`ce.mrc`) está implementado: gestión del staff ladder, `MODULO` y
+  `RAW`/`NORAW`. `KILL`/`GLINE` viven en OPeR, `CLONES` en CLoNeS y `KLINE` no se
+  usa porque la red emplea `GLINE`.
+- **PreOpServ** (`pr.mrc`) fue descartado: `OP`/`DEOP`/`INVITE` ya están cubiertos
+  por OPeR y el módulo Pulsar original no encaja con la arquitectura UDB de dbots.
+
+Relative completeness: OPeR, CReG, HeLP, GlobalServ, NoServ and CLoNeS cover their
+reference; CeNTeR covers its reduced scope; NiCK is about two thirds; CHaN and
+MeMo cover their core commands.
 
 ## Debug relay
 
