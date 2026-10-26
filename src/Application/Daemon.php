@@ -457,6 +457,7 @@ final readonly class Daemon
         $uid = $message->params[5] ?? null;
         $modes = $message->params[7] ?? '';
         $host = $message->params[4] ?? null;
+        $ip = $message->params[10] ?? null;
 
         if (null === $nick || null === $uid) {
             return;
@@ -464,7 +465,7 @@ final readonly class Daemon
 
         // A client UID carries the user modes but not the account; identity is
         // derived from +r plus our own account store.
-        $this->state->introduceUser($uid, $nick, null, ltrim($modes, '+'), $host);
+        $this->state->introduceUser($uid, $nick, null, ltrim($modes, '+'), $host, $ip);
     }
 
     /**

@@ -97,6 +97,53 @@ final class IrcWireTest extends TestCase
         self::assertSame('UID', $message->command);
         self::assertSame('NiCK', $message->params[0]);
         self::assertSame('002A00001', $message->params[5]);
+        self::assertSame('*', $message->params[10]);
+    }
+
+    #[Test]
+    public function itParsesTheIpFieldOfAUserIntroduction(): void
+    {
+        $message = $this->parser->parse(
+            ':002 UID NiCK 0 1792591497 NickServ services.sitiochat.es 002A00001 0 +doqIS services.sitiochat.es Clk-A7D2C989.sitiochat.es wAACAQ== :Nickname Registration Services'
+        );
+
+        self::assertNotNull($message);
+        self::assertSame('wAACAQ==', $message->params[10]);
+    }
+
+    #[Test]
+    public function theNetworkStateDecodesAStoredIp(): void
+    {
+        $state = new NetworkState();
+
+        $state->introduceUser('001AAAAAA', 'alice', null, 'i', 'host.example', 'wAACAQ==');
+
+        self::assertSame('192.0.2.1', $state->ipOf('001AAAAAA'));
+    }
+
+    #[Test]
+    public function theNetworkStateDecodesAStoredIpv6(): void
+    {
+        $state = new NetworkState();
+
+        $state->introduceUser('001AAAAAA', 'alice', null, 'i', 'host.example', 'IAENuAAAAAAAAAAAAAAAAQ==');
+
+        self::assertSame('2001:db8::1', $state->ipOf('001AAAAAA'));
+    }
+
+    #[Test]
+    public function aMissingOrUnknownIpReturnsNull(): void
+    {
+        $state = new NetworkState();
+
+        $state->introduceUser('001AAAAAA', 'alice', null, 'i', 'host.example');
+        self::assertNull($state->ipOf('001AAAAAA'));
+
+        $state->introduceUser('001BBBBBB', 'bob', null, 'i', 'host.example', '*');
+        self::assertNull($state->ipOf('001BBBBBB'));
+
+        $state->introduceUser('001CCCCCC', 'carol', null, 'i', 'host.example', 'not-valid-base64!');
+        self::assertNull($state->ipOf('001CCCCCC'));
     }
 
     #[Test]

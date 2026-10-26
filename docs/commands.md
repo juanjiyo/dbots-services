@@ -38,7 +38,8 @@ the original; **todo** is not implemented.
 | `NOEXPIRE <nick>` | done | Operator only; toggles the flag |
 | `SET` other options (EMAIL, URL, QUIT, PRIVATE, KILL, AUTOMODE…) | done | |
 | `SENDPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it via memo |
-| `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
+| `SENDNEWPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it to the account's email address |
+| `GETPASS <nick>` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
 | `MARCA` / `MARCADEL` / `MERCADEL` | dropped | dBots-specific mark workflows with no UDB equivalent |
 | `MSGNR` | dropped | Automatic login notice; no real use case identified |
 | `AUTOMODE <nick> [modos]` | done | Original mIRC format; applies modes automatically on `+r` |
@@ -106,7 +107,7 @@ approval flow — you request, staff approve. The original *supports* stage
 | `CONEXIONES LIST <min>`, `CONEXIONES VIEW <host>` | done | Requires CeNTeR `Administrador` |
 | `LIMPIA <#channel>`, `STATS`, `IRCOPS`, `ROOT`, `SETTIME`, `SPAM LIST\|ADD\|DEL` | done |
 | `INVITE <#channel>` | done | |
-| `VIEWIP <nick>` | todo (shows the user's real IP; moved from NiCK) | |
+| `VIEWIP <nick>` | done | Shows the user's real IP; moved from NiCK | |
 | `SET SUFIJO\|NICKSERV\|CHANSERV\|IPSERV\|PASSPROTECT\|PREFIJOS <valor>` | done | IRC-operator only; UDB S block |
 
 ## CReG

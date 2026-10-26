@@ -162,6 +162,48 @@ final class OperServCommandHandlerTest extends TestCase
     }
 
     #[Test]
+    public function anOperCanViewAUsersIp(): void
+    {
+        $this->state->introduceUser('001DDDDDD', 'target', null, 'i', 'host.example', 'wAACAQ==');
+
+        $this->handler->handle($this->privmsg('VIEWIP target'), $this->state);
+
+        self::assertSame(['001AAAAAA: target real IP is 192.0.2.1.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function aNonOperCannotViewIp(): void
+    {
+        $this->handler->handle($this->privmsg('VIEWIP oper', '001BBBBBB'), $this->state);
+
+        self::assertSame(['001BBBBBB: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function viewIpReportsAnUnknownNick(): void
+    {
+        $this->handler->handle($this->privmsg('VIEWIP ghost'), $this->state);
+
+        self::assertSame(['001AAAAAA: ghost is not online.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function viewIpReportsWhenTheIpIsUnknown(): void
+    {
+        $this->handler->handle($this->privmsg('VIEWIP victim'), $this->state);
+
+        self::assertSame(['001AAAAAA: victim real IP is not available.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function viewIpRequiresANickArgument(): void
+    {
+        $this->handler->handle($this->privmsg('VIEWIP'), $this->state);
+
+        self::assertSame(['001AAAAAA: Syntax: VIEWIP <nick>'], $this->irc->replies);
+    }
+
+    #[Test]
     public function anOperCanSetAUdbServiceMask(): void
     {
         $this->handler->handle($this->privmsg('SET NICKSERV NickServ!NickServ@bots.test'), $this->state);

@@ -20,6 +20,7 @@ use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
+use Dbots\NickServ\Application\SendNewPassword\SendNewPasswordHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
@@ -70,6 +71,7 @@ final class NickServCommandHandlerTest extends TestCase
             new ChangePasswordHandler($accounts),
             new DropNickHandler($accounts, new NoChannels()),
             new SendPasswordHandler($accounts, $this->memos),
+            new SendNewPasswordHandler($accounts, $this->emailSender, 'noreply@example.com'),
             new UpdateAccountSettingHandler($accounts),
             new UpdateAutomodeHandler($accounts),
             new BlackmailHandler($this->blackmail),
@@ -258,6 +260,7 @@ final class NickServCommandHandlerTest extends TestCase
             new ChangePasswordHandler($this->accounts),
             new DropNickHandler($this->accounts, $channels),
             new SendPasswordHandler($this->accounts, $this->memos),
+            new SendNewPasswordHandler($this->accounts, $this->emailSender, 'noreply@example.com'),
             new UpdateAccountSettingHandler($this->accounts),
             new UpdateAutomodeHandler($this->accounts),
             new BlackmailHandler($this->blackmail),
@@ -371,6 +374,67 @@ final class NickServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('SENDPASS Nobody', '001AAAAAA'), $oper);
 
         self::assertSame(['001AAAAAA: Nobody is not registered.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anOperCanResetAPasswordAndItIsSentByEmail(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2 user@example.com'), $this->state);
+        $oper = $this->operState();
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SENDNEWPASS JuanJo', '001AAAAAA'), $oper);
+
+        self::assertSame(["001AAAAAA: A new temporary password has been sent to JuanJo's email."], $this->irc->replies);
+        self::assertCount(2, $this->emailSender->sent);
+
+        $email = end($this->emailSender->sent);
+        self::assertIsArray($email);
+        self::assertSame('user@example.com', $email['to']);
+        self::assertStringContainsString('Contraseña temporal restablecida', $email['subject']);
+        self::assertStringContainsString('Un operador ha restablecido la contraseña', $email['body']);
+        self::assertStringContainsString('Tu contraseña temporal es:', $email['body']);
+
+        self::assertSame(1, preg_match('/Tu contraseña temporal es: ([^\s]+)/', $email['body'], $matches));
+        $plain = $matches[1];
+        self::assertSame(IdentifyResultForTest::NewPasswordWorks, $this->identifyWith($plain));
+    }
+
+    #[Test]
+    public function nonOpersCannotUseSendNewPass(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2 user@example.com'), $this->state);
+        $this->irc->replies = [];
+        $this->emailSender->sent = [];
+
+        $this->handler->handle($this->privmsg('SENDNEWPASS JuanJo'), $this->state);
+
+        self::assertSame(['001AAAAAA: This command is restricted to IRC operators.'], $this->irc->replies);
+        self::assertSame([], $this->emailSender->sent);
+    }
+
+    #[Test]
+    public function sendNewPassRejectsAnUnknownAccount(): void
+    {
+        $oper = $this->operState();
+
+        $this->handler->handle($this->privmsg('SENDNEWPASS Nobody', '001AAAAAA'), $oper);
+
+        self::assertSame(['001AAAAAA: Nobody is not registered.'], $this->irc->replies);
+        self::assertSame([], $this->emailSender->sent);
+    }
+
+    #[Test]
+    public function sendNewPassReportsMissingEmail(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $oper = $this->operState();
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('SENDNEWPASS JuanJo', '001AAAAAA'), $oper);
+
+        self::assertSame(['001AAAAAA: JuanJo has no email set.'], $this->irc->replies);
+        self::assertSame([], $this->emailSender->sent);
     }
 
     #[Test]

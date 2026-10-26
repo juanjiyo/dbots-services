@@ -23,6 +23,8 @@ use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\ReplyInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
+use Dbots\NickServ\Application\SendNewPassword\SendNewPasswordHandler;
+use Dbots\NickServ\Application\SendNewPassword\SendNewPasswordResult;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordResult;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
@@ -53,6 +55,7 @@ final readonly class NickServCommandHandler
         private ChangePasswordHandler $changePassword,
         private DropNickHandler $dropNick,
         private SendPasswordHandler $sendPassword,
+        private SendNewPasswordHandler $sendNewPassword,
         private UpdateAccountSettingHandler $updateSetting,
         private UpdateAutomodeHandler $updateAutomode,
         private BlackmailHandler $blackmail,
@@ -115,6 +118,7 @@ final readonly class NickServCommandHandler
             'SWHOIS' => $this->onSwhois($sender, $parts, $state),
             'NOEXPIRE' => $this->onNoexpire($sender, $parts, $state),
             'SENDPASS' => $this->onSendPass($sender, $parts, $state),
+            'SENDNEWPASS' => $this->onSendNewPass($sender, $parts, $state),
             'AUTOMODE' => $this->onAutomode($sender, $parts, $state),
             'BLACKMAIL' => $this->onBlackmail($sender, $parts, $state),
             'VREG' => $this->onVreg($sender, $parts, $state),
@@ -562,6 +566,34 @@ final readonly class NickServCommandHandler
                 $result->account,
             )),
             SendPasswordResult::UNKNOWN_ACCOUNT => $this->reply->reply($uid, sprintf('%s is not registered.', $target)),
+            default => $this->reply->reply($uid, 'The password could not be reset.'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onSendNewPass(string $uid, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, 'Syntax: SENDNEWPASS <nick>');
+
+            return;
+        }
+
+        $result = ($this->sendNewPassword)($target);
+
+        match ($result->status) {
+            SendNewPasswordResult::SENT => $this->reply->reply($uid, sprintf(
+                "A new temporary password has been sent to %s's email.",
+                $result->account,
+            )),
+            SendNewPasswordResult::UNKNOWN_ACCOUNT => $this->reply->reply($uid, sprintf('%s is not registered.', $target)),
+            SendNewPasswordResult::NO_EMAIL => $this->reply->reply($uid, sprintf('%s has no email set.', $target)),
             default => $this->reply->reply($uid, 'The password could not be reset.'),
         };
     }

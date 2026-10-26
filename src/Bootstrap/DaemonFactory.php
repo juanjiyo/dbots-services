@@ -61,6 +61,7 @@ use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\Port\Out\EmailSenderInterface;
 use Dbots\NickServ\Application\Port\Out\PendingRegistrationRepositoryInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
+use Dbots\NickServ\Application\SendNewPassword\SendNewPasswordHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
@@ -200,6 +201,7 @@ final readonly class DaemonFactory
             new ChangePasswordHandler($this->accounts),
             new DropNickHandler($this->accounts, $this->channels),
             new SendPasswordHandler($this->accounts, $this->memos),
+            new SendNewPasswordHandler($this->accounts, $emailSender, $from),
             new UpdateAccountSettingHandler($this->accounts),
             new UpdateAutomodeHandler($this->accounts),
             $blackmailHandler,

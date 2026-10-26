@@ -138,6 +138,7 @@ final class OperServCommandHandler
             'STATS' => $this->onStats($sender, $state),
             'IRCOPS' => $this->onIrcops($sender, $state),
             'INVITE' => $this->onInvite($sender, $parts, $state),
+            'VIEWIP' => $this->onViewIp($sender, $parts, $state),
             'SET' => $this->onSet($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
@@ -1082,6 +1083,40 @@ final class OperServCommandHandler
 
         $this->enforcement->invite($senderNick, $channel);
         $this->reply->reply($sender, sprintf('Invitation sent to %s.', $channel));
+    }
+
+    /** @param list<string> $args */
+    private function onViewIp(string $sender, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOper($sender, $state)) {
+            return;
+        }
+
+        $nick = array_shift($args);
+
+        if (null === $nick) {
+            $this->reply->reply($sender, 'Syntax: VIEWIP <nick>');
+
+            return;
+        }
+
+        $uid = $state->uidOf($nick);
+
+        if (null === $uid) {
+            $this->reply->reply($sender, sprintf('%s is not online.', $nick));
+
+            return;
+        }
+
+        $ip = $state->ipOf($uid);
+
+        if (null === $ip) {
+            $this->reply->reply($sender, sprintf('%s real IP is not available.', $nick));
+
+            return;
+        }
+
+        $this->reply->reply($sender, sprintf('%s real IP is %s.', $nick, $ip));
     }
 
     /** @param list<string> $args */

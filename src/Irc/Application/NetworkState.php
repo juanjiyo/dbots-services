@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Dbots\Irc\Application;
 
 use function array_keys;
+use function base64_decode;
 use function in_array;
+use function inet_ntop;
 use function str_replace;
 use function str_split;
+use function strlen;
 use function strtolower;
 use function strtoupper;
 
@@ -35,6 +38,9 @@ final class NetworkState
     /** @var array<string, string> uid => host */
     private array $hosts = [];
 
+    /** @var array<string, string> uid => base64-encoded IP */
+    private array $ips = [];
+
     /** @var array<string, string> sid => server name */
     private array $servers = [];
 
@@ -47,7 +53,7 @@ final class NetworkState
     /** @var array<string, array<string, string>> channel => uid => member modes */
     private array $channels = [];
 
-    public function introduceUser(string $uid, string $nick, ?string $account = null, string $modes = '', ?string $host = null): void
+    public function introduceUser(string $uid, string $nick, ?string $account = null, string $modes = '', ?string $host = null, ?string $ip = null): void
     {
         $this->nicks[$uid] = $nick;
         $this->modes[$uid] = $modes;
@@ -58,6 +64,10 @@ final class NetworkState
 
         if (null !== $account) {
             $this->accounts[$uid] = $account;
+        }
+
+        if (null !== $ip && '*' !== $ip) {
+            $this->ips[$uid] = $ip;
         }
     }
 
@@ -129,12 +139,37 @@ final class NetworkState
 
     public function remove(string $uid): void
     {
-        unset($this->nicks[$uid], $this->accounts[$uid], $this->modes[$uid], $this->hosts[$uid]);
+        unset($this->nicks[$uid], $this->accounts[$uid], $this->modes[$uid], $this->hosts[$uid], $this->ips[$uid]);
     }
 
     public function hostOf(string $uid): ?string
     {
         return $this->hosts[$uid] ?? null;
+    }
+
+    public function ipOf(string $uid): ?string
+    {
+        $encoded = $this->ips[$uid] ?? null;
+
+        if (null === $encoded || '*' === $encoded) {
+            return null;
+        }
+
+        $binary = base64_decode($encoded, true);
+
+        if (false === $binary) {
+            return null;
+        }
+
+        $length = strlen($binary);
+
+        if (4 !== $length && 16 !== $length) {
+            return null;
+        }
+
+        $ip = inet_ntop($binary);
+
+        return false === $ip ? null : $ip;
     }
 
     /** @return list<string> nicks connected from that host */
@@ -431,6 +466,7 @@ final class NetworkState
         $this->accounts = [];
         $this->modes = [];
         $this->hosts = [];
+        $this->ips = [];
         $this->servers = [];
         $this->serverParents = [];
         $this->serverChildren = [];

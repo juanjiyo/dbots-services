@@ -23,6 +23,7 @@ final class OperServHelp
             new HelpEntry('DROPNDB', 'DROPNDB <nick>', 'Borra un nick de la base de datos.', '/msg OPeR DROPNDB JuanJo', operOnly: true),
             new HelpEntry('APODERA', 'APODERA <#canal> [nick]', 'Te hace dueño de un canal registrado.', '/msg OPeR APODERA #canal JuanJo', operOnly: true),
             new HelpEntry('LISTCLONES', 'LISTCLONES <nick>', 'Muestra quién comparte host con ese nick.', '/msg OPeR LISTCLONES JuanJo', operOnly: true),
+            new HelpEntry('VIEWIP', 'VIEWIP <nick>', 'Muestra la IP real de un usuario conectado.', '/msg OPeR VIEWIP JuanJo', operOnly: true),
             new HelpEntry('KILLCLONES', 'KILLCLONES <nick> [motivo]', 'Banea el host del nick durante una hora.', '/msg OPeR KILLCLONES JuanJo clones', operOnly: true),
             new HelpEntry('BLOCK', 'BLOCK <nick> [motivo]', 'Banea el host del nick durante cinco horas.', '/msg OPeR BLOCK JuanJo spam', operOnly: true),
             new HelpEntry('JAIL', 'JAIL <nick>', 'Saca al usuario de todos los canales, le pone +C y lo fuerza al canal carcel.', '/msg OPeR JAIL JuanJo', operOnly: true),
