@@ -21,6 +21,7 @@ use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
+use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
 use Dbots\Tests\Support\InMemoryMemoRepository;
 use Dbots\Tests\Support\RecordingIrc;
@@ -53,6 +54,7 @@ final class NickServCommandHandlerTest extends TestCase
             new DropNickHandler($accounts, new NoChannels()),
             new SendPasswordHandler($accounts, $this->memos),
             new UpdateAccountSettingHandler($accounts),
+            new UpdateAutomodeHandler($accounts),
             new AccountResolver($accounts),
             new AccountInfoHandler($accounts, new NoChannels(), $this->memos),
             $accounts,
@@ -234,6 +236,7 @@ final class NickServCommandHandlerTest extends TestCase
             new DropNickHandler($this->accounts, $channels),
             new SendPasswordHandler($this->accounts, $this->memos),
             new UpdateAccountSettingHandler($this->accounts),
+            new UpdateAutomodeHandler($this->accounts),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $channels, $this->memos),
             $this->accounts,
@@ -367,6 +370,82 @@ final class NickServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('SET AUTOMODE +x'), $this->state);
 
         self::assertSame('+x', $this->accounts->findByNick(new Nick('JuanJo'))?->automode);
+    }
+
+    #[Test]
+    public function itSetsAutomodeViaStandaloneCommand(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('AUTOMODE JuanJo +x'), $this->state);
+
+        self::assertSame('x', $this->accounts->findByNick(new Nick('JuanJo'))?->automode);
+        self::assertSame(['001AAAAAA: AutoMode for JuanJo set.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itClearsAutomodeViaStandaloneCommand(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->handler->handle($this->privmsg('AUTOMODE JuanJo +x'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('AUTOMODE JuanJo'), $this->state);
+
+        self::assertNull($this->accounts->findByNick(new Nick('JuanJo'))?->automode);
+        self::assertSame(['001AAAAAA: AutoMode for JuanJo cleared.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRejectsBlockedAutomodeModes(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('AUTOMODE JuanJo +o'), $this->state);
+
+        self::assertNull($this->accounts->findByNick(new Nick('JuanJo'))?->automode);
+        self::assertSame(['001AAAAAA: Mode o cannot be set via AUTOMODE.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRejectsAutomodeChangesForAnotherUser(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->state->applyModeChange('001AAAAAA', '+r');
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('AUTOMODE Other +x'), $this->state);
+
+        self::assertSame(['001AAAAAA: You can only change your own automode.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function anOperCanChangeAnotherUsersAutomode(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $oper = $this->operState();
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('AUTOMODE JuanJo +x', '001AAAAAA'), $oper);
+
+        self::assertSame('x', $this->accounts->findByNick(new Nick('JuanJo'))?->automode);
+        self::assertSame(['001AAAAAA: AutoMode for JuanJo set.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function automodeRequiresIdentification(): void
+    {
+        $this->handler->handle($this->privmsg('register hunter2'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('AUTOMODE JuanJo +x'), $this->state);
+
+        self::assertSame(['001AAAAAA: You must be identified to change automode.'], $this->irc->replies);
     }
 
     #[Test]

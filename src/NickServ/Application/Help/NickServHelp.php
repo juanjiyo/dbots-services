@@ -18,6 +18,7 @@ final class NickServHelp
             new HelpEntry('STATUS', 'STATUS [nick]', 'Estado de la cuenta: alta, prohibición, suspensión y NOEXPIRE.', '/msg NiCK STATUS JuanJo', ['ESTADO']),
             new HelpEntry('SET', 'SET PASSWORD <actual> <nueva> | SET EMAIL|URL|QUIT|PRIVATE|KILL|AUTOMODE <valor>', 'Cambia la contraseña y otras opciones de tu cuenta.', '/msg NiCK SET EMAIL correo@ejemplo.org'),
             new HelpEntry('DROP', 'DROP <contraseña>', 'Borra tu cuenta. Antes hay que soltar los canales que fundaste.', '/msg NiCK DROP miClave'),
+            new HelpEntry('AUTOMODE', 'AUTOMODE <nick> [modos]', 'Modos de usuario que se aplican automáticamente al identificarte.', '/msg NiCK AUTOMODE JuanJo +x'),
             new HelpEntry('SUSPEND', 'SUSPEND <nick> [motivo]', 'Suspende una cuenta: podrá entrar, pero sin cuenta ni +r.', '/msg NiCK SUSPEND JuanJo abuso', operOnly: true),
             new HelpEntry('UNSUSPEND', 'UNSUSPEND <nick>', 'Levanta la suspensión.', '/msg NiCK UNSUSPEND JuanJo', operOnly: true),
             new HelpEntry('LISTSUSPEND', 'LISTSUSPEND', 'Lista las cuentas suspendidas.', '/msg NiCK LISTSUSPEND', operOnly: true),

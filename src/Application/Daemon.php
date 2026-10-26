@@ -22,6 +22,7 @@ use Dbots\Irc\Application\NetworkState;
 use Dbots\MemoServ\Adapter\In\Irc\MemoServCommandHandler;
 use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
+use Dbots\NickServ\Application\ApplyAutomode\ApplyAutomode;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Application\Port\Out\EnforcementInterface;
 use Dbots\Udb\UdbAuthority;
@@ -66,6 +67,7 @@ final readonly class Daemon
         private ?DebugRelay $debug = null,
         private string $debugChannel = '',
         private ?AccountResolver $accounts = null,
+        private ?ApplyAutomode $applyAutomode = null,
         private ?MemoAnnouncer $memoAnnouncer = null,
     ) {
     }
@@ -383,6 +385,7 @@ final readonly class Daemon
             return;
         }
 
+        $this->applyAutomode?->__invoke($uid, $this->state);
         $this->memoAnnouncer?->announce($uid, $account);
     }
 

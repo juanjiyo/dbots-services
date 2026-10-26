@@ -19,7 +19,7 @@ use function sprintf;
  */
 final readonly class UdbAccountProjection implements AccountProjectionInterface
 {
-    private const array KEYS = ['pass', 'forbid', 'suspend', 'swhois', 'vhost'];
+    private const array KEYS = ['pass', 'forbid', 'suspend', 'swhois', 'vhost', 'automode'];
 
     public function __construct(
         private AccountRepositoryInterface $accounts,

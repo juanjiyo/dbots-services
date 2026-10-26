@@ -41,7 +41,8 @@ the original; **todo** is not implemented.
 | `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
 | `MARCA` / `MARCADEL` / `MERCADEL` | dropped | dBots-specific mark workflows with no UDB equivalent |
 | `MSGNR` | dropped | Automatic login notice; no real use case identified |
-| `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
+| `AUTOMODE <nick> [modos]` | done | Original mIRC format; applies modes automatically on `+r` |
+| `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
 
 ## CHaN
 

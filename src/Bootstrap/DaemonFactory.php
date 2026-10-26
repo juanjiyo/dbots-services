@@ -51,6 +51,7 @@ use Dbots\Module\ModuleRuntime;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
+use Dbots\NickServ\Application\ApplyAutomode\ApplyAutomode;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Help\NickServHelp;
@@ -59,6 +60,7 @@ use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
+use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\OperServ\Application\Help\OperServHelp;
@@ -162,6 +164,7 @@ final readonly class DaemonFactory
             new DropNickHandler($this->accounts, $this->channels),
             new SendPasswordHandler($this->accounts, $this->memos),
             new UpdateAccountSettingHandler($this->accounts),
+            new UpdateAutomodeHandler($this->accounts),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $this->channels, $this->memos),
             $this->accounts,
@@ -322,6 +325,7 @@ final readonly class DaemonFactory
             $debug,
             $this->debugChannel,
             new AccountResolver($this->accounts),
+            new ApplyAutomode(new AccountResolver($this->accounts), $this->transport, $nickServUid),
             new MemoAnnouncer($memoServ),
         );
     }

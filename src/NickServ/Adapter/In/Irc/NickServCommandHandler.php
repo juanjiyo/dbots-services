@@ -26,6 +26,8 @@ use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordResult;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingResult;
+use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
+use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeResult;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -48,6 +50,7 @@ final readonly class NickServCommandHandler
         private DropNickHandler $dropNick,
         private SendPasswordHandler $sendPassword,
         private UpdateAccountSettingHandler $updateSetting,
+        private UpdateAutomodeHandler $updateAutomode,
         private AccountResolver $identity,
         private AccountInfoHandler $info,
         private AccountRepositoryInterface $accounts,
@@ -105,6 +108,7 @@ final readonly class NickServCommandHandler
             'SWHOIS' => $this->onSwhois($sender, $parts, $state),
             'NOEXPIRE' => $this->onNoexpire($sender, $parts, $state),
             'SENDPASS' => $this->onSendPass($sender, $parts, $state),
+            'AUTOMODE' => $this->onAutomode($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -547,6 +551,32 @@ final readonly class NickServCommandHandler
             )),
             SendPasswordResult::UNKNOWN_ACCOUNT => $this->reply->reply($uid, sprintf('%s is not registered.', $target)),
             default => $this->reply->reply($uid, 'The password could not be reset.'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onAutomode(string $uid, array $args, NetworkState $state): void
+    {
+        $target = array_shift($args);
+
+        if (null === $target) {
+            $this->reply->reply($uid, 'Syntax: AUTOMODE <nick> [modes]');
+
+            return;
+        }
+
+        $modes = [] === $args ? null : implode(' ', $args);
+
+        $result = ($this->updateAutomode)($uid, $target, $modes, $state);
+
+        match ($result->status) {
+            UpdateAutomodeResult::CHANGED => $this->reply->reply($uid, sprintf('AutoMode for %s set.', $target)),
+            UpdateAutomodeResult::CLEARED => $this->reply->reply($uid, sprintf('AutoMode for %s cleared.', $target)),
+            UpdateAutomodeResult::NOT_IDENTIFIED => $this->reply->reply($uid, 'You must be identified to change automode.'),
+            UpdateAutomodeResult::NOT_AUTHORIZED => $this->reply->reply($uid, 'You can only change your own automode.'),
+            UpdateAutomodeResult::UNKNOWN_ACCOUNT => $this->reply->reply($uid, sprintf('%s is not registered.', $target)),
+            UpdateAutomodeResult::INVALID_VALUE => $this->reply->reply($uid, (string) $result->error),
+            default => $this->reply->reply($uid, 'The automode could not be changed.'),
         };
     }
 

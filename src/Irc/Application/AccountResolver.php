@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dbots\Irc\Application;
 
+use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
 use InvalidArgumentException;
@@ -23,6 +24,13 @@ final readonly class AccountResolver
 
     public function resolve(string $uid, NetworkState $state): ?string
     {
+        $account = $this->resolveAccount($uid, $state);
+
+        return null === $account ? null : $account->nick->value;
+    }
+
+    public function resolveAccount(string $uid, NetworkState $state): ?Account
+    {
         $nick = $state->nickOf($uid);
 
         if (null === $nick || !$state->hasMode($uid, 'r')) {
@@ -30,7 +38,7 @@ final readonly class AccountResolver
         }
 
         try {
-            return $this->accounts->findByNick(new Nick($nick))?->nick->value;
+            return $this->accounts->findByNick(new Nick($nick));
         } catch (InvalidArgumentException) {
             return null;
         }
