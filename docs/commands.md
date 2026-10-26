@@ -46,7 +46,7 @@ the original; **todo** is not implemented.
 | `BLACKMAIL ADD|DEL|LIST <dominio>` | done | IRC-operator only; blocks registration emails from listed domains |
 | `VREG ON|OFF` | done | IRC-operator only; toggles email validation for registration |
 | `VALIDAR <código>` | done | Completes registration when VREG is ON |
-| `migrar` | todo | dBots-specific migration workflow; parked for now |
+| `migrar` | dropped | dBots-specific migration workflow with no equivalent in the new UDB-backed architecture |
 
 ## CHaN
 
