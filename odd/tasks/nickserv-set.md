@@ -41,7 +41,7 @@ original `ni.mrc`: `EMAIL`, `URL`, `QUIT`, `PRIVATE`, `KILL` and `AUTOMODE`.
 - [ ] **T6** (S8) — Update `AccountInfoHandler` to show the new fields.
 - [ ] **T7** (S9) — Update `NickServHelp` and `docs/commands.md`.
 - [ ] **T8** (S10) — Unit tests.
-- [ ] **T9** — Run `composer check`, commit, and push.
+- [x] **T9** — Run `composer check`, commit, and push.
 
 ## Log
 
