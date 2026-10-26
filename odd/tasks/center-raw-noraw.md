@@ -37,7 +37,7 @@ CeNTeR, gated to Root, with a blocklist and an audit trail.
 - [x] **T4** (S8) — Update `CeNTeRHelp` and `docs/commands.md`.
 - [x] **T5** — Add unit tests for blocklist repository, RAW gating, blocked commands,
   allowed commands, and NORAW management.
-- [ ] **T6** — Run `composer check`, commit, and push.
+- [x] **T6** — Run `composer check`, commit, and push.
 
 ## Risk
 

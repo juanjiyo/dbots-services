@@ -13,6 +13,7 @@ use Dbots\Domain\Staff\StaffRank;
 use Dbots\Irc\Adapter\In\IrcMessage;
 use Dbots\Irc\Adapter\Out\Irc\ServiceUidFormatter;
 use Dbots\Irc\Application\AccountResolver;
+use Dbots\Irc\Application\DebugRelay;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\Module\ModuleRegistry;
 use Dbots\Module\ModuleRuntime;
@@ -308,6 +309,51 @@ final class CenTeRServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('NORAW LIST'), $this->state);
 
         self::assertSame(['001AAAAAA: Permiso denegado.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function rawUsageIsLoggedToTheDebugChannel(): void
+    {
+        $debugTransport = new RecordingTransport();
+        $debug = new DebugRelay($debugTransport, '003A00005', '#debug');
+        $handler = new CenTeRServCommandHandler(
+            $this->irc,
+            new StaffAuthority($this->ranks),
+            $this->ranks,
+            $this->accounts,
+            $this->createModules(),
+            new AccountResolver($this->accounts),
+            $this->transport,
+            $this->rawBlocklist,
+            'CeNTeR',
+            '003A00008',
+            CenTeRServHelp::create(),
+            'claveRaiz',
+            $debug,
+        );
+
+        $handler->handle($this->privmsg('ROOT claveRaiz'), $this->state);
+        $handler->handle($this->privmsg('RAW MODE #canal +m'), $this->state);
+        $handler->handle($this->privmsg('RAW SQUIT services.example'), $this->state);
+
+        $logged = implode("\n", $debugTransport->written);
+        self::assertStringContainsString('usa RAW para MODE #canal +m', $logged);
+        self::assertStringContainsString('intento enviar SQUIT por RAW', $logged);
+    }
+
+    private function createModules(): ModuleRuntime
+    {
+        $registry = new ModuleRegistry($this->moduleState, __DIR__.'/../../../modules');
+
+        return new ModuleRuntime(
+            $registry,
+            $this->transport,
+            new ServiceUidFormatter('003'),
+            $this->enforcement,
+            '003',
+            'bots.sitiochat.es',
+            '#debug',
+        );
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage
