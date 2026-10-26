@@ -40,7 +40,8 @@ the original; **todo** is not implemented.
 | `SENDPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it via memo |
 | `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
 | `MARCA` / `MARCADEL` / `MERCADEL` | dropped | dBots-specific mark workflows with no UDB equivalent |
-| `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
+| `MSGNR` | dropped | Automatic login notice; no real use case identified |
+| `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
 
 ## CHaN
 
