@@ -14,6 +14,7 @@ use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
+use Dbots\NickServ\Application\Blackmail\BlackmailHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Help\NickServHelp;
@@ -22,8 +23,14 @@ use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
+use Dbots\NickServ\Application\ValidateRegistration\ValidateRegistrationHandler;
+use Dbots\NickServ\Application\Vreg\VregHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
+use Dbots\Tests\Support\InMemoryBlackmailRepository;
 use Dbots\Tests\Support\InMemoryMemoRepository;
+use Dbots\Tests\Support\InMemoryPendingRegistrationRepository;
+use Dbots\Tests\Support\InMemoryUdbSettingsRepository;
+use Dbots\Tests\Support\RecordingEmailSender;
 use Dbots\Tests\Support\RecordingIrc;
 use Dbots\Tests\Support\RecordingProjection;
 use PHPUnit\Framework\Attributes\Test;
@@ -34,6 +41,10 @@ final class NickServCommandHandlerTest extends TestCase
     private RecordingIrc $irc;
     private RecordingProjection $projection;
     private InMemoryAccountRepository $accounts;
+    private InMemoryBlackmailRepository $blackmail;
+    private InMemoryPendingRegistrationRepository $pendings;
+    private InMemoryUdbSettingsRepository $settings;
+    private RecordingEmailSender $emailSender;
     private InMemoryMemoRepository $memos;
     private NickServCommandHandler $handler;
     private NetworkState $state;
@@ -42,11 +53,17 @@ final class NickServCommandHandlerTest extends TestCase
     {
         $accounts = new InMemoryAccountRepository();
         $this->accounts = $accounts;
+        $this->blackmail = new InMemoryBlackmailRepository();
+        $this->pendings = new InMemoryPendingRegistrationRepository();
+        $this->settings = new InMemoryUdbSettingsRepository();
+        $this->emailSender = new RecordingEmailSender();
         $this->memos = new InMemoryMemoRepository();
         $this->irc = new RecordingIrc();
         $this->projection = new RecordingProjection();
+        $vreg = new VregHandler($this->settings);
+        $confirmation = new \Dbots\NickServ\Application\RegistrationConfirmation\RegistrationConfirmationSender($this->emailSender, 'TestNet');
         $this->handler = new NickServCommandHandler(
-            new RegisterNickHandler($accounts),
+            new RegisterNickHandler($accounts, new BlackmailHandler($this->blackmail), $vreg, $this->pendings, $this->emailSender, 'TestNet'),
             new IdentifyHandler($accounts),
             $this->irc,
             $this->projection,
@@ -55,6 +72,9 @@ final class NickServCommandHandlerTest extends TestCase
             new SendPasswordHandler($accounts, $this->memos),
             new UpdateAccountSettingHandler($accounts),
             new UpdateAutomodeHandler($accounts),
+            new BlackmailHandler($this->blackmail),
+            $vreg,
+            new ValidateRegistrationHandler($this->pendings, $accounts, $confirmation),
             new AccountResolver($accounts),
             new AccountInfoHandler($accounts, new NoChannels(), $this->memos),
             $accounts,
@@ -227,8 +247,11 @@ final class NickServCommandHandlerTest extends TestCase
 
     private function handlerWithChannels(ChannelRepositoryInterface $channels): NickServCommandHandler
     {
+        $vreg = new VregHandler($this->settings);
+        $confirmation = new \Dbots\NickServ\Application\RegistrationConfirmation\RegistrationConfirmationSender($this->emailSender, 'TestNet');
+
         return new NickServCommandHandler(
-            new RegisterNickHandler($this->accounts),
+            new RegisterNickHandler($this->accounts, new BlackmailHandler($this->blackmail), $vreg, $this->pendings, $this->emailSender, 'TestNet'),
             new IdentifyHandler($this->accounts),
             $this->irc,
             $this->projection,
@@ -237,6 +260,9 @@ final class NickServCommandHandlerTest extends TestCase
             new SendPasswordHandler($this->accounts, $this->memos),
             new UpdateAccountSettingHandler($this->accounts),
             new UpdateAutomodeHandler($this->accounts),
+            new BlackmailHandler($this->blackmail),
+            $vreg,
+            new ValidateRegistrationHandler($this->pendings, $this->accounts, $confirmation),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $channels, $this->memos),
             $this->accounts,
@@ -481,6 +507,85 @@ final class NickServCommandHandlerTest extends TestCase
         $this->handler->handle($this->privmsg('SET URL https://example.org'), $this->state);
 
         self::assertSame(['001AAAAAA: You must be identified to change your settings.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function itRejectsBlacklistedEmailDomains(): void
+    {
+        $oper = $this->operState();
+        $this->handler->handle($this->privmsg('BLACKMAIL ADD badmail.com', '001AAAAAA'), $oper);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('register hunter2 user@badmail.com'), $this->state);
+
+        self::assertSame(['001AAAAAA: That email domain is not allowed.'], $this->irc->replies);
+        self::assertNull($this->accounts->findByNick(new Nick('JuanJo')));
+    }
+
+    #[Test]
+    public function opersCanManageTheEmailBlacklist(): void
+    {
+        $oper = $this->operState();
+
+        $this->handler->handle($this->privmsg('BLACKMAIL ADD badmail.com', '001AAAAAA'), $oper);
+        $this->handler->handle($this->privmsg('BLACKMAIL ADD evil.org', '001AAAAAA'), $oper);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('BLACKMAIL LIST', '001AAAAAA'), $oper);
+
+        self::assertSame(['001AAAAAA: 1. badmail.com', '001AAAAAA: 2. evil.org'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function nonOpersCannotUseBlackmail(): void
+    {
+        $this->handler->handle($this->privmsg('BLACKMAIL ADD badmail.com'), $this->state);
+
+        self::assertSame(['001AAAAAA: This command is restricted to IRC operators.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function vregPutsRegistrationIntoPendingState(): void
+    {
+        $oper = $this->operState();
+        $this->handler->handle($this->privmsg('VREG ON', '001AAAAAA'), $oper);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('register hunter2 user@example.com'), $this->state);
+
+        self::assertNull($this->accounts->findByNick(new Nick('JuanJo')));
+        self::assertNotNull($this->pendings->findByNick(new Nick('JuanJo')));
+        self::assertSame(['001AAAAAA: A validation code has been sent to your email. Use VALIDAR <code> to complete registration.'], $this->irc->replies);
+    }
+
+    #[Test]
+    public function validarCompletesPendingRegistration(): void
+    {
+        $oper = $this->operState();
+        $this->handler->handle($this->privmsg('VREG ON', '001AAAAAA'), $oper);
+        $this->handler->handle($this->privmsg('register hunter2 user@example.com'), $this->state);
+        $pending = $this->pendings->findByNick(new Nick('JuanJo'));
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg(sprintf('VALIDAR %s', $pending->code), '001AAAAAA'), $this->state);
+
+        self::assertNotNull($this->accounts->findByNick(new Nick('JuanJo')));
+        self::assertNull($this->pendings->findByNick(new Nick('JuanJo')));
+    }
+
+    #[Test]
+    public function validarRejectsAWrongCode(): void
+    {
+        $oper = $this->operState();
+        $this->handler->handle($this->privmsg('VREG ON', '001AAAAAA'), $oper);
+        $this->handler->handle($this->privmsg('register hunter2 user@example.com'), $this->state);
+        $this->irc->replies = [];
+
+        $this->handler->handle($this->privmsg('VALIDAR 000000', '001AAAAAA'), $this->state);
+
+        self::assertNull($this->accounts->findByNick(new Nick('JuanJo')));
+        self::assertNotNull($this->pendings->findByNick(new Nick('JuanJo')));
+        self::assertSame(['001AAAAAA: The validation code is incorrect.'], $this->irc->replies);
     }
 
     private function privmsg(string $text, string $uid = '001AAAAAA'): IrcMessage

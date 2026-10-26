@@ -10,4 +10,6 @@ enum RegisterNickResult
     case AlreadyRegistered;
     case InvalidNick;
     case WeakPassword;
+    case BlacklistedEmail;
+    case PendingValidation;
 }

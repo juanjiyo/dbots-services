@@ -11,6 +11,7 @@ use Dbots\Irc\Application\AccountResolver;
 use Dbots\Irc\Application\Help\HelpCatalog;
 use Dbots\Irc\Application\NetworkState;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
+use Dbots\NickServ\Application\Blackmail\BlackmailHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordResult;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
@@ -28,6 +29,9 @@ use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingResult;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeResult;
+use Dbots\NickServ\Application\ValidateRegistration\ValidateRegistrationHandler;
+use Dbots\NickServ\Application\ValidateRegistration\ValidateRegistrationResult;
+use Dbots\NickServ\Application\Vreg\VregHandler;
 use InvalidArgumentException;
 
 use function array_filter;
@@ -51,6 +55,9 @@ final readonly class NickServCommandHandler
         private SendPasswordHandler $sendPassword,
         private UpdateAccountSettingHandler $updateSetting,
         private UpdateAutomodeHandler $updateAutomode,
+        private BlackmailHandler $blackmail,
+        private VregHandler $vreg,
+        private ValidateRegistrationHandler $validate,
         private AccountResolver $identity,
         private AccountInfoHandler $info,
         private AccountRepositoryInterface $accounts,
@@ -109,6 +116,9 @@ final readonly class NickServCommandHandler
             'NOEXPIRE' => $this->onNoexpire($sender, $parts, $state),
             'SENDPASS' => $this->onSendPass($sender, $parts, $state),
             'AUTOMODE' => $this->onAutomode($sender, $parts, $state),
+            'BLACKMAIL' => $this->onBlackmail($sender, $parts, $state),
+            'VREG' => $this->onVreg($sender, $parts, $state),
+            'VALIDAR' => $this->onValidar($sender, $parts, $state),
             'HELP', 'AYUDA' => $this->onHelp($sender, $parts, $state),
             default => $this->reply->reply($sender, 'Unknown command. Use HELP to list the available commands.'),
         };
@@ -129,9 +139,11 @@ final readonly class NickServCommandHandler
 
         match ($result) {
             RegisterNickResult::Registered => $this->onRegistered($uid, $nick),
+            RegisterNickResult::PendingValidation => $this->reply->reply($uid, 'A validation code has been sent to your email. Use VALIDAR <code> to complete registration.'),
             RegisterNickResult::AlreadyRegistered => $this->reply->reply($uid, 'That nickname is already registered.'),
             RegisterNickResult::InvalidNick => $this->reply->reply($uid, 'That nickname cannot be registered.'),
             RegisterNickResult::WeakPassword => $this->reply->reply($uid, 'The password is too short.'),
+            RegisterNickResult::BlacklistedEmail => $this->reply->reply($uid, 'That email domain is not allowed.'),
         };
     }
 
@@ -577,6 +589,129 @@ final readonly class NickServCommandHandler
             UpdateAutomodeResult::UNKNOWN_ACCOUNT => $this->reply->reply($uid, sprintf('%s is not registered.', $target)),
             UpdateAutomodeResult::INVALID_VALUE => $this->reply->reply($uid, (string) $result->error),
             default => $this->reply->reply($uid, 'The automode could not be changed.'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onBlackmail(string $uid, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $action = strtoupper((string) array_shift($args));
+
+        match ($action) {
+            'ADD' => $this->onBlackmailAdd($uid, $args),
+            'DEL' => $this->onBlackmailDel($uid, $args),
+            'LIST' => $this->onBlackmailList($uid),
+            default => $this->reply->reply($uid, 'Syntax: BLACKMAIL ADD|DEL|LIST <domain|number>'),
+        };
+    }
+
+    /** @param list<string> $args */
+    private function onBlackmailAdd(string $uid, array $args): void
+    {
+        $domain = array_shift($args);
+
+        if (null === $domain || '' === $domain) {
+            $this->reply->reply($uid, 'Syntax: BLACKMAIL ADD <domain>');
+
+            return;
+        }
+
+        $this->blackmail->add($domain);
+        $this->reply->reply($uid, sprintf('%s added to the blacklist.', $domain));
+    }
+
+    /** @param list<string> $args */
+    private function onBlackmailDel(string $uid, array $args): void
+    {
+        $domain = array_shift($args);
+
+        if (null === $domain || '' === $domain) {
+            $this->reply->reply($uid, 'Syntax: BLACKMAIL DEL <domain>');
+
+            return;
+        }
+
+        if ($this->blackmail->remove($domain)) {
+            $this->reply->reply($uid, sprintf('%s removed from the blacklist.', $domain));
+
+            return;
+        }
+
+        $this->reply->reply($uid, sprintf('%s was not in the blacklist.', $domain));
+    }
+
+    private function onBlackmailList(string $uid): void
+    {
+        $domains = $this->blackmail->list();
+
+        if ([] === $domains) {
+            $this->reply->reply($uid, 'The blacklist is empty.');
+
+            return;
+        }
+
+        foreach ($domains as $index => $domain) {
+            $this->reply->reply($uid, sprintf('%d. %s', $index + 1, $domain));
+        }
+    }
+
+    /** @param list<string> $args */
+    private function onVreg(string $uid, array $args, NetworkState $state): void
+    {
+        if (!$this->requireOperer($uid, $state)) {
+            return;
+        }
+
+        $value = strtoupper((string) array_shift($args));
+
+        match ($value) {
+            'ON' => $this->enableVreg($uid),
+            'OFF' => $this->disableVreg($uid),
+            default => $this->reply->reply($uid, 'Syntax: VREG ON|OFF'),
+        };
+    }
+
+    private function enableVreg(string $uid): void
+    {
+        $this->vreg->enable();
+        $this->reply->reply($uid, 'Email validation is now enabled.');
+    }
+
+    private function disableVreg(string $uid): void
+    {
+        $this->vreg->disable();
+        $this->reply->reply($uid, 'Email validation is now disabled.');
+    }
+
+    /** @param list<string> $args */
+    private function onValidar(string $uid, array $args, NetworkState $state): void
+    {
+        $nick = $state->nickOf($uid);
+
+        if (null === $nick) {
+            return;
+        }
+
+        $code = array_shift($args);
+
+        if (null === $code || '' === $code) {
+            $this->reply->reply($uid, 'Syntax: VALIDAR <code>');
+
+            return;
+        }
+
+        $result = ($this->validate)($nick, $code);
+
+        match ($result) {
+            ValidateRegistrationResult::Validated => $this->onRegistered($uid, $nick),
+            ValidateRegistrationResult::InvalidNick => $this->reply->reply($uid, 'That nickname cannot be registered.'),
+            ValidateRegistrationResult::NoPendingRegistration => $this->reply->reply($uid, 'You have no pending registration.'),
+            ValidateRegistrationResult::Expired => $this->reply->reply($uid, 'The validation code has expired. Register again.'),
+            ValidateRegistrationResult::WrongCode => $this->reply->reply($uid, 'The validation code is incorrect.'),
         };
     }
 

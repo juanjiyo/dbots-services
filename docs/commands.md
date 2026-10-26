@@ -42,7 +42,10 @@ the original; **todo** is not implemented.
 | `MARCA` / `MARCADEL` / `MERCADEL` | dropped | dBots-specific mark workflows with no UDB equivalent |
 | `MSGNR` | dropped | Automatic login notice; no real use case identified |
 | `AUTOMODE <nick> [modos]` | done | Original mIRC format; applies modes automatically on `+r` |
-| `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
+| `BLACKMAIL ADD|DEL|LIST <dominio>` | done | IRC-operator only; blocks registration emails from listed domains |
+| `VREG ON|OFF` | done | IRC-operator only; toggles email validation for registration |
+| `VALIDAR <código>` | done | Completes registration when VREG is ON |
+| `migrar` | todo | dBots-specific migration workflow; parked for now |
 
 ## CHaN
 

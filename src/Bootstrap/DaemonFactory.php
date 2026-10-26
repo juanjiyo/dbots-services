@@ -52,15 +52,20 @@ use Dbots\NickServ\Adapter\In\Irc\NickServCommandHandler;
 use Dbots\NickServ\Adapter\Out\Irc\IrcReplySender;
 use Dbots\NickServ\Application\AccountInfo\AccountInfoHandler;
 use Dbots\NickServ\Application\ApplyAutomode\ApplyAutomode;
+use Dbots\NickServ\Application\Blackmail\BlackmailHandler;
 use Dbots\NickServ\Application\ChangePassword\ChangePasswordHandler;
 use Dbots\NickServ\Application\DropNick\DropNickHandler;
 use Dbots\NickServ\Application\Help\NickServHelp;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Port\Out\AccountRepositoryInterface;
+use Dbots\NickServ\Application\Port\Out\EmailSenderInterface;
+use Dbots\NickServ\Application\Port\Out\PendingRegistrationRepositoryInterface;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\SendPassword\SendPasswordHandler;
 use Dbots\NickServ\Application\UpdateAccountSetting\UpdateAccountSettingHandler;
 use Dbots\NickServ\Application\UpdateAutomode\UpdateAutomodeHandler;
+use Dbots\NickServ\Application\ValidateRegistration\ValidateRegistrationHandler;
+use Dbots\NickServ\Application\Vreg\VregHandler;
 use Dbots\OperServ\Adapter\In\Irc\OperServCommandHandler;
 use Dbots\OperServ\Adapter\Out\Irc\S2sEnforcement;
 use Dbots\OperServ\Application\Help\OperServHelp;
@@ -107,6 +112,9 @@ final readonly class DaemonFactory
         private UdbSettingsRepositoryInterface $udbSettings,
         private SpamRuleRepositoryInterface $spamRules,
         private BlockProviderInterface $blocks,
+        private ?\Dbots\NickServ\Application\Port\Out\BlackmailRepositoryInterface $blackmail = null,
+        private ?PendingRegistrationRepositoryInterface $pendings = null,
+        private ?EmailSenderInterface $emailSender = null,
         private string $rootPassword = '',
         private string $debugChannel = '',
         private string $jailChannel = '',
@@ -123,6 +131,26 @@ final readonly class DaemonFactory
     }
 
     private string $epoch;
+
+    private function createEmailSender(): EmailSenderInterface
+    {
+        $type = $_ENV['EMAIL_SENDER'] ?? 'disabled';
+        $from = $_ENV['SMTP_FROM'] ?? 'noreply@example.com';
+
+        if ('symfony' === $type) {
+            $dsn = $_ENV['MAILER_DSN'] ?? '';
+
+            if ('' !== $dsn) {
+                return new \Dbots\NickServ\Adapter\Out\Email\SymfonyMailerEmailSender($from, $dsn);
+            }
+        }
+
+        if ('smtp' === $type) {
+            return new \Dbots\NickServ\Adapter\Out\Email\SmtpEmailSender($from);
+        }
+
+        return new \Dbots\NickServ\Adapter\Out\Email\DisabledEmailSender();
+    }
 
     public static function epoch(): string
     {
@@ -155,8 +183,17 @@ final readonly class DaemonFactory
         $channelProjection = new UdbChannelProjection($this->channels, $authority);
         $spamProjection = new UdbSpamProjection($this->spamRules, $authority);
 
+        $blackmail = $this->blackmail ?? new \Dbots\NickServ\Adapter\Out\Persistence\SqliteBlackmailRepository(new \PDO('sqlite::memory:'));
+        $blackmailHandler = new BlackmailHandler($blackmail);
+        $pendings = $this->pendings ?? new \Dbots\NickServ\Adapter\Out\Persistence\SqlitePendingRegistrationRepository(new \PDO('sqlite::memory:'));
+        $emailSender = $this->emailSender ?? $this->createEmailSender();
+        $vreg = new VregHandler($this->udbSettings);
+        $networkName = $_ENV['NETWORK_NAME'] ?? $host;
+        $from = $_ENV['SMTP_FROM'] ?? 'noreply@example.com';
+        $confirmation = new \Dbots\NickServ\Application\RegistrationConfirmation\RegistrationConfirmationSender($emailSender, $networkName);
+
         $nickServ = new NickServCommandHandler(
-            new RegisterNickHandler($this->accounts),
+            new RegisterNickHandler($this->accounts, $blackmailHandler, $vreg, $pendings, $emailSender, $networkName),
             new IdentifyHandler($this->accounts),
             new IrcReplySender($this->transport, $nickServUid),
             $accountProjection,
@@ -165,6 +202,9 @@ final readonly class DaemonFactory
             new SendPasswordHandler($this->accounts, $this->memos),
             new UpdateAccountSettingHandler($this->accounts),
             new UpdateAutomodeHandler($this->accounts),
+            $blackmailHandler,
+            $vreg,
+            new ValidateRegistrationHandler($pendings, $this->accounts, $confirmation),
             new AccountResolver($this->accounts),
             new AccountInfoHandler($this->accounts, $this->channels, $this->memos),
             $this->accounts,

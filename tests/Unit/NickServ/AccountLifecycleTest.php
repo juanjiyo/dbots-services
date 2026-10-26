@@ -8,11 +8,17 @@ use DateTimeImmutable;
 use Dbots\Domain\Account\Account;
 use Dbots\Domain\Account\Nick;
 use Dbots\Domain\Account\Password;
+use Dbots\NickServ\Application\Blackmail\BlackmailHandler;
 use Dbots\NickServ\Application\Identify\IdentifyHandler;
 use Dbots\NickServ\Application\Identify\IdentifyResult;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickHandler;
 use Dbots\NickServ\Application\RegisterNick\RegisterNickResult;
+use Dbots\NickServ\Application\Vreg\VregHandler;
 use Dbots\Tests\Support\InMemoryAccountRepository;
+use Dbots\Tests\Support\InMemoryBlackmailRepository;
+use Dbots\Tests\Support\InMemoryPendingRegistrationRepository;
+use Dbots\Tests\Support\InMemoryUdbSettingsRepository;
+use Dbots\Tests\Support\RecordingEmailSender;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +31,14 @@ final class AccountLifecycleTest extends TestCase
     protected function setUp(): void
     {
         $this->accounts = new InMemoryAccountRepository();
-        $this->register = new RegisterNickHandler($this->accounts);
+        $this->register = new RegisterNickHandler(
+            $this->accounts,
+            new BlackmailHandler(new InMemoryBlackmailRepository()),
+            new VregHandler(new InMemoryUdbSettingsRepository()),
+            new InMemoryPendingRegistrationRepository(),
+            new RecordingEmailSender(),
+            'TestNet',
+        );
         $this->identify = new IdentifyHandler($this->accounts);
     }
 
