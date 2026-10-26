@@ -40,7 +40,7 @@ the original; **todo** is not implemented.
 | `SENDPASS <nick>` | done | IRC-operator only; generates a temporary password and sends it via memo |
 | `SENDNEWPASS`, `GETPASS` | dropped | Passwords are hashed; `GETPASS` cannot read them back |
 | `VIEWIP` | todo | Will move to a future `HostServ`; `VHOST` / `DROPVHOST` deliberately live there, not in NiCK |
-| `MARCA` / `MARCADEL` / `MERCADEL`, `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | todo | dBots-specific workflows with no UDB equivalent |
+| `MARCA` / `MARCADEL` / `MERCADEL`, `MSGNR`, `automode`, `blackmail`, `validar`, `vreg`, `migrar` | dropped | dBots-specific workflows with no UDB equivalent |
 
 ## CHaN
 
